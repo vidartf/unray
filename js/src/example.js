@@ -27,7 +27,6 @@ var array_serialization = { deserialize: JSONToArray, serialize: arrayToJSON };
 
 
 // TODO: Place in its own file or even separate module
-/*
 class Unray
 {
     constructor(gl) {
@@ -35,7 +34,6 @@ class Unray
         console.log("Unray: " + gl);
     }
 };
-*/
 
 
 // Custom Model. Custom widgets models must at least provide default values
@@ -93,19 +91,17 @@ var UnrayView = widgets.DOMWidgetView.extend({
         this.model.on('change:values', this.values_changed, this);
     },
 
-/*
-    _setup_unray: function() {
+    _setup_unray: function(elm) {
         console.log("Beginning of unray setup.");
-        if (!!this._canvas) {
+        if (!this._canvas) {
             console.log("Creating canvas for unray.");
-            this._canvas = document.createElement("canvas");
-            this._canvas.width = 800;
-            this._canvas.height = 600;
-            this.el.appendChild(this._canvas);
+            var canvas = document.createElement("canvas");
+            elm.appendChild(canvas);
+            this._canvas = canvas;
         }
-        if (!!this._gl) {
+        if (!this._gl) {
             console.log("Creating gl context for unray.");
-            let gloptions = {
+            var gloptions = {
                 antialias: false,
                 depth: false,
                 alpha: true,
@@ -115,23 +111,15 @@ var UnrayView = widgets.DOMWidgetView.extend({
             };
             this._gl = this._canvas.getContext("webgl2", gloptions);
         }
-        if (!!this.unray) {
+        if (!this._unray) {
             console.log("Creating unray object.");
             this._unray = new Unray(this._gl);
         }
         console.log("End of unray setup.");
     },
-        */
 
     render: function() {
-        if (!this._render_count) {
-            this._render_count = 1;
-        } else {
-            this._render_count++;
-        }
-        this.el.textContent = "Rendering call " + this._render_count;
-
-        //this._setup_unray();
+        this._setup_unray(this.el);
         //this._setup_unray_data();
         this._wire_events();
     },
