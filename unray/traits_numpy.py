@@ -1,0 +1,68 @@
+"""
+Simple serialization for numpy arrays
+
+NB! This file copied verbatim from pythreejs:
+
+Copyright (c) 2013, Jason Grout
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice, this
+  list of conditions and the following disclaimer in the documentation and/or
+  other materials provided with the distribution.
+
+* Neither the name of the PyThreeJS development team nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
+import numpy as np
+from traitlets import Instance, TraitError, TraitType, Undefined
+
+# Format:
+# {'dtype': string, 'shape': tuple, 'array': memoryview}
+
+def array_to_json(value, widget):
+    return {
+        'shape': value.shape,
+        'dtype': str(value.dtype),
+        'buffer': memoryview(value) # maybe should do array.tobytes(order='C') to copy
+    }
+
+def array_from_json(value, widget):
+    # may need to copy the array if the underlying buffer is readonly
+    n = np.frombuffer(value['buffer'], dtype=value['dtype'])
+    n.shape = value['shape']
+    return n
+
+array_serialization = dict(to_json=array_to_json, from_json=array_from_json)
+
+def shape_constraints(*args):
+    """Example: shape_constraints(None,3) insists that the shape looks like (*,3)"""
+    def validator(trait, value):
+        if trait.allow_none:
+            print(value)
+        if len(value.shape) != len(args):
+            raise TraitError('%s shape expected to have %s components, but got %s components'%(trait.name, len(args), (value, type(value))))
+        for i, constraint in enumerate(args):
+            if constraint is not None:
+                if value.shape[i] != constraint:
+                    raise TraitError('Dimension %i is supposed to be size %d, but got dimension %d'%(i, constraint, value.shape[i]))
+        return value
+    return validator

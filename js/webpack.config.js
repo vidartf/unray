@@ -19,7 +19,7 @@ module.exports = [
         entry: './src/extension.js',
         output: {
             filename: 'extension.js',
-            path: '../ipyunray/static',
+            path: '../unray/static',
             libraryTarget: 'amd'
         }
     },
@@ -32,7 +32,7 @@ module.exports = [
         entry: './src/index.js',
         output: {
             filename: 'index.js',
-            path: '../ipyunray/static',
+            path: '../unray/static',
             libraryTarget: 'amd'
         },
         devtool: 'source-map',

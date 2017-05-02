@@ -1,1 +1,1 @@
-recursive-include ipyunray/static *.*
+recursive-include unray/static *.*

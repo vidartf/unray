@@ -66,8 +66,8 @@ class NPM(Command):
     node_modules = os.path.join(node_root, 'node_modules')
 
     targets = [
-        os.path.join(here, 'ipyunray', 'static', 'extension.js'),
-        os.path.join(here, 'ipyunray', 'static', 'index.js')
+        os.path.join(here, 'unray', 'static', 'extension.js'),
+        os.path.join(here, 'unray', 'static', 'index.js')
     ]
 
     def initialize_options(self):
@@ -112,20 +112,20 @@ class NPM(Command):
         update_package_data(self.distribution)
 
 version_ns = {}
-with open(os.path.join(here, 'ipyunray', '_version.py')) as f:
+with open(os.path.join(here, 'unray', '_version.py')) as f:
     exec(f.read(), {}, version_ns)
 
 setup_args = {
-    'name': 'ipyunray',
+    'name': 'unray',
     'version': version_ns['__version__'],
     'description': 'Volume Rendering for Unstructured Tetrahedral Meshes',
     'long_description': LONG_DESCRIPTION,
     'include_package_data': True,
     'data_files': [
         ('share/jupyter/nbextensions/jupyter-unray', [
-            'ipyunray/static/extension.js',
-            'ipyunray/static/index.js',
-            'ipyunray/static/index.js.map',
+            'unray/static/extension.js',
+            'unray/static/index.js',
+            'unray/static/index.js.map',
         ]),
     ],
     'install_requires': [

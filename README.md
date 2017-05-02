@@ -8,8 +8,8 @@ Installation
 
 To install use pip:
 
-    $ pip install ipyunray
-    $ jupyter nbextension enable --py --sys-prefix ipyunray
+    $ pip install unray
+    $ jupyter nbextension enable --py --sys-prefix unray
 
 
 For a development installation (requires npm),
@@ -17,5 +17,5 @@ For a development installation (requires npm),
     $ git clone https://github.com/martinal/jupyter-unray.git
     $ cd jupyter-unray
     $ pip install -e .
-    $ jupyter nbextension install --py --symlink --sys-prefix ipyunray
-    $ jupyter nbextension enable --py --sys-prefix ipyunray
+    $ jupyter nbextension install --py --symlink --sys-prefix unray
+    $ jupyter nbextension enable --py --sys-prefix unray

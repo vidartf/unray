@@ -1,4 +1,4 @@
-- To release a new version of ipyunray on PyPI:
+- To release a new version of unray on PyPI:
 
 Update _version.py (set release version, remove 'dev')
 git add and git commit
