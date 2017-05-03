@@ -68,6 +68,56 @@ function unray_default_config() {
 }
 
 
+shader_functions = {
+    
+};
+let shader_header = `#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp isampler2D;
+`
+
+let shader_library = `
+float max4(vec4 x) {
+    return max(max(x[0], x[1]), max(x[2], x[3]));
+}
+
+float min4(vec4 x) {
+    return min(min(x[0], x[1]), min(x[2], x[3]));
+}
+
+vec4 sort4(vec4 x) {
+    vec4 y = vec4(x);
+    for (int i = 1; i < 4; ++i) {
+        float z = y[i];
+        int j = i - 1;
+        while (j >= 0 && y[j] > z) {
+            y[j+1] = y[j];
+            --j;
+        }
+        y[j + 1] = z;
+    }
+    return y;
+}
+
+int bsum4(bvec4 b) {
+    int c = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (b[i])
+            ++c;
+    }
+    return c;
+}
+
+// Return dimension of subentity on tetrahedron that
+// barycentric coordinate corresponds to within distance eps
+int on_tetrahedron_entity(vec4 baryCoord, float eps) {
+    return bsum4(lessThan(baryCoord, vec4(eps)));
+}
+`
+
+
 class Unray
 {
     constructor(gl) {
@@ -100,60 +150,86 @@ class Unray
 
     // TODO: Need to piece together shaders based on config somehow
     vertex_shader_source() {
-        let shader = `#version 300 es
-        precision highp float;
-        precision highp int;
-        precision highp sampler2D;
-        precision highp isampler2D;
-
+        let shader = shader_header + shader_library + `
         // Local vertex attributes (just a test, and we need at least one vertex attribute to draw)
-        layout (location = 0) in vec4 a_baryCoord;
+        layout (location = 0) in int a_debug;
 
         // Tetrahedron instance attributes
-        //layout (location = 1) in vec4 t_color; // FIXME: Want [4] of these
+        layout (location = 1) in vec4 t_nx;
+        layout (location = 2) in vec4 t_ny;
+        layout (location = 3) in vec4 t_nz;
+        layout (location = 4) in vec4 t_ne;
 
         // Output values
         out vec4 v_baryCoord;
         out vec4 v_color;
+        out vec4 v_rayLengths;
 
         void main()
         {
+            // This is the local vertex id 0..3 on the current tetrahedron instance
+            int v = gl_VertexID;
+
+            // Get normalized view direction vector // TODO: from camera data
+            vec3 viewDirection = vec3(0.0f, 0.0f, 1.0f);
+
+            // Get ray equation data for the face on this
+            // tetrahedron opposing the current vertex
+            //vec4 rayEq = vec4(t_N0[v], t_N1[v], t_N2[v], t_N3[v]);
+            vec3 n = vec3(t_nx[v], t_ny[v], t_nz[v]);
+            float rayLength = t_ne[v] / dot(viewDirection, n);
+
+            // Just need to do something that can't be compiled away
+            // with the dummy vertex attribute or this won't compile...
+            if (a_debug != 0) {
+                rayLength = 1.0f;
+            }
+
+            // Place scalar raylength from vertex to opposing
+            // face in the corresponing vector entry
+            v_rayLengths = vec4(0.0f);
+            v_rayLengths[v] = rayLength;
+
         #if 1
-            // Reference coordinates on tetrahedron
+            // Local barycentric coordinates on tetrahedron
             v_baryCoord = vec4(0.0f);
-            v_baryCoord[gl_VertexID] = a_baryCoord[gl_VertexID];
+            v_baryCoord[v] = 1.0f;
         #endif
 
-            //v_color = t_color[gl_VertexID];
+            //v_color = t_color[v];
 
-        #if 0
+        #if 1
             // Debugging colors
             const vec3 colors[8] = vec3[8](
-                vec3(0.0, 0.0, 0.0),
-                vec3(0.0, 0.0, 1.0),
-                vec3(0.0, 1.0, 0.0),
-                vec3(0.0, 1.0, 1.0),
                 vec3(1.0, 0.0, 0.0),
-                vec3(1.0, 0.0, 1.0),
-                vec3(1.0, 1.0, 0.0),
-                vec3(1.0, 1.0, 1.0)
+                vec3(1.0, 0.0, 0.0),
+                vec3(1.0, 0.0, 0.0),
+                vec3(1.0, 0.0, 0.0),
+                vec3(0.0, 1.0, 0.0),
+                vec3(0.0, 1.0, 0.0),
+                vec3(0.0, 1.0, 0.0),
+                vec3(0.0, 1.0, 0.0)
             );
-            v_color = vec4(colors[gl_InstanceID*4 + gl_VertexID], 1.0f);
+            v_color = vec4(colors[gl_InstanceID*4 + v], 1.0f);
+            if (v > 2)
+                v_color.rgb = vec3(0.0f);
+            //v_color.rgb = vec3(1.0, 0.0, 0.0);
+            //v_color.r = 1.0f / float(v + 1);
         #endif
 
         #if 1
             // Debugging positions
             const vec3 mesh[8] = vec3[8](
-                vec3( 1.0,  1.0,  1.0),
-                vec3( 1.0,  0.0,  0.0),
-                vec3( 0.0,  1.0,  0.0),
-                vec3( 0.0,  0.0,  1.0),
-                vec3(-1.0, -1.0, -1.0),
-                vec3(-1.0,  0.0,  0.0),
-                vec3( 0.0, -1.0,  0.0),
-                vec3( 0.0,  0.0, -1.0)
+                vec3(-1.0,  0.0,  0.5),
+                vec3(-0.5,  1.0, -0.5),
+                vec3(-0.5, -1.0, -0.5),
+                vec3( 0.0,  0.0,  0.5),
+                vec3( 1.0,  0.0,  0.5),
+                vec3( 0.5,  1.0, -0.5),
+                vec3( 0.5, -1.0, -0.5),
+                vec3( 0.0,  0.0,  0.5)
             );
-            gl_Position = vec4(mesh[gl_InstanceID*4 + gl_VertexID], 1.0f);
+            gl_Position = vec4(mesh[gl_InstanceID*4 + v], 1.0f);
         #endif
         }
         `;
@@ -161,38 +237,41 @@ class Unray
     }
 
     fragment_shader_source() {
-        let shader = `#version 300 es
-        precision highp float;
-        precision highp int;
-        precision highp sampler2D;
-        precision highp isampler2D;
-
-        float max4(vec4 x)
-        {
-            return max(max(x[0], x[1]), max(x[2], x[3]));
-        }
-
+        let shader = shader_header + shader_library + `
         // Globally constant uniforms
         //uniform vec4 u_dofs;
 
         // Varyings
         in vec4 v_baryCoord;
         in vec4 v_color;
+        in vec4 v_rayLengths;
 
         // Resulting color
         out vec4 fragColor;
 
         void main()
         {
-            // Piecewise linear function over tetrahedron
-            //float f = dot(u_dofs, v_refcoord);
-
-            // Maximum 1.0 at vertices, minimum 0.25 at midpoint
-            float f = max4(v_baryCoord);
-
-            // Debugging color
+            // This is the color we'll return in the end,
+            // allowing some modifications below
             vec4 C = v_color;
-            C.a = f;
+
+            // Example use of barycentric coordinates:
+            // Maximum 1.0 at vertices,
+            // 0.5 at midpoint of edges,
+            // 0.33 at midpoint of faces,
+            // minimum 0.25 at midpoint of cell
+            //float f = max4(v_baryCoord);
+
+            // Piecewise linear function over tetrahedron
+            //float f = dot(u_dofs, v_baryCoord);
+
+            // Debugging: highlight vertices, edges, faces
+            #if 0
+            int on_entity_dim = on_tetrahedron_entity(v_baryCoord, 0.05);
+            C[3-on_entity_dim] = 1.0f;
+            #endif
+
+            // Emit color at last
             fragColor = C;
         }
         `;
@@ -211,7 +290,7 @@ class Unray
         // For dynamic link-time location binding
         // TODO: Figure out how to interact with three.js w.r.t. locations (and other resources)
         let locations = {
-            //"a_baryCoord": 0,
+            //"a_debug": 0,
             //"t_color": 1,
         };
 
@@ -265,16 +344,11 @@ class Unray
 
         // Setup attributes
         this.attributes = {
-            "a_baryCoord": {
+            "a_debug": {
                 location: 0,
-                dim: 4,
-                gltype: gl.FLOAT,
-                array: new Float32Array([
-                    1.0, 0.0, 0.0, 0.0,
-                    0.0, 1.0, 0.0, 0.0,
-                    0.0, 0.0, 1.0, 0.0,
-                    0.0, 0.0, 0.0, 1.0,
-                ]),
+                dim: 1,
+                gltype: gl.INT,
+                array: new Int32Array([0, 0, 0, 0]),
                 buffer: gl.createBuffer(),
                 drawMode: gl.STATIC_DRAW,
                 divisor: 0,
@@ -303,8 +377,13 @@ class Unray
         for (let name in attributes) {
             let attr = attributes[name];
             gl.bindBuffer(gl.ARRAY_BUFFER, attr.buffer);
-            gl.vertexAttribPointer(attr.location, attr.dim, attr.gltype,
-                                   attr.normalized, attr.stride, attr.offset);
+            if (attr.gltype === gl.INT || attr.gltype === gl.UNSIGNED_INT) {
+                gl.vertexAttribIPointer(attr.location, attr.dim, attr.gltype,
+                                        attr.stride, attr.offset);
+            } else {
+                gl.vertexAttribPointer(attr.location, attr.dim, attr.gltype,
+                                       attr.normalized, attr.stride, attr.offset);
+            }
             gl.enableVertexAttribArray(attr.location);
             gl.vertexAttribDivisor(attr.location, attr.divisor);
         }
@@ -325,12 +404,12 @@ class Unray
 
         gl.disable(gl.DEPTH_TEST);
 
-        //gl.enable(gl.CULL_FACE);
-        gl.disable(gl.CULL_FACE);
+        gl.enable(gl.CULL_FACE);
+        //gl.disable(gl.CULL_FACE);
 
         this.configureBlending();
 
-        gl.clearColor(0.8, 0.8, 0.8, 1.0);
+        gl.clearColor(0.9, 0.9, 0.9, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
 
