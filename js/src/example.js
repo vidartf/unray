@@ -74,43 +74,54 @@ class Unray
 //
 //  when different from the base class.
 
+// Shared among models
+let module_defaults = {
+    _model_module : 'jupyter-unray',
+    _view_module : 'jupyter-unray',
+    _model_module_version : '0.1.0',
+    _view_module_version : '0.1.0',
+};
+
+
 // When serialiazing the entire widget state for embedding, only values that
 // differ from the defaults will be specified.
-//class UnrayModel extends widgets.DOMWidgetModel {
-var UnrayModel = widgets.DOMWidgetModel.extend({
+class UnrayModel extends widgets.DOMWidgetModel {
 
-    defaults: _.extend(_.result(this, 'widgets.DOMWidgetModel.prototype.defaults'), {
-        _model_name : 'UnrayModel',
-        _view_name : 'UnrayView',
-        _model_module : 'jupyter-unray',
-        _view_module : 'jupyter-unray',
-        _model_module_version : '0.1.0',
-        _view_module_version : '0.1.0',
-
-        // Configuration dict
-        config : {
+    defaults() {
+        // TODO: Define in unray module
+        let default_config = {
             raymodel: "sum",
-        },
+        };
 
-        // Mesh and function data
-        coordinates: ndarray(new Float32Array(), [0, 3]),
-        cells: ndarray(new Uint32Array(), [0, 3]),
-        values: ndarray(new Float32Array(), [0]),
+        let model_defaults = {
+            _model_name : 'UnrayModel',
+            _view_name : 'UnrayView',
 
-        // TODO: More to come
-    }) // end defaults
+            // Configuration dict
+            config : default_config,
 
-    //}, {
-    ,
+            // Mesh and function data
+            coordinates : ndarray(new Float32Array(), [0, 3]),
+            cells : ndarray(new Uint32Array(), [0, 3]),
+            values : ndarray(new Float32Array(), [0]),
 
-    serializers: _.extend({
-        coordinates: array_serialization,
-        cells: array_serialization,
-        values: array_serialization,
-    }, widgets.DOMWidgetModel.serializers)
+            // TODO: More to come
+        };
 
-});
-//};
+        let base_defaults = _.result(this, 'widgets.DOMWidgetModel.prototype.defaults');
+        return _.extend(base_defaults, module_defaults, model_defaults);
+    }
+
+    get serializers() {
+        let custom = {
+            coordinates: array_serialization,
+            cells: array_serialization,
+            values: array_serialization,
+        };
+        return _.extend(custom, widgets.DOMWidgetModel.serializers);
+    }
+
+};
 
 
 // Custom View. Renders the widget model.
