@@ -26,6 +26,8 @@ var arrayToJSON = function(obj, manager) {
 var array_serialization = { deserialize: JSONToArray, serialize: arrayToJSON };
 
 
+//////////////////////////////////////////////////////////////////////////////////////////
+// TODO: Place widget-independent unray parts in its own file or separate module
 
 function createShader(gl, type, source) {
     let shader = gl.createShader(type);
@@ -40,10 +42,14 @@ function createShader(gl, type, source) {
     gl.deleteShader(shader);
 }
 
-function createProgram(gl, vertexShader, fragmentShader) {
+function createProgram(gl, vertexShader, fragmentShader, locations) {
     let program = gl.createProgram();
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
+    for (let name in locations) {
+        let loc = locations[name];
+        gl.bindAttribLocation(program, loc, name);
+    }
     gl.linkProgram(program);
     let success = gl.getProgramParameter(program, gl.LINK_STATUS);
     if (success) {
@@ -55,14 +61,20 @@ function createProgram(gl, vertexShader, fragmentShader) {
 }
 
 
-// TODO: Place in its own file or even separate module
+function unray_default_config() {
+    return {
+        "raymodel": "surface",
+    };
+}
+
+
 class Unray
 {
     constructor(gl) {
         this.log("constructor, gl:");
         this.log(gl);
 
-        this.config = this.defaults();
+        this.config = unray_default_config();
         
         this.gl = gl;
         this.update_viewport();
@@ -81,36 +93,12 @@ class Unray
         console.log("Unray:  " + msg);
     }
 
-    defaults() {
-        return {
-            "raymodel": "surface",
-        };
-    }
-
     update_viewport() {
         let gl = this.gl;
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     }
 
     // TODO: Need to piece together shaders based on config somehow
-    fragment_shader_source() {
-        let shader = `#version 300 es
-        precision highp float;
-        precision highp int;
-        precision highp sampler2D;
-        precision highp isampler2D;
-
-        in vec4 v_color;
-        out vec4 fragColor;
-
-        void main()
-        {
-            fragColor = v_color;
-        }
-        `;
-        return shader;
-    }
-
     vertex_shader_source() {
         let shader = `#version 300 es
         precision highp float;
@@ -118,21 +106,28 @@ class Unray
         precision highp sampler2D;
         precision highp isampler2D;
 
-        //in vec4 a_color;
+        // Local vertex attributes (just a test, and we need at least one vertex attribute to draw)
+        layout (location = 0) in vec4 a_baryCoord;
+
+        // Tetrahedron instance attributes
+        //layout (location = 1) in vec4 t_color; // FIXME: Want [4] of these
+
+        // Output values
+        out vec4 v_baryCoord;
         out vec4 v_color;
 
         void main()
         {
-            const vec3 mesh[8] = vec3[8](
-                vec3( 1.0,  1.0,  1.0),
-                vec3( 1.0,  0.0,  0.0),
-                vec3( 0.0,  1.0,  0.0),
-                vec3( 0.0,  0.0,  1.0),
-                vec3(-1.0, -1.0, -1.0),
-                vec3(-1.0,  0.0,  0.0),
-                vec3( 0.0, -1.0,  0.0),
-                vec3( 0.0,  0.0, -1.0)
-            );
+        #if 1
+            // Reference coordinates on tetrahedron
+            v_baryCoord = vec4(0.0f);
+            v_baryCoord[gl_VertexID] = a_baryCoord[gl_VertexID];
+        #endif
+
+            //v_color = t_color[gl_VertexID];
+
+        #if 0
+            // Debugging colors
             const vec3 colors[8] = vec3[8](
                 vec3(0.0, 0.0, 0.0),
                 vec3(0.0, 0.0, 1.0),
@@ -143,8 +138,62 @@ class Unray
                 vec3(1.0, 1.0, 0.0),
                 vec3(1.0, 1.0, 1.0)
             );
-            v_color = vec4(colors[gl_VertexID], 1.0f);
-            gl_Position = vec4(mesh[gl_VertexID], 1.0f);
+            v_color = vec4(colors[gl_InstanceID*4 + gl_VertexID], 1.0f);
+        #endif
+
+        #if 1
+            // Debugging positions
+            const vec3 mesh[8] = vec3[8](
+                vec3( 1.0,  1.0,  1.0),
+                vec3( 1.0,  0.0,  0.0),
+                vec3( 0.0,  1.0,  0.0),
+                vec3( 0.0,  0.0,  1.0),
+                vec3(-1.0, -1.0, -1.0),
+                vec3(-1.0,  0.0,  0.0),
+                vec3( 0.0, -1.0,  0.0),
+                vec3( 0.0,  0.0, -1.0)
+            );
+            gl_Position = vec4(mesh[gl_InstanceID*4 + gl_VertexID], 1.0f);
+        #endif
+        }
+        `;
+        return shader;
+    }
+
+    fragment_shader_source() {
+        let shader = `#version 300 es
+        precision highp float;
+        precision highp int;
+        precision highp sampler2D;
+        precision highp isampler2D;
+
+        float max4(vec4 x)
+        {
+            return max(max(x[0], x[1]), max(x[2], x[3]));
+        }
+
+        // Globally constant uniforms
+        //uniform vec4 u_dofs;
+
+        // Varyings
+        in vec4 v_baryCoord;
+        in vec4 v_color;
+
+        // Resulting color
+        out vec4 fragColor;
+
+        void main()
+        {
+            // Piecewise linear function over tetrahedron
+            //float f = dot(u_dofs, v_refcoord);
+
+            // Maximum 1.0 at vertices, minimum 0.25 at midpoint
+            float f = max4(v_baryCoord);
+
+            // Debugging color
+            vec4 C = v_color;
+            C.a = f;
+            fragColor = C;
         }
         `;
         return shader;
@@ -158,7 +207,15 @@ class Unray
 
         let vs = createShader(gl, gl.VERTEX_SHADER, vsSrc);
         let fs = createShader(gl, gl.FRAGMENT_SHADER, fsSrc);
-        let program = createProgram(gl, vs, fs);
+
+        // For dynamic link-time location binding
+        // TODO: Figure out how to interact with three.js w.r.t. locations (and other resources)
+        let locations = {
+            //"a_baryCoord": 0,
+            //"t_color": 1,
+        };
+
+        let program = createProgram(gl, vs, fs, locations);
 
         return program;
     }
@@ -204,7 +261,58 @@ class Unray
     }
 
     build_vao() {
-        let vao = null;
+        let gl = this.gl;
+
+        // Setup attributes
+        this.attributes = {
+            "a_baryCoord": {
+                location: 0,
+                dim: 4,
+                gltype: gl.FLOAT,
+                array: new Float32Array([
+                    1.0, 0.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0,
+                ]),
+                buffer: gl.createBuffer(),
+                drawMode: gl.STATIC_DRAW,
+                divisor: 0,
+                normalized: false,
+                stride: 0,
+                offset: 0,
+            },
+        };
+
+        // TODO: Select relevant subset of attributes
+        let attributes = this.attributes;
+
+        // TODO: Upload when data is updated, not when building vao
+        // Upload all buffers
+        for (let name in attributes) {
+            let attr = attributes[name];
+            gl.bindBuffer(gl.ARRAY_BUFFER, attr.buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, attr.array, attr.drawMode);
+        }
+
+        // Build vao
+        let vao = gl.createVertexArray();
+        gl.bindVertexArray(vao);
+
+        // Configure attributes
+        for (let name in attributes) {
+            let attr = attributes[name];
+            gl.bindBuffer(gl.ARRAY_BUFFER, attr.buffer);
+            gl.vertexAttribPointer(attr.location, attr.dim, attr.gltype,
+                                   attr.normalized, attr.stride, attr.offset);
+            gl.enableVertexAttribArray(attr.location);
+            gl.vertexAttribDivisor(attr.location, attr.divisor);
+        }
+
+        // Done setting up vao
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindVertexArray(null);
+
         return vao;
     }
 
@@ -267,6 +375,10 @@ class Unray
 
 };
 
+//////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 
 // Custom Model. Custom widgets models must at least provide default values
 // for model attributes, including
@@ -295,17 +407,12 @@ let module_defaults = {
 class UnrayModel extends widgets.DOMWidgetModel {
 
     defaults() {
-        // TODO: Define in unray module
-        let default_config = {
-            raymodel: "sum",
-        };
-
         let model_defaults = {
             _model_name : 'UnrayModel',
             _view_name : 'UnrayView',
 
             // Configuration dict
-            config : default_config,
+            config : unray_default_config(),
 
             // Mesh and function data
             coordinates : ndarray(new Float32Array(), [0, 3]),
