@@ -33,6 +33,31 @@ class Unray
         this.gl = gl;
         console.log("Unray: " + gl);
     }
+
+    log(msg) {
+        console.log("Unray:  " + msg);
+    }
+
+    redraw() {
+        this.log("redraw");
+    }
+
+    update_config(config) {
+        this.log("update_config");
+    }
+
+    update_coordinates(coordinates) {
+        this.log("update_coordinates");
+    }
+
+    update_cells(cells) {
+        this.log("update_cells");
+    }
+
+    update_values(values) {
+        this.log("update_values");
+    }
+
 };
 
 
@@ -83,24 +108,54 @@ var UnrayModel = widgets.DOMWidgetModel.extend({
 
 // Custom View. Renders the widget model.
 var UnrayView = widgets.DOMWidgetView.extend({
-    _wire_events: function() {
-        console.log("Wiring unray widget events.");
+
+    /* Hooks called from widget library or backbone */
+
+    // Initialize view properties (called on initialization)
+    initialize: function() {
+        this.log("initialize");
+        widgets.DOMWidgetView.prototype.initialize.apply(this, arguments);
+
+        this.canvas = null;
+        this.gl = null;
+        this.unray = null;
+    },
+
+    // Render to DOM (called at least once when placed on page, not sure what the semantics are beyond that?)
+    render: function() {
+        this.log("render");
+        this.setup_unray(this.el);
+        //this.setup_unray_data();
+        this.wire_events();
+
+        // Schedule a
+        this.schedule_redraw();
+    },
+
+    /* Internal view logic (may contain stupid parts, I don't know the widgets design very well) */
+
+    log: function(msg) {
+        console.log("unray view:  " + msg);
+    },
+
+    wire_events: function() {
+        this.log("wire_events");
         this.model.on('change:config', this.config_changed, this);
         this.model.on('change:coordinates', this.coordinates_changed, this);
         this.model.on('change:cells', this.cells_changed, this);
         this.model.on('change:values', this.values_changed, this);
+        this.on('animate:update', this.redraw, this);
     },
 
-    _setup_unray: function(elm) {
-        console.log("Beginning of unray setup.");
-        if (!this._canvas) {
-            console.log("Creating canvas for unray.");
+    setup_unray: function(elm) {
+        this.log("setup_unray.");
+        if (!this.canvas) {
             var canvas = document.createElement("canvas");
             elm.appendChild(canvas);
-            this._canvas = canvas;
+            this.canvas = canvas;
+            this.log("created canvas");
         }
-        if (!this._gl) {
-            console.log("Creating gl context for unray.");
+        if (!this.gl) {
             var gloptions = {
                 antialias: false,
                 depth: false,
@@ -109,48 +164,63 @@ var UnrayView = widgets.DOMWidgetView.extend({
                 preserveDrawingBuffer: true,
                 failIfMajorPerformanceCaveat: true,
             };
-            this._gl = this._canvas.getContext("webgl2", gloptions);
+            this.gl = this.canvas.getContext("webgl2", this.gloptions);
+            this.log("created webgl2 context");
         }
-        if (!this._unray) {
-            console.log("Creating unray object.");
-            this._unray = new Unray(this._gl);
+        if (!this.unray) {
+            this.unray = new Unray(this.gl);
+            this.log("created Unray instance");
         }
-        console.log("End of unray setup.");
+        this.log("leaving setup_unray.");
     },
 
-    render: function() {
-        this._setup_unray(this.el);
-        //this._setup_unray_data();
-        this._wire_events();
+    // TODO: pythreejs has some more sophisticated animation handlers
+    schedule_redraw: function() {
+        window.requestAnimationFrame(_.bind(this.redraw, this));
     },
+
+    // Update canvas contents by executing gl draw calls in unray
+    redraw: function() {
+        this.log("redraw()");
+        this.unray.redraw();
+    },
+
+    /* Data change handlers */
 
     config_changed: function() {
-        // FIXME
         var config = this.model.get('config');
-        console.log("config changed:");
-        console.log(config);
+        this.log("config changed:");
+        this.log(config);
+        this.unray.update_config(config);
+        this.schedule_redraw();
     },
 
     coordinates_changed: function() {
         // FIXME
         var coordinates = this.model.get('coordinates');
-        console.log("coordinates changed:");
-        console.log(coordinates);
+        this.log("coordinates changed:");
+        this.log(coordinates);
+        this.unray.update_coordinates(coordinates);
+        this.schedule_redraw();
     },
 
     cells_changed: function() {
         // FIXME
         var cells = this.model.get('cells');
-        console.log("cells changed:");
-        console.log(cells);
+        this.log("cells changed:");
+        this.log(cells);
+        this.unray.update_cells(cells);
+        this.schedule_redraw();
     },
 
     values_changed: function() {
         // FIXME
         var values = this.model.get('values');
-        console.log("values changed:");
-        console.log(values);
-    },
+        this.log("values changed:");
+        this.log(values);
+        this.unray.update_values(values);
+        this.schedule_redraw();
+    }
 
 });
 
