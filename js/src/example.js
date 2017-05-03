@@ -26,36 +26,243 @@ var arrayToJSON = function(obj, manager) {
 var array_serialization = { deserialize: JSONToArray, serialize: arrayToJSON };
 
 
+
+function createShader(gl, type, source) {
+    let shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    let success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    if (success) {
+        return shader;
+    }
+    let msg = gl.getShaderInfoLog(shader);
+    console.error(msg);
+    gl.deleteShader(shader);
+}
+
+function createProgram(gl, vertexShader, fragmentShader) {
+    let program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    let success = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (success) {
+        return program;
+    }
+    let msg = gl.getProgramInfoLog(program);
+    console.error(msg);
+    gl.deleteProgram(program);
+}
+
+
 // TODO: Place in its own file or even separate module
 class Unray
 {
     constructor(gl) {
+        this.log("constructor, gl:");
+        this.log(gl);
+
+        this.config = this.defaults();
+        
         this.gl = gl;
-        console.log("Unray: " + gl);
+        this.update_viewport();
+
+        this.elementArrayBuffer = this.createElementArrayBuffer();
+
+        this.snippets = {};
+        this.shaders = {};
+        this.programs = {};
+        this.buffers = {};
+        this.uniforms = {};
+        this.textures = {};
     }
 
     log(msg) {
         console.log("Unray:  " + msg);
     }
 
+    defaults() {
+        return {
+            "raymodel": "surface",
+        };
+    }
+
+    update_viewport() {
+        let gl = this.gl;
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    }
+
+    // TODO: Need to piece together shaders based on config somehow
+    fragment_shader_source() {
+        let shader = `#version 300 es
+        precision highp float;
+        precision highp int;
+        precision highp sampler2D;
+        precision highp isampler2D;
+
+        in vec4 v_color;
+        out vec4 fragColor;
+
+        void main()
+        {
+            fragColor = v_color;
+        }
+        `;
+        return shader;
+    }
+
+    vertex_shader_source() {
+        let shader = `#version 300 es
+        precision highp float;
+        precision highp int;
+        precision highp sampler2D;
+        precision highp isampler2D;
+
+        //in vec4 a_color;
+        out vec4 v_color;
+
+        void main()
+        {
+            const vec3 mesh[8] = vec3[8](
+                vec3( 1.0,  1.0,  1.0),
+                vec3( 1.0,  0.0,  0.0),
+                vec3( 0.0,  1.0,  0.0),
+                vec3( 0.0,  0.0,  1.0),
+                vec3(-1.0, -1.0, -1.0),
+                vec3(-1.0,  0.0,  0.0),
+                vec3( 0.0, -1.0,  0.0),
+                vec3( 0.0,  0.0, -1.0)
+            );
+            const vec3 colors[8] = vec3[8](
+                vec3(0.0, 0.0, 0.0),
+                vec3(0.0, 0.0, 1.0),
+                vec3(0.0, 1.0, 0.0),
+                vec3(0.0, 1.0, 1.0),
+                vec3(1.0, 0.0, 0.0),
+                vec3(1.0, 0.0, 1.0),
+                vec3(1.0, 1.0, 0.0),
+                vec3(1.0, 1.0, 1.0)
+            );
+            v_color = vec4(colors[gl_VertexID], 1.0f);
+            gl_Position = vec4(mesh[gl_VertexID], 1.0f);
+        }
+        `;
+        return shader;
+    }
+
+    compile_program() {
+        let gl = this.gl;
+
+        let vsSrc = this.vertex_shader_source();
+        let fsSrc = this.fragment_shader_source();
+
+        let vs = createShader(gl, gl.VERTEX_SHADER, vsSrc);
+        let fs = createShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+        let program = createProgram(gl, vs, fs);
+
+        return program;
+    }
+
+    configureBlending() {
+        let gl = this.gl;
+        switch (this.config.raymodel)
+        {
+        case "surface":
+            gl.disable(gl.BLEND);
+            break;
+        case "full":
+            gl.enable(gl.BLEND);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_DST_ALPHA);
+            break;
+        case "sum":
+            gl.enable(gl.BLEND);
+            gl.blendEquation(gl.FUNC_ADD);
+            gl.blendFunc(gl.ONE, gl.ONE);  // TODO: Do we need to use alpha for fragment shader output?
+            break;
+        case "max":
+            gl.enable(gl.BLEND);
+            gl.blendEquation(gl.MAX);
+            break;
+        case "min":
+            gl.enable(gl.BLEND);
+            gl.blendEquation(gl.MIN);
+            break;
+        default:
+            console.error("Unknown ray model " + rayModel);
+        }
+    }
+
+    createElementArrayBuffer() {
+        let gl = this.gl;
+        let elementArray = new Uint32Array([0,1,2,3,0,1]);
+        let buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, elementArray, gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        return buffer;
+    }
+
+    build_vao() {
+        let vao = null;
+        return vao;
+    }
+
     redraw() {
         this.log("redraw");
+        let gl = this.gl;
+
+        // Setup global GL properties and clear canvas
+        // TODO: According to config
+
+        gl.disable(gl.DEPTH_TEST);
+
+        //gl.enable(gl.CULL_FACE);
+        gl.disable(gl.CULL_FACE);
+
+        this.configureBlending();
+
+        gl.clearColor(0.8, 0.8, 0.8, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+        // FIXME: Organize programs and vaos so we can have
+        // more than one and compile/select based on config
+        let program = this.compile_program();
+        let vao = this.build_vao();
+
+        // FIXME: Get model properties properly
+        //let num_tetrahedrons = this.model.num_tetrahedrons;
+        let num_tetrahedrons = 2;
+
+        // Apply program to instanced triangle strip
+        gl.useProgram(program);
+        gl.bindVertexArray(vao);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.elementArrayBuffer);
+        gl.drawElementsInstanced(gl.TRIANGLE_STRIP, 6, gl.UNSIGNED_INT, 0, num_tetrahedrons);
     }
+
 
     update_config(config) {
         this.log("update_config");
+        // TODO: Extract what changed and react to only what's necessary
+        this.config = _.extend(this.config, config);
     }
 
     update_coordinates(coordinates) {
         this.log("update_coordinates");
+        // FIXME
+        //this.model = FIXME;
     }
 
     update_cells(cells) {
         this.log("update_cells");
+        // FIXME
     }
 
     update_values(values) {
         this.log("update_values");
+        // FIXME
     }
 
 };
