@@ -266,9 +266,13 @@ class Unray
             //float f = dot(u_dofs, v_baryCoord);
 
             // Debugging: highlight vertices, edges, faces
-            #if 0
+            #if 1
             int on_entity_dim = on_tetrahedron_entity(v_baryCoord, 0.05);
-            C[3-on_entity_dim] = 1.0f;
+            if (on_entity_dim >= 2)
+                C.a = 0.0f;
+            else
+                C.a = 1.0f;
+            //C[3-on_entity_dim] = 1.0f;
             #endif
 
             // Emit color at last
@@ -311,10 +315,10 @@ class Unray
             gl.blendEquation(gl.FUNC_ADD);
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_DST_ALPHA);
             break;
-        case "sum":
+       case "sum":
             gl.enable(gl.BLEND);
             gl.blendEquation(gl.FUNC_ADD);
-            gl.blendFunc(gl.ONE, gl.ONE);  // TODO: Do we need to use alpha for fragment shader output?
+            gl.blendFunc(gl.DST_ALPHA, gl.ONE);
             break;
         case "max":
             gl.enable(gl.BLEND);
@@ -397,6 +401,8 @@ class Unray
 
     redraw() {
         this.log("redraw");
+        console.log(this.config);
+
         let gl = this.gl;
 
         // Setup global GL properties and clear canvas
@@ -433,6 +439,14 @@ class Unray
     update_config(config) {
         this.log("update_config");
         // TODO: Extract what changed and react to only what's necessary
+        let changed = {};
+        for (let name in config) {
+            if (this.config[name] != config[name]) {
+                changed[name] = config[name];
+            }
+        }
+        console.log("Updated config:");
+        console.log(changed);
         this.config = _.extend(this.config, config);
     }
 
@@ -530,17 +544,15 @@ class UnrayView extends widgets.DOMWidgetView {
         this.canvas = null;
         this.gl = null;
         this.unray = null;
+        this._hold_redraw = true;
     }
 
     // Render to DOM (called at least once when placed on page, not sure what the semantics are beyond that?)
     render() {
         this.log("render");
         this.setup_unray(this.el);
-        //this.setup_unray_data();
         this.wire_events();
-
-        // Schedule a
-        this.schedule_redraw();
+        this.all_changed();
     }
 
     /* Internal view logic (may contain stupid parts, I don't know the widgets design very well) */
@@ -555,7 +567,7 @@ class UnrayView extends widgets.DOMWidgetView {
         this.model.on('change:coordinates', this.coordinates_changed, this);
         this.model.on('change:cells', this.cells_changed, this);
         this.model.on('change:values', this.values_changed, this);
-        this.on('animate:update', this.redraw, this);
+        //this.on('animate:update', this.redraw, this);
     }
 
     setup_unray(elm) {
@@ -587,7 +599,9 @@ class UnrayView extends widgets.DOMWidgetView {
 
     // TODO: pythreejs has some more sophisticated animation handlers
     schedule_redraw() {
-        window.requestAnimationFrame(_.bind(this.redraw, this));
+        if (!this._hold_redraw) {
+            window.requestAnimationFrame(_.bind(this.redraw, this));
+        }
     }
 
     // Update canvas contents by executing gl draw calls in unray
@@ -597,6 +611,17 @@ class UnrayView extends widgets.DOMWidgetView {
     }
 
     /* Data change handlers */
+    all_changed() {
+        this._hold_redraw = true;
+
+        this.config_changed();
+        this.coordinates_changed();
+        this.cells_changed();
+        this.values_changed();
+
+        this._hold_redraw = false;
+        this.schedule_redraw();
+    }
 
     config_changed() {
         var config = this.model.get('config');
