@@ -39,10 +39,14 @@ from traitlets import Instance, TraitError, TraitType, Undefined
 # {'dtype': string, 'shape': tuple, 'array': memoryview}
 
 def array_to_json(value, widget):
+    # Workaround added to deal with slices:
+    if isinstance(value, np.ndarray) and not value.flags['C_CONTIGUOUS']:
+        value = np.ascontiguousarray(value)
     return {
         'shape': value.shape,
         'dtype': str(value.dtype),
-        'buffer': memoryview(value) # maybe should do array.tobytes(order='C') to copy
+        #'buffer': memoryview(value) # maybe should do array.tobytes(order='C') to copy
+        'buffer': memoryview(value)
     }
 
 def array_from_json(value, widget):
