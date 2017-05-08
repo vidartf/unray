@@ -1,8 +1,22 @@
 var _ = require('underscore');
 
-// Load shaders using webpack-glsl-loader
-let default_vertex_shader = require("./glsl/unray-vertex.glsl");
-let default_fragment_shader = require("./glsl/unray-fragment.glsl");
+
+// Load shader templates using webpack-glsl-loader
+let vertex_shader_template = require("./glsl/unray-vertex.glsl");
+let fragment_shader_template = require("./glsl/unray-fragment.glsl");
+
+let vertex_shader_generator = _.template(vertex_shader_template);
+let fragment_shader_generator = _.template(fragment_shader_template);
+
+let default_shader_args = {};
+
+let default_vertex_shader_args = _.extend({}, default_shader_args, {
+    debug_colors: 1,
+    debug_positions: 1,
+});
+
+let default_fragment_shader_args = _.extend({}, default_shader_args, {
+});
 
 
 function createShader(gl, type, source) {
@@ -48,6 +62,7 @@ function createProgram(gl, vertexShader, fragmentShader, locations={}, transform
     gl.deleteProgram(program);
 }
 
+
 class Unray
 {
     static default_config() {
@@ -86,13 +101,22 @@ class Unray
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     }
 
-    // TODO: Need to piece together shaders based on config somehow
     vertex_shader_source() {
-        return default_vertex_shader;
+        let args = {
+            // TODO: Need to piece together shaders based on config somehow
+        };
+        let vertex_shader = vertex_shader_generator(_.extend({},
+            default_vertex_shader_args, args));
+        return vertex_shader;
     }
 
     fragment_shader_source() {
-        return default_fragment_shader;
+        let args = {
+            // TODO: Need to piece together shaders based on config somehow
+        };
+        let fragment_shader = fragment_shader_generator(
+            _.extend({}, default_fragment_shader_args, args));
+        return fragment_shader;
     }
 
     compile_program() {

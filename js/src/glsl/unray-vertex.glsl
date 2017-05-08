@@ -7,6 +7,10 @@ precision highp isampler2D;
 // Using webpack-glsl-loader to copy in shared code
 @import ./unray-lib;
 
+// Using underscore.js template engine to inject define values
+#define ENABLE_DEBUG_COLORS <%= debug_colors %>
+#define ENABLE_DEBUG_POSITIONS <%= debug_positions %>
+
 // Local vertex attributes (just a test, and we need at least one vertex attribute to draw)
 layout (location = 0) in int a_debug;
 
@@ -61,7 +65,7 @@ void main()
 
     //v_color = t_color[v];
 
-#if 1
+#if ENABLE_DEBUG_COLORS
     // Debugging colors
     const vec3 colors[8] = vec3[8](
         vec3(1.0, 0.0, 0.0),
@@ -80,7 +84,7 @@ void main()
     //v_color.r = 1.0f / float(v + 1);
 #endif
 
-#if 1
+#if ENABLE_DEBUG_POSITIONS
     // Debugging positions
     const vec3 mesh[8] = vec3[8](
         vec3(-1.0,  0.0,  0.5),
