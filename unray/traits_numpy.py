@@ -39,7 +39,7 @@ from traitlets import Instance, TraitError, TraitType, Undefined
 # {'dtype': string, 'shape': tuple, 'array': memoryview}
 
 def array_to_json(value, widget):
-    # Workaround added to deal with slices:
+    # Workaround added to deal with slices: FIXME: what's the best place to put this?
     if isinstance(value, np.ndarray) and not value.flags['C_CONTIGUOUS']:
         value = np.ascontiguousarray(value)
     return {
