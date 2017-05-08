@@ -30,10 +30,36 @@ class Unray(widgets.DOMWidget):
         .tag(sync=True, **array_serialization)
         .valid(shape_constraints(None, 4))
         )
-    values = (
+    density_function_values = (
         Array(dtype='float32')
         .tag(sync=True, **array_serialization)
         .valid(shape_constraints(None,))
+        )
+    color_function_values = (
+        Array(dtype='float32')
+        .tag(sync=True, **array_serialization)
+        .valid(shape_constraints(None,))
+        )
+    density_lut = (
+        Array(dtype='float32')
+        .tag(sync=True, **array_serialization)
+        .valid(shape_constraints(None,))
+        )
+    color_lut = (
+        Array(dtype='float32')
+        .tag(sync=True, **array_serialization)
+        .valid(shape_constraints(None,3))
+        )
+
+    mvp = (
+        Array(dtype='float32')
+        .tag(sync=True, **array_serialization)
+        .valid(shape_constraints(4, 4))
+        )
+    viewDirection = (
+        Array(dtype='float32')
+        .tag(sync=True, **array_serialization)
+        .valid(shape_constraints(3,))
         )
 
     # TODO: More to come
