@@ -20,16 +20,17 @@ class Unray(widgets.DOMWidget):
 
     config = Dict(default_config).tag(sync=True)
 
-    coordinates = (
-        Array(dtype='float32')
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None, 3))
-        )
     cells = (
         Array(dtype='uint32', default_value=np.empty(shape=(0, 4), dtype='uint32'))
         .tag(sync=True, **array_serialization)
         .valid(shape_constraints(None, 4))
         )
+    coordinates = (
+        Array(dtype='float32')
+        .tag(sync=True, **array_serialization)
+        .valid(shape_constraints(None, 3))
+        )
+
     density_function_values = (
         Array(dtype='float32')
         .tag(sync=True, **array_serialization)
@@ -40,6 +41,7 @@ class Unray(widgets.DOMWidget):
         .tag(sync=True, **array_serialization)
         .valid(shape_constraints(None,))
         )
+
     density_lut = (
         Array(dtype='float32')
         .tag(sync=True, **array_serialization)
@@ -48,7 +50,7 @@ class Unray(widgets.DOMWidget):
     color_lut = (
         Array(dtype='float32')
         .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None,3))
+        .valid(shape_constraints(None, 3))
         )
 
     mvp = (
@@ -62,4 +64,19 @@ class Unray(widgets.DOMWidget):
         .valid(shape_constraints(3,))
         )
 
-    # TODO: More to come
+    # TODO: Consider vega-like format, splitting data and encoding:
+    '''
+    # Let data be a dict of arrays
+    data = Dict(
+        key_trait=Unicode(),
+        value_trait=Array().tag(**array_serialization)
+    ).tag(sync=True)
+
+    mark = Unicode()
+
+    # Encoding should not contain any large arrays
+    encoding = Dict(
+        key_trait=Unicode(),
+        value_trait=Any()
+    ).tag(sync=True)
+    '''
