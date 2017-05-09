@@ -1,4 +1,26 @@
 
+/*
+
+    # TODO: Consider vega-like format, splitting data and encoding:
+    '''
+    # Let data be a dict of arrays
+    data = Dict(
+        key_trait=Unicode(),
+        value_trait=Array().tag(**array_serialization)
+    ).tag(sync=True)
+
+    mark = Unicode()
+
+    # Encoding should not contain any large arrays
+    encoding = Dict(
+        key_trait=Unicode(),
+        value_trait=Any()
+    ).tag(sync=True)
+    '''
+
+*/
+
+
 // Mirror of THREE.BufferAttribute
 class BufferAttribute  // TODO: Use this type of interface mirroring to stay closer to three.js for future coupling?
 {
@@ -621,6 +643,21 @@ void main()
 
     vec4 value = texture(u_emissionDensityLUT, vec2(favg, 0.5f));
     vec3 emission = value.rgb;
+
+def copy_if_contiguous():
+    """Copies the user provided data into a contiguous array only if it's not contiguous."""
+    def validator(trait, value):
+        if trait.allow_none:
+            print(value)
+        if len(value.shape) != len(args):
+            raise TraitError('%s shape expected to have %s components, but got %s components'%(trait.name, len(args), (value, type(value))))
+        for i, constraint in enumerate(args):
+            if constraint is not None:
+                if value.shape[i] != constraint:
+                    raise TraitError('Dimension %i is supposed to be size %d, but got dimension %d'%(i, constraint, value.shape[i]))
+        return value
+    return validator
+
     float extinction = u_particleCrossSection * value.a;
 
     //vec4 ee = lookup_ee(favg, u_emissionDensityLUT, u_particleCrossSection);

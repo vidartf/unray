@@ -22,6 +22,8 @@ var typesToArray = {
 var JSONToArray = function(obj, manager) {
     // obj is {shape: list, dtype: string, array: DataView}
     // return an ndarray object
+    console.log("XXX")
+    console.log(obj);
     return ndarray(new typesToArray[obj.dtype](obj.buffer.buffer), obj.shape);
 }
 var arrayToJSON = function(obj, manager) {
@@ -67,25 +69,33 @@ class UnrayModel extends widgets.DOMWidgetModel {
             config : unray.Unray.default_config(),
 
             // Mesh and function data
+            cells : ndarray(new Uint32Array(), [0, 4]),
+            ordering : ndarray(new Uint32Array(), [0]),
             coordinates : ndarray(new Float32Array(), [0, 3]),
-            cells : ndarray(new Uint32Array(), [0, 3]),
-            values : ndarray(new Float32Array(), [0]),
+            density : ndarray(new Float32Array(), [0]),
+            emission : ndarray(new Float32Array(), [0]),
+            density_lut : ndarray(new Float32Array(), [0]),
+            emission_lut : ndarray(new Float32Array(), [0, 3]),
+            mvp : ndarray(new Float32Array(), [4, 4]),
+            view_direction : ndarray(new Float32Array(), [3]),
         };
 
         let base_defaults = _.result(this, 'widgets.DOMWidgetModel.prototype.defaults');
         return _.extend(base_defaults, module_defaults, model_defaults);
     }
-
-    get serializers() {
-        let custom = {
-            coordinates: array_serialization,
-            cells: array_serialization,
-            values: array_serialization,
-        };
-        return _.extend(custom, widgets.DOMWidgetModel.serializers);
-    }
-
 };
+
+UnrayModel.serializers = _.extend({
+            cells: array_serialization,
+            ordering: array_serialization,
+            coordinates: array_serialization,
+            density: array_serialization,
+            emission: array_serialization,
+            density_lut: array_serialization,
+            emission_lut: array_serialization,
+            mvp: array_serialization,
+            view_direction: array_serialization,
+        }, widgets.DOMWidgetModel.serializers);
 
 
 // Custom View. Renders the widget model.
@@ -97,6 +107,15 @@ class UnrayView extends widgets.DOMWidgetView {
     initialize() {
         this.log("initialize");
         widgets.DOMWidgetView.prototype.initialize.apply(this, arguments);
+
+        // Array fields that will be passed on to unray
+        this.all_fields = [
+            "cells", "ordering",
+            "coordinates",
+            "density", "emission",
+            "density_lut", "emission_lut",
+            "mvp", "view_direction",
+            ];
 
         this.canvas = null;
         this.gl = null;
@@ -122,9 +141,11 @@ class UnrayView extends widgets.DOMWidgetView {
     wire_events() {
         this.log("wire_events");
         this.model.on('change:config', this.config_changed, this);
-        this.model.on('change:coordinates', this.coordinates_changed, this);
-        this.model.on('change:cells', this.cells_changed, this);
-        this.model.on('change:values', this.values_changed, this);
+
+        for (let name of this.all_fields) {
+            this.model.on("change:" + name, () => this.data_changed(name), this)
+        }
+
         //this.on('animate:update', this.redraw, this);
     }
 
@@ -149,7 +170,8 @@ class UnrayView extends widgets.DOMWidgetView {
             this.log("created webgl2 context");
         }
         if (!this.unray) {
-            this.unray = new unray.Unray(this.gl);
+            let config = this.model.get("config");
+            this.unray = new unray.Unray(this.gl, config);
             this.log("created Unray instance");
         }
         this.log("leaving setup_unray.");
@@ -173,9 +195,10 @@ class UnrayView extends widgets.DOMWidgetView {
         this._hold_redraw = true;
 
         this.config_changed();
-        this.coordinates_changed();
-        this.cells_changed();
-        this.values_changed();
+
+        for (let name of this.all_fields) {
+            this.data_changed(name);
+        }
 
         this._hold_redraw = false;
         this.schedule_redraw();
@@ -184,32 +207,27 @@ class UnrayView extends widgets.DOMWidgetView {
     config_changed() {
         var config = this.model.get('config');
         this.log("config changed:");
-        this.log(config);
+        console.log(config);
         this.unray.update_config(config);
         this.schedule_redraw();
     }
 
-    coordinates_changed() {
-        var coordinates = this.model.get('coordinates');
-        this.log("coordinates changed:");
-        this.log(coordinates);
-        this.unray.update_coordinates(coordinates);
-        this.schedule_redraw();
-    }
+    data_changed(name) {
+        this.log("data_changed: " + name)
+        var array = this.model.get(name);
 
-    cells_changed() {
-        var cells = this.model.get('cells');
-        this.log("cells changed:");
-        this.log(cells);
-        this.unray.update_cells(cells);
-        this.schedule_redraw();
-    }
+        if (array.shape[0] === 0) {
+            console.log("Skipping setting zero sized array " + name);
+            return;
+        }
 
-    values_changed() {
-        var values = this.model.get('values');
-        this.log("values changed:");
-        this.log(values);
-        this.unray.update_values(values);
+        if (array.shape === undefined || array.dtype === undefined || array.data === undefined) {
+            console.error("Expecting array object to have shape, dtype, data; with name = " + name, array);
+        }
+
+        this.log(name + " changed:");
+        console.log(array);
+        this.unray.update_data(name, array);
         this.schedule_redraw();
     }
 
