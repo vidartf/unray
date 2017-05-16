@@ -2,62 +2,12 @@ var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 var ndarray = require('ndarray');
 
-
-// Import the widgets-independent module
-// (currently just local files, could be made a separate module later)
+// Local imports
+var utils = require('./utils.js');
+var datawidgets = require('./datawidgets.js');
 var unray = require('./unray.js');
 
 
-// Array serialization code copied from pythreejs by Jason Grout
-var typesToArray = {
-    int8: Int8Array,
-    int16: Int16Array,
-    int32: Int32Array,
-    uint8: Uint8Array,
-    uint16: Uint16Array,
-    uint32: Uint32Array,
-    float32: Float32Array,
-    float64: Float64Array
-}
-var JSONToArray = function(obj, manager) {
-    // obj is {shape: list, dtype: string, array: DataView}
-    // return an ndarray object
-    console.log("XXX")
-    console.log(obj);
-    return ndarray(new typesToArray[obj.dtype](obj.buffer.buffer), obj.shape);
-}
-var arrayToJSON = function(obj, manager) {
-    // serialize to {shape: list, dtype: string, array: buffer}
-    return {shape: obj.shape, dtype: obj.dtype, buffer: obj.data}
-}
-var array_serialization = { deserialize: JSONToArray, serialize: arrayToJSON };
-
-
-// Custom Model. Custom widgets models must at least provide default values
-// for model attributes, including
-//
-//  - `_view_name`
-//  - `_view_module`
-//  - `_view_module_version`
-//
-//  - `_model_name`
-//  - `_model_module`
-//  - `_model_module_version`
-//
-//  when different from the base class.
-
-
-// Define this just once
-let module_defaults = {
-    _model_module : 'jupyter-unray',
-    _view_module : 'jupyter-unray',
-    _model_module_version : '0.1.0',
-    _view_module_version : '0.1.0',
-};
-
-
-// When serialiazing the entire widget state for embedding, only values that
-// differ from the defaults will be specified.
 class UnrayModel extends widgets.DOMWidgetModel {
 
     defaults() {
@@ -65,36 +15,69 @@ class UnrayModel extends widgets.DOMWidgetModel {
             _model_name : 'UnrayModel',
             _view_name : 'UnrayView',
 
-            // Configuration dict
+            // Canvas size
+            width : 800,
+            height : 600,
+            downscale : 1.0,
+            ready : false,
+
+            // Configuration
             config : unray.Unray.default_config(),
 
             // Mesh and function data
             cells : ndarray(new Uint32Array(), [0, 4]),
             ordering : ndarray(new Uint32Array(), [0]),
             coordinates : ndarray(new Float32Array(), [0, 3]),
+
             density : ndarray(new Float32Array(), [0]),
             emission : ndarray(new Float32Array(), [0]),
             density_lut : ndarray(new Float32Array(), [0]),
             emission_lut : ndarray(new Float32Array(), [0, 3]),
+
             mvp : ndarray(new Float32Array(), [4, 4]),
             view_direction : ndarray(new Float32Array(), [3]),
         };
 
-        let base_defaults = _.result(this, 'widgets.DOMWidgetModel.prototype.defaults');
-        return _.extend(base_defaults, module_defaults, model_defaults);
+        return _.extend({}, super.defaults(), utils.module_defaults, model_defaults);
+    }
+
+    initialize() {
+        super.initialize(...arguments);
+        this.on("msg:custom", this.on_custom_msg, this);
+    }
+
+    on_custom_msg(content, buffers) {
+        switch (content.action) {
+            case "show":
+                this.trigger("unray:show");
+                break;
+
+            case "set_data":
+                // This approach allows sending arrays from the kernel side
+                // without going through the widgets trait synchronization
+                // which gives a bit more control, but possibly loses some
+                // functionality along the way.
+                // TODO: For example I'm not sure what's the best way to
+                //   handle serialization of data sent this way.
+                let arr = ndarray(new typesToArray[content.dtype](buffers[0].buffer), content.shape);
+                // ...
+                break;
+
+            default:
+                console.error("Unknown custom message + " + content);
+        }
     }
 };
-
 UnrayModel.serializers = _.extend({
-            cells: array_serialization,
-            ordering: array_serialization,
-            coordinates: array_serialization,
-            density: array_serialization,
-            emission: array_serialization,
-            density_lut: array_serialization,
-            emission_lut: array_serialization,
-            mvp: array_serialization,
-            view_direction: array_serialization,
+            cells: utils.array_serialization,
+            ordering: utils.array_serialization,
+            coordinates: utils.array_serialization,
+            density: utils.array_serialization,
+            emission: utils.array_serialization,
+            density_lut: utils.array_serialization,
+            emission_lut: utils.array_serialization,
+            mvp: utils.array_serialization,
+            view_direction: utils.array_serialization,
         }, widgets.DOMWidgetModel.serializers);
 
 
@@ -105,7 +88,6 @@ class UnrayView extends widgets.DOMWidgetView {
 
     // Initialize view properties (called on initialization)
     initialize() {
-        this.log("initialize");
         widgets.DOMWidgetView.prototype.initialize.apply(this, arguments);
 
         // Array fields that will be passed on to unray
@@ -123,14 +105,49 @@ class UnrayView extends widgets.DOMWidgetView {
         this._hold_redraw = true;
     }
 
+    update(options) {
+        console.log("UPDATE", options);
+    }
+
     // Render to DOM (called at least once when placed on page)
     // TODO: can it be called more than once?
     render() {
-        this.log("render");
         this.setup_unray(this.el);
         this.wire_events();
-        this.all_changed();
+        //this.all_changed();
     }
+
+    // ipyvolume scatter view does something like this:
+    /*
+    unused_render_ideas() {
+        // ...
+        this.splat_material = new THREE.RawShaderMaterial({
+            uniforms: {
+                time : { type: "f", value: 0.0 },
+                range: { type: "2f", value: [0.0, 1.0] },
+            //}, textures: {
+                // Cell textures
+                cells : { type: "t", dtype: "4u" },
+                // Vertex textures
+                coordinates : { type: "t", dtype: "3f" },
+                density : { type: "t", dtype: "1f" },
+                emission : { type: "t", dtype: "3f" },
+            },
+            attributes: {  // FIXME: something like this
+                reorder: { type: "u" },  // uniform cell reordering?
+            },
+            instance_attributes: {  // FIXME: something like this
+                ordering: { type: "u" }
+            },
+            vertexShader: "#define AS_SPLAT\n" + require('../glsl/unray-vertex.glsl'),
+            fragmentShader: "#define AS_SPLAT\n" + require('../glsl/unray-fragment.glsl'),
+        });
+        this.create_mesh()
+        this.add_to_scene()
+        this.model.on("change:size change:x",   this.on_change, this)
+        this.model.on("change:geo change:connected", this.update_, this)
+    }
+    */
 
     /* Internal view logic */
 
@@ -138,8 +155,13 @@ class UnrayView extends widgets.DOMWidgetView {
         console.log("unray view:  " + msg);
     }
 
+    on_show() {
+        console.log("SHOWTIME!")
+    }
+
     wire_events() {
-        this.log("wire_events");
+        this.model.on("unray:show", this.on_show, this);
+
         this.model.on('change:config', this.config_changed, this);
 
         for (let name of this.all_fields) {
@@ -150,12 +172,10 @@ class UnrayView extends widgets.DOMWidgetView {
     }
 
     setup_unray(elm) {
-        this.log("setup_unray.");
         if (!this.canvas) {
             var canvas = document.createElement("canvas");
             elm.appendChild(canvas);
             this.canvas = canvas;
-            this.log("created canvas");
         }
         if (!this.gl) {
             var gloptions = {
@@ -167,14 +187,11 @@ class UnrayView extends widgets.DOMWidgetView {
                 failIfMajorPerformanceCaveat: true,
             };
             this.gl = this.canvas.getContext("webgl2", this.gloptions);
-            this.log("created webgl2 context");
         }
         if (!this.unray) {
             let config = this.model.get("config");
             this.unray = new unray.Unray(this.gl, config);
-            this.log("created Unray instance");
         }
-        this.log("leaving setup_unray.");
     }
 
     // TODO: pythreejs has some more sophisticated animation handlers
@@ -206,18 +223,16 @@ class UnrayView extends widgets.DOMWidgetView {
 
     config_changed() {
         var config = this.model.get('config');
-        this.log("config changed:");
-        console.log(config);
         this.unray.update_config(config);
         this.schedule_redraw();
     }
 
     data_changed(name) {
-        this.log("data_changed: " + name)
         var array = this.model.get(name);
 
+        // TODO: Better solution to empty default arrays before they're set?
         if (array.shape[0] === 0) {
-            console.log("Skipping setting zero sized array " + name);
+            this.log("Skipping setting zero sized array " + name);
             return;
         }
 
@@ -225,8 +240,6 @@ class UnrayView extends widgets.DOMWidgetView {
             console.error("Expecting array object to have shape, dtype, data; with name = " + name, array);
         }
 
-        this.log(name + " changed:");
-        console.log(array);
         this.unray.update_data(name, array);
         this.schedule_redraw();
     }
@@ -234,7 +247,7 @@ class UnrayView extends widgets.DOMWidgetView {
 };
 
 
-module.exports = {
-    UnrayModel : UnrayModel,
-    UnrayView : UnrayView
-};
+module.exports = _.extend({
+    UnrayModel,
+    UnrayView,
+}, datawidgets);

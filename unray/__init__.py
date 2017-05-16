@@ -1,6 +1,9 @@
-from ._version import version_info, __version__
+from unray._version import version_info, __version__
 
-from .example import *
+from unray.unray import *
+from unray.unlab import *
+from unray.examples import *
+from unray.datawidgets import *
 
 def _jupyter_nbextension_paths():
     return [{
