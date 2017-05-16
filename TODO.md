@@ -1,5 +1,85 @@
 
-Alternative ray models:
+=== Backlog
+
+- Test when update() is called and how to get which fields are modified
+
+- Test list of data models in FigureModel
+
+- Setup canvas with gl in FigureModel
+
+- Clear canvas color in redraw function
+
+- Upload textures from data models
+
+- Build gl program and draw opaque tetrahedron
+
+- Setup context loss handling
+
+- Plot models in order of complication (the first models here do not require cell sorting):
+
+  - surface with constant color (by drawing all tet faces)
+
+    - need texture for cells
+    - need texture for coordinates
+    - need proper drawElementsInstanced call
+
+    - culling on
+    - blend off
+    - fragColor = vec4(1,1,1,1);
+
+  - surface with coloring
+
+    - need texture for emission function
+    - need texture for lut
+
+    - fragColor = vec4(lut(emission), 1);
+
+  - mip v1
+
+    - clear to black
+    - culling off -> not an approximation!
+    - blend = max(framebuffer, fragColor)
+    - fragColor = vec4(lut(emission), 1.0)
+
+  - xray approximation
+
+    - need depth computation
+    - need textoure for density
+
+    - clear to white
+    - blend = framebuffer.rgb * fragColor.a + 0 * fragColor.rgb
+    - a = depth * lut(density)  // approximation
+    - fragColor = vec4(0, 0, 0, a)
+
+  - xray
+
+    - need gradient of density function
+    - need front and back computation for density function
+
+    - a = depth * 0.5 * (lut(density_front) + lut(density_back))
+
+  - mip v2
+
+    - need gradient of emission function
+    - need front and back computation for emission function
+
+    - culling on -> half triangles, half fragments, shaders more expensive
+    - fragColor = max(lut(emission_front), lut(emission_back))
+
+  - splat
+
+  - isosurfaces
+
+    - need computation of isosurface texture
+
+  - absorption-emission
+
+    - need everything above
+    - need cell sorting
+    - several models to choose from
+
+
+=== Alternative ray models:
 
 - Maximum intensity:
    - I(D) = f( sup_s f(s) )

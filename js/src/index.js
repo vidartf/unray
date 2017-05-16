@@ -7,6 +7,12 @@
 // dynamically.
 __webpack_public_path__ = document.querySelector('body').getAttribute('data-base-url') + 'nbextensions/jupyter-unray/';
 
+var _ = require('underscore');
+
 // Export widget models and views, and the npm package version number.
-module.exports = require('./widget.js');
+module.exports = _.extend({},
+    require('./datawidgets.js'),
+    require('./figurewidgets.js'),
+    require('./widget.js')
+);
 module.exports['version'] = require('../package.json').version;

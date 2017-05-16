@@ -5,6 +5,7 @@ var ndarray = require('ndarray');
 // Local imports
 var utils = require('./utils.js');
 var datawidgets = require('./datawidgets.js');
+var figurewidgets = require('./figurewidgets.js');
 var unray = require('./unray.js');
 
 
@@ -247,7 +248,6 @@ class UnrayView extends widgets.DOMWidgetView {
 };
 
 
-module.exports = _.extend({
-    UnrayModel,
-    UnrayView,
-}, datawidgets);
+module.exports = {
+    UnrayModel, UnrayView,
+};
