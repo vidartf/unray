@@ -1,3 +1,5 @@
+# TODO: Currently unused, pick pieces here as needed and remove
+
 import ipywidgets as widgets
 from traitlets import Unicode, Dict, Any, CFloat, CInt, CBool
 from .traits_numpy import array_serialization, shape_constraints

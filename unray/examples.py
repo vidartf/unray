@@ -1,5 +1,5 @@
 import numpy as np
-from unray.unlab import quicksplat, quickmip
+from unray.lab import render
 
 
 def single_tetrahedron():
@@ -10,16 +10,10 @@ def single_tetrahedron():
     coordinates[1, :] = [1, 0, 0]
     coordinates[2, :] = [0, 1, 0]
     coordinates[3, :] = [0, 0, 1]
-    return cells, coordinates
+    return coordinates, cells
 
 
-def example_splat_tetrahedron():
+def render_single_tetrahedron(**kwargs):
     cells, coordinates = single_tetrahedron()
     density = (2.0**0.5) * np.ones(coordinates.shape[0], dtype="float32")
-    return quicksplat(cells, coordinates, density)
-
-
-def example_mip_tetrahedron():
-    cells, coordinates = single_tetrahedron()
-    density = (2.0**0.5) * np.ones(coordinates.shape[0], dtype="float32")
-    return quickmip(cells, coordinates, density)
+    return render(coordinates=coordinates, cells=cells, density=density, **kwargs)
