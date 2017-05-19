@@ -187,7 +187,7 @@ class UnrayView extends widgets.DOMWidgetView {
                 preserveDrawingBuffer: true,
                 failIfMajorPerformanceCaveat: true,
             };
-            this.gl = this.canvas.getContext("webgl2", this.gloptions);
+            this.gl = this.canvas.getContext("webgl2", gloptions);
         }
         if (!this.unray) {
             let config = this.model.get("config");

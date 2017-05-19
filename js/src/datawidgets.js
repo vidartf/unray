@@ -38,6 +38,7 @@ class DataView extends widgets.WidgetView
 
     render()
     {
+        // Trying to render a DataView, shouldn't happen?
         console.log("DATAVIEW RENDER")
     }
 
@@ -46,6 +47,7 @@ class DataView extends widgets.WidgetView
         let name = this.model.get("name");
         let array = this.model.get("array");
         console.log("DATAVIEW UPDATE ", name, array)
+        this.trigger("dirty", name, array);
     }
 };
 
@@ -79,6 +81,7 @@ class DataDisplayView extends widgets.DOMWidgetView
     wire_events()
     {
         // datamodel change -> dataview.update
+        //let data = this.model.get("data");
         // datadisplaymodel change -> datadisplaymodel.update
     }
 

@@ -60,6 +60,9 @@ class Data(widgets.Widget):
         widgets.Widget.__init__(self, **kwargs)
     '''
 
+    def _ipython_display_(self):
+        return DataDisplay(data=self)
+
 
 @widgets.register('unray.DataDisplay')
 class DataDisplay(widgets.Widget):
@@ -84,6 +87,7 @@ class Plot(widgets.Widget):
     _view_module_version = Unicode(module_version).tag(sync=True)
     _model_module_version = Unicode(module_version).tag(sync=True)
 
+    name = Unicode("unnamed").tag(sync=True)
     method = Unicode("blank").tag(sync=True)
     encoding = Dict(value_trait=Dict(), default_value={}).tag(sync=True)
 
@@ -102,15 +106,20 @@ class Figure(widgets.Widget):
     height = CInt(600).tag(sync=True)
     downscale = CFloat(1.0).tag(sync=True)
 
-    data = Dict(value_trait=Instance(Data).tag(sync=True, **widget_serialization),
-                default_value={})
-    plot = Instance(Plot).tag(sync=True, **widget_serialization)
+    data = Dict(value_trait=Instance(Data).tag(sync=True, **widget_serialization), default_value={})
+    plots = Dict(value_trait=Instance(Plot).tag(sync=True, **widget_serialization), default_value={})
 
 
 def render(coordinates, cells,
            density=None, emission=None,
            density_range=None, emission_range=None,
-           method="blank"):
+           density_lut=None, emission_lut=None,
+           method="blank",
+           width=800, height=600, downscale=1.0):
+    """Perform volume rendering of unstructured tetrahedral mesh data.
+
+    @return a widget to display in a notebook
+    """
     # Always add mesh to data
     data = {}
     data["coordinates"] = Data(name="coordinates", array=coordinates)
@@ -124,6 +133,8 @@ def render(coordinates, cells,
     # Optionally add density
     if density is not None:
         data["density"] = Data(name="density", array=density)
+        if density_lut is not None:
+            pass  # FIXME
         if density_range is None:
             density_range = [np.min(density), np.max(density)]
         encoding["density"] = {"field": "density", "range": density_range}
@@ -131,13 +142,19 @@ def render(coordinates, cells,
     # Optionally add emission
     if emission is not None:
         data["emission"] = Data(name="emission", array=emission)
+        if emission_lut is not None:
+            pass  # FIXME
         if emission_range is None:
             emission_range = [np.min(emission), np.max(emission)]
         encoding["emission"] = {"field": "emission", "range": emission_range}
 
     # Setup plot
-    plot = Plot(method=method, encoding=encoding)
+    plotname = "plot_%s" % method
+    plot = Plot(name=plotname, method=method, encoding=encoding)
+    plots = {plotname: plot}
 
     # Setup figure connecting all of it
-    fig = Figure(data=data, plot=plot)
+    fig = Figure(width=width, height=height, downscale=downscale,
+                 data=data,
+                 plots=plots)
     return fig
