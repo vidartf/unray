@@ -3,9 +3,7 @@ var _ = require('underscore');
 var ndarray = require('ndarray');
 
 // Local imports
-var utils = require('./utils.js');
-var datawidgets = require('./datawidgets.js');
-var figurewidgets = require('./figurewidgets.js');
+var utils = require('../utils.js');
 var unray = require('./unray.js');
 
 

@@ -13,10 +13,13 @@
     "jupyter",
     "widgets",
     "ipython",
-    "ipywidgets"
+    "ipywidgets",
+    "visualization",
+    "webgl",
+    "threejs"
   ],
   "scripts": {
-    "prepublish": "webpack",
+    "prepublish": "webpack; date",
     "watch": "onchange 'src/*.js' 'src/glsl/*.glsl' -v -- npm run prepublish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -27,8 +30,9 @@
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
-    "jupyter-js-widgets": "^3.0.0-alpha.2",
+    "jupyter-js-widgets": "^3.0.0-alpha.6",
+    "underscore": "^1.8.3",
     "ndarray": "^1.0.18",
-    "underscore": "^1.8.3"
+    "three": "^0.85.2"
   }
 }

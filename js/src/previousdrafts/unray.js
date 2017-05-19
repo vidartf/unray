@@ -5,8 +5,8 @@ var _ = require('underscore');
 
 
 // Load shader templates using webpack-glsl-loader
-let vertex_shader_template = require("./glsl/unray-vertex.glsl");
-let fragment_shader_template = require("./glsl/unray-fragment.glsl");
+let vertex_shader_template = require("../glsl/unray-vertex.glsl");
+let fragment_shader_template = require("../glsl/unray-fragment.glsl");
 
 let vertex_shader_generator = _.template(vertex_shader_template);
 let fragment_shader_generator = _.template(fragment_shader_template);
