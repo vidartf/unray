@@ -1,3 +1,5 @@
+'use strict';
+
 var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 var THREE = require('three');
@@ -30,6 +32,7 @@ class FigureModel extends widgets.DOMWidgetModel
     initialize()
     {
         super.initialize(...arguments);
+        console.log("FigureModel initialize ", this.get("data"));
     }
 };
 FigureModel.serializers = _.extend({
@@ -44,64 +47,73 @@ class FigureView extends widgets.DOMWidgetView
     {
         super.initialize(...arguments);
 
+        console.log("FigureView initialize");
+
         this.canvas = null;
-        this.gl = null;
         this.renderer = null;
 
         this.data_views = new Map();
         this.plot_views = new Map();
     }
 
-    /*
-    render_three(width, height)
-    {
-        let geometry = new THREE.BoxGeometry( 200, 200, 200 );
-        let material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
-        let mesh = new THREE.Mesh(geometry, material);
-
-        this.scene = new THREE.Scene();
-        this.scene.add(mesh);
-
-        this.camera = new THREE.PerspectiveCamera(75, width / height, 1, 10000);
-        this.camera.position.z = 1000;
-
-        this.renderer = new THREE.WebGLRenderer();
-        this.renderer.setSize(width, height);
-
-        return this.renderer.domElement;
-    }
-    refresh_three()
-    {
-    	this.renderer.render(this.scene, this.camera);
-    }
-    */
-
     render()
     {
+        console.log("FigureView render");
         let width = this.model.get("width");
         let height = this.model.get("height");
         let downscale = this.model.get("downscale");
 
-        this.canvas = this._create_canvas(width, height);
+        this.canvas = document.createElement("canvas");
+        this.canvas.setAttribute("width", width);
+        this.canvas.setAttribute("height", height);
 
         this.el.innerHTML = "";
         this.el.className = "jupyter-widget jupyter-unray";
         this.el.appendChild(this.canvas);
 
-        let gl = this._create_gl_context(this.canvas, downscale);
-        this.gl = gl;
+        //let gl = this._create_gl_context(this.canvas, downscale);
+        //this.gl = gl;
+		this.canvas.addEventListener('webglcontextlost', this.on_context_lost, false);
 
+        // Setup renderer (creates its own webgl context)
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: this.canvas,
+            alpha: true,
+            premultipliedAlpha: true,
+            antialias: false,
+            stencil: true,
+            preserveDrawingBuffer: true,
+            depth: true,
+            logarithmicDepthBuffer: false
+        });
+        this.renderer.setSize(downscale * width, downscale * height);
+        this.bgcolor = new THREE.Color(0.9, 0.9, 0.9); // TODO: Make model attribute
+        this.renderer.setClearColor(this.bgcolor, 1.0);
+
+        // Setup camera
+        let fov = 60;
+        let aspect_ratio = width / height;
+        let near = 1;
+        let far = 10000;
+        //this.camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
+        this.camera = new THREE.PerspectiveCamera(fov, aspect_ratio, near, far);
+        this.camera.position.x = 0;
+        this.camera.position.y = 0;
+        this.camera.position.z = 1000;
+        this.camera.lookAt(new THREE.Vector3(0,0,0));
+
+        // Create main scene
+        this.scene = new THREE.Scene();
+        let geometry = new THREE.BoxGeometry( 200, 200, 200 );
+        let material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+        let mesh = new THREE.Mesh(geometry, material);
+        this.scene.add(mesh);
+
+        // Return promise representing async creation of child views
         return this._create_views();
     }
 
-    _create_canvas(width, height)
-    {
-        let canvas = document.createElement("canvas");
-        canvas.setAttribute("width", width);
-        canvas.setAttribute("height", height);
-        return canvas;
-    }
-
+    /*
     _create_gl_context(canvas, downscale)
     {
         let gloptions = {
@@ -116,60 +128,54 @@ class FigureView extends widgets.DOMWidgetView
         gl.viewport(0, 0, downscale * gl.canvas.width, downscale * gl.canvas.height);
         return gl;
     }
+    */
 
     _create_views()
     {
+        console.log("FigureView _create_views");
         // For capture in promise callback closures
         let that = this;
+        let view_promises = [];
 
         // Create views for data objects
-        let data_view_promises = [];
         let data = this.model.get("data");
         for (let name of Object.keys(data)) {
             let model = data[name];
             let p = this.create_child_view(model);
-            data_view_promises.push( p.then(
+            view_promises.push( p.then(
                 (view) => {
-                    blafail();
+                    console.log("XXXXXXXXXXXXXXXXXXXXXXXXXx");
                     // name == view.model.get("name")
                     that.data_views.set(name, view);
-                    that.listenTo(view, "dirty", that.on_data_dirty);
+                    that.listenTo(view, "data:dirty", that.on_data_dirty);
                     return view;
                 }
             ));
         }
 
         // Create views for plot objects
-        let plot_view_promises = [];
         let plots = this.model.get("plots");
         for (let name of Object.keys(plots)) {
             let model = plots[name];
             let p = this.create_child_view(model);
-            plot_view_promises.push( p.then(
+            view_promises.push( p.then(
                 (view) => {
                     // name == view.model.get("name")
                     that.plot_views.set(name, view);
-                    that.listenTo(view, "dirty", that.on_plot_dirty);
+                    that.listenTo(view, "plot:dirty", that.on_plot_dirty);
                     return view;
                 }
             ));
         }
 
         // When all child views are created, trigger on_all_*views_ready
-        this.view_promises = Promise.all([
-            Promise.all(data_view_promises).then(
-                () => that.on_all_data_views_ready()
-            ),
-            Promise.all(plot_view_promises).then(
-                () => that.on_all_plot_views_ready()
-            )
-        ]).then(() => that.on_all_views_ready());
-        /*
-        this.view_promises = this.view_promises.catch((e) => {
-            console.error("Failed to initialize FigureView.");
+        this.view_promises = Promise.all(view_promises)
+        .then(
+            () => that.on_all_views_ready()
+        ).catch((e) => {
+            this.on_view_creation_failed(e);
             throw e;
         });
-        */
         return this.view_promises;
     }
 
@@ -185,20 +191,15 @@ class FigureView extends widgets.DOMWidgetView
         console.log("on_plot_dirty ", arguments);
     }
 
-    on_all_data_views_ready() {
-    }
-
-    on_all_plot_views_ready() {
-    }
-
     on_all_views_ready() {
+        console.log("FigureView on_all_views_ready");
         this.schedule_animation();
     }
 
     update()
     {
         super.update(...arguments);
-        console.log("update", arguments);
+        console.log("FigureView update", Object.keys(this.model.get("data")), arguments);
     }
 
     schedule_animation()
@@ -210,7 +211,6 @@ class FigureView extends widgets.DOMWidgetView
     {
         // Seconds are more convenient to work with
         time = time / 1000;
-
         if (!this.start_time) {
             this.start_time = time;
             this.prev_time = time;
@@ -220,16 +220,22 @@ class FigureView extends widgets.DOMWidgetView
         this.redraw_count = this.redraw_count ? this.redraw_count + 1: 1;
 
         this.step_time(passed_time, time_step);
-
-        this.redraw(this.gl);
+        this.redraw();
 
         this.prev_time = time;
-
         this.schedule_animation();
     }
 
     step_time(passed_time, time_step)
     {
+        // Animate camera (for debugging)
+        let x = this.camera.position.x;
+        let y = this.camera.position.y;
+        let freq = 4;
+        let theta = Math.PI * ((passed_time / freq) % 1.0);
+        this.camera.position.z = 1000 * Math.cos(theta);
+        this.camera.position.x = 1000 * Math.sin(theta);
+
         // TODO: Create uniforms acessible in shaders
         // Update oscillation uniforms with new time
         /*
@@ -246,12 +252,30 @@ class FigureView extends widgets.DOMWidgetView
         */
     }
 
-    redraw(gl)
+    redraw()
     {
-        gl.clearColor(Math.abs(Math.sin(0.2*this.redraw_count)), 0.9, 0.9, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        //let gl = this.gl;
+        //gl.clearColor(Math.abs(Math.sin(0.2*this.redraw_count)), 0.9, 0.9, 1.0);
+        //gl.clear(gl.COLOR_BUFFER_BIT);
 
+        // Simulate context loss (for testing)
+        //this.renderer.forceContextLoss();
 
+        // Adjust face culling (plot specific)
+        //this.renderer.setFaceCulling("back", "ccw");
+        this.renderer.setFaceCulling(false);
+
+        // TODO: Who owns the camera and the scene?
+        this.renderer.render(this.scene, this.camera);
+
+        /*
+        for (let plot of this.plots.entries()) {
+            // Use this to view plots in separate parts of figure
+            //this.renderer.setViewport(0, 0, this.width, this.height);
+            let scene = plot.process();
+        	this.renderer.render(scene, this.camera);
+        }
+        */
     }
 
     draft_threejs_setup()

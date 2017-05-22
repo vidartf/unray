@@ -1,3 +1,5 @@
+'use strict';
+
 var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 
@@ -28,6 +30,7 @@ class DataDisplayView extends widgets.DOMWidgetView
         console.log("DATADISPLAYVIEW INIT", arguments)
         super.initialize(...arguments);
         this.dataview = null;
+        this.view_promises = Promise.resolve();
     }
 
     wire_events()
@@ -40,6 +43,8 @@ class DataDisplayView extends widgets.DOMWidgetView
     render()
     {
         console.log("DATADISPLAYVIEW RENDER", arguments)
+
+        // FIXME: Clear old child views and unregister listeners
 
         let data = this.model.get("data");
         if (data === undefined || data === null) {
@@ -58,12 +63,19 @@ class DataDisplayView extends widgets.DOMWidgetView
         let p = this.create_child_view(data);
 
         view_promises.push(
-            p.then((dataview) => { that.dataview = dataview; })
+            p.then((dataview) => {
+                console.log("SETTING DATAVIEW")
+                that.dataview = dataview;
+            })
         );
 
         this.view_promises = Promise.all(view_promises)
-            .then(() => { that.refresh(); })
-            .catch((err) => { console.error(err); throw err; });
+            .then(() => {
+                console.log("LISTENING TO DATA")
+                that.listenTo(this.dataview, "data:dirty", that.on_data_dirty);
+                console.log("CALLING DATA DIRTY")
+                that.on_data_dirty();
+            }).catch((err) => { console.error(err); throw err; });
 
         return this.view_promises;
     }
@@ -72,16 +84,26 @@ class DataDisplayView extends widgets.DOMWidgetView
     {
         console.log("DATADISPLAYVIEW UPDATE", arguments)
         super.update(...arguments);
-        this.refresh();
+
+        // Data model replaced: recreate child views and everything
+        this.stopListening(null, "data:dirty");
+        this.model.previous("data")
+        this.render();
     }
 
-    refresh() {
-        console.log("DATADISPLAYVIEW REFRESH", arguments)
+    on_data_dirty()
+    {
+        console.log("DATADISPLAYVIEW on_data_dirty", arguments)
         let dataview = this.dataview;
         let datamodel = dataview.model;
         let array = datamodel.get("array");
-        this.div.innerHTML = "";
-        this.div.textContent = array;
+        this.div.innerHTML = `<ul>
+        <li>shape: ${array.shape}</li>
+        <li>stride: ${array.stride}</li>
+        <li>offset: ${array.offset}</li>
+        <li>data: ${array.data[0]} ${array.data[1]} ${array.data[2]} ...</li>
+        </ul>`;
+        console.log(array);
     }
 };
 
