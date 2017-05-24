@@ -262,13 +262,13 @@ class TetrahedralMeshRenderer
 {
     constructor()
     {
-        this.init_shared_topology();
-        this.init_uniforms();
-        this.init_attributes();
-        this.init_meshes();
+        this._init_shared_topology();
+        this._init_uniforms();
+        this._init_attributes();
+        this._init_meshes();
     }
 
-    init_shared_topology()
+    _init_shared_topology()
     {
         // Setup triangle strip to draw each tetrahedron instance
         // TODO: Check that strip ordering matches 
@@ -287,7 +287,7 @@ class TetrahedralMeshRenderer
         ]));
     }
 
-    init_uniforms()
+    _init_uniforms()
     {
         // Fill uniforms dict with dummy values
         this.uniforms = {
@@ -314,7 +314,7 @@ class TetrahedralMeshRenderer
         };
     }
 
-    init_attributes()
+    _init_attributes()
     {
         this.attributes = {
             // Cell attributes
@@ -323,9 +323,10 @@ class TetrahedralMeshRenderer
         };
     }
 
-    init_meshes()
+    _init_meshes()
     {
         this.meshes = new Map();
+        this.encodings = new Map();
     }
 
     init(num_tetrahedrons, num_vertices)
@@ -346,10 +347,9 @@ class TetrahedralMeshRenderer
         this.uniforms.u_vertex_texture_shape.value.set(...this.vertex_texture_shape);
     }
 
+    // Update data ranges, also done automatically during update_data
     update_ranges(data)
     {
-        // Update data ranges
-        // TODO: More selective update, maybe in upload()?
         this.uniforms.u_density_range.value.set(...compute_range(data.density));
         this.uniforms.u_emission_range.value.set(...compute_range(data.emission));
     }
@@ -381,60 +381,47 @@ class TetrahedralMeshRenderer
         }
     }
 
-    setup()
+    update_time(time)
     {
-        let data = {
-            ordering: new Uint32Array(this.num_tetrahedrons),
-            cells: new Uint32Array(4 * this.num_tetrahedrons),
-            coordinates: new Float32Array(3 * this.num_vertices),
-            density: new Float32Array(this.num_vertices),
-            emission: new Float32Array(this.num_vertices),
-            density_lut: new Float32Array(256),
-            emission_lut: new Float32Array(256),
+        this.uniforms.u_time.value = time;
+        for (let i=0; i<4; ++i) {
+            this.uniforms.u_oscillators[i] = Math.sin((i+1) * Math.PI * this.time);
         }
-        let method = "surface";
+    }
 
-
-        // Get description of rendering configuration in currently chosen method
+    // Upload data, assuming method has been configured
+    upload(data, method)
+    {
         let mp = method_properties[method];
+        let encoding = this.encodings.get(method);
+        this._allocate_and_update(data, encoding, mp.channels, mp.ordered, false, true);
+    }
 
-        // Get description of channels in currently chosen method
-        let channels = mp.channels;
-
-        // Use default encoding if none is provided
-        let encoding = mp.default_encoding;
-
-        // Update input data uniforms
-        this.update_ranges();
-
-
-        // Instanced geometry, each tetrahedron is an instance
+    _create_geometry(ordered)
+    {
         let geometry = new THREE.InstancedBufferGeometry();
         geometry.maxInstancedCount = this.num_tetrahedrons;
         geometry.setIndex(this.element_buffer);
         geometry.addAttribute("a_local_vertices", this.local_vertices_buffer);
 
-        // Allocate
-        this._allocate_and_update(null, encoding, channels, mp.ordered, true, false);
-
-        // Upload
-        this._allocate_and_update(data, encoding, channels, mp.ordered, false, true);
-
-        // Allocate ordering when first needed
-        if (mp.ordered && this.attributes.c_ordering === undefined) {
-            this.allocate_ordering();
-        }
-
         // Setup cells of geometry (using textures or attributes)
-        if (mp.ordered) {
+        if (ordered) {
+            // Allocate ordering when first needed
+            if (this.attributes.c_ordering === undefined) {
+                this.allocate_ordering();
+            }
             // Need ordering, let ordering be instanced and read cells from texture
-            this.geometry.addAttribute("c_ordering", this.attributes.c_ordering);
+            geometry.addAttribute("c_ordering", this.attributes.c_ordering);
         } else {
             // Don't need ordering, use cells instanced instead
             // TODO: Add eventual other attributes with cell association here
-            this.geometry.addAttribute("c_cells", this.attributes.c_cells);
+            geometry.addAttribute("c_cells", this.attributes.c_cells);
         }
+        return geometry
+    }
 
+    _create_material(mp)
+    {
         // Configure shader
         let material = new THREE.ShaderMaterial({
             // Note: Assuming passing some unused uniforms here will work fine
@@ -459,12 +446,33 @@ class TetrahedralMeshRenderer
         // TODO: May also add defines based on encoding if necessary
         _.extend(material.defines, mp.defines);
 
+        return material;
+    }
+
+    // TODO: not sure what happens if this is called twice right now, even with different methods.
+    configure(method, encoding)
+    {
+        // Get description of rendering configuration in currently chosen method
+        let mp = method_properties[method];
+
+        // Use default encoding if none is provided
+        encoding = encoding || mp.default_encoding;
+
+        // Allocate various textures and buffers
+        this._allocate_and_update(null, encoding, mp.channels, mp.ordered, true, false);
+
+        // Configure instanced geometry, each tetrahedron is an instance
+        let geometry = this._create_geometry(mp.ordered);
+
+        // Configure material (shader)
+        let material = this._create_material(mp);
+
         // How to use wireframe
         //this.use_wireframe = true;
-        if (this.use_wireframe) {
-            material.wireframe = true;
-            material.wireframeLinewidth = 3;
-        }
+        // if (this.use_wireframe) {
+        //     material.wireframe = true;
+        //     material.wireframeLinewidth = 3;
+        // }
 
         // Finally we have a Mesh to render for this method
         let mesh = new THREE.Mesh(geometry, material);
@@ -475,19 +483,9 @@ class TetrahedralMeshRenderer
         // but at least this will allow quick switching
         // between methods if nothing else
         this.meshes.set(method, mesh);
-    }
 
-    update_time(time)
-    {
-        this.uniforms.u_time.value = time;
-        for (let i=0; i<4; ++i) {
-            this.uniforms.u_oscillators[i] = Math.sin((i+1) * Math.PI * this.time);
-        }
-    }
-
-    update_data(data)
-    {
-        this._allocate_and_update(data, encoding, channels, ordered, false, true);
+        // Store encoding for future uploads
+        this.encodings.set(method, encoding);
     }
 
     _allocate_and_update(data, encoding, channels, ordered, allocate, update)

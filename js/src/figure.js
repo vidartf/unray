@@ -111,11 +111,29 @@ class FigureView extends widgets.DOMWidgetView
         // Setup cloud model
         this.tetrenderer = new renderer.TetrahedralMeshRenderer();
 
+        // let data = {
+        //     ordering: new Uint32Array(this.num_tetrahedrons),
+        //     cells: new Uint32Array(4 * this.num_tetrahedrons),
+        //     coordinates: new Float32Array(3 * this.num_vertices),
+        //     density: new Float32Array(this.num_vertices),
+        //     emission: new Float32Array(this.num_vertices),
+        //     density_lut: new Float32Array(256),
+        //     emission_lut: new Float32Array(256),
+        // };
+
         // FIXME: Need actual data to initialize
         //this.tetrenderer.init(num_tetrahedrons, num_vertices);
-        //this.tetrenderer.setup();
+
+        // // TODO: Better handling of multiple configurations with data sharing
+        // let method = "surface";
+        // let encoding = undefined;
+        // this.tetrenderer.configure(method, encoding);
+
+        // // Upload data to textures
+        // this.tetrenderer.upload(data, method);
+
         //this.tetrenderer.update_perspective(this.camera); // TODO: On camera change
-		//this.scene.add(this.tetrenderer.meshes.get("...")); // FIXME: Add mesh to scene
+		//this.scene.add(this.tetrenderer.meshes.get(method)); // FIXME: Add mesh to scene
 
         // Wire listeners
         this.listenTo(this.model, "change:data", this.on_data_changed);
