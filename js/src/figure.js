@@ -5,6 +5,7 @@ var _ = require('underscore');
 var THREE = require('three');
 
 var utils = require('./utils.js');
+var Renderer = require('./renderer.js');
 
 
 class FigureModel extends widgets.DOMWidgetModel
@@ -46,23 +47,32 @@ class FigureView extends widgets.DOMWidgetView
     initialize()
     {
         super.initialize(...arguments);
-
-        console.log("FigureView initialize");
-
         this.canvas = null;
         this.renderer = null;
+    }
 
-        this.data_views = new Map();
-        this.plot_views = new Map();
+    on_context_lost()
+    {
+        this.renderer.on_context_lost();
+        this.pause_animation();
+    }
+
+    on_context_restored()
+    {
+        this.renderer.on_context_restored();
+        this.schedule_animation();
     }
 
     render()
     {
         console.log("FigureView render");
+        let that = this;
+
         let width = this.model.get("width");
         let height = this.model.get("height");
         let downscale = this.model.get("downscale");
 
+        // Setup canvas
         this.canvas = document.createElement("canvas");
         this.canvas.setAttribute("width", width);
         this.canvas.setAttribute("height", height);
@@ -71,25 +81,27 @@ class FigureView extends widgets.DOMWidgetView
         this.el.className = "jupyter-widget jupyter-unray";
         this.el.appendChild(this.canvas);
 
-        //let gl = this._create_gl_context(this.canvas, downscale);
-        //this.gl = gl;
-		this.canvas.addEventListener('webglcontextlost', this.on_context_lost, false);
+		this.canvas.addEventListener('webglcontextlost', (event) => {
+            console.log(event);
+            event.preventDefault();
+            that.on_context_lost();
+        }, false);
 
-        // Setup renderer (creates its own webgl context)
-        this.renderer = new THREE.WebGLRenderer({
-            canvas: this.canvas,
-            alpha: true,
-            premultipliedAlpha: true,
-            antialias: false,
-            stencil: true,
-            preserveDrawingBuffer: true,
-            depth: true,
-            logarithmicDepthBuffer: false
-        });
-        this.renderer.setSize(downscale * width, downscale * height);
-        this.bgcolor = new THREE.Color(0.9, 0.9, 0.9); // TODO: Make model attribute
-        this.renderer.setClearColor(this.bgcolor, 1.0);
+        this.canvas.addEventListener('webglcontextrestored', (event) => {
+            console.log(event);
+            that.on_context_restored();
+        }, false);
 
+        // Setup renderer (creates the webgl context)
+        this.renderer = new Renderer(this.canvas);
+        this.renderer.set_size(width * downscale, height * downscale);
+
+        this.listenTo(this.model, "change:data", this.on_data_changed);
+        this.listenTo(this.model, "change:plots", this.on_plots_changed);
+        //this.wire_data_listeners();
+        //this.wire_plot_listeners();
+
+        /*
         // Setup camera
         let fov = 60;
         let aspect_ratio = width / height;
@@ -101,110 +113,47 @@ class FigureView extends widgets.DOMWidgetView
         this.camera.position.y = 0;
         this.camera.position.z = 1000;
         this.camera.lookAt(new THREE.Vector3(0,0,0));
+        */
 
-        // Create main scene
-        this.scene = new THREE.Scene();
-        let geometry = new THREE.BoxGeometry( 200, 200, 200 );
-        let material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
-        let mesh = new THREE.Mesh(geometry, material);
-        this.scene.add(mesh);
-
-        // Return promise representing async creation of child views
-        return this._create_views();
+        return Promise.resolve().then(() => { that.schedule_animation(); });
     }
 
-    /*
-    _create_gl_context(canvas, downscale)
+    on_data_changed()
     {
-        let gloptions = {
-            antialias: false,
-            depth: true,
-            alpha: true,
-            stencil: false,
-            preserveDrawingBuffer: true,
-            failIfMajorPerformanceCaveat: true,
-        };
-        let gl = canvas.getContext("webgl2", gloptions);
-        gl.viewport(0, 0, downscale * gl.canvas.width, downscale * gl.canvas.height);
-        return gl;
-    }
-    */
+        console.log("on_data_changed ", arguments);
 
-    _create_views()
+        //let data = this.model.get("data"); //[name];
+        //this.renderer.on_data_changed(name, data.array);
+
+        //this.schedule_animation();  // Need this? Currently always animated
+    }
+
+    on_plots_changed()
     {
-        console.log("FigureView _create_views");
-        // For capture in promise callback closures
-        let that = this;
-        let view_promises = [];
-
-        // Create views for data objects
-        let data = this.model.get("data");
-        for (let name of Object.keys(data)) {
-            let model = data[name];
-            let p = this.create_child_view(model);
-            view_promises.push( p.then(
-                (view) => {
-                    console.log("XXXXXXXXXXXXXXXXXXXXXXXXXx");
-                    // name == view.model.get("name")
-                    that.data_views.set(name, view);
-                    that.listenTo(view, "data:dirty", that.on_data_dirty);
-                    return view;
-                }
-            ));
-        }
-
-        // Create views for plot objects
-        let plots = this.model.get("plots");
-        for (let name of Object.keys(plots)) {
-            let model = plots[name];
-            let p = this.create_child_view(model);
-            view_promises.push( p.then(
-                (view) => {
-                    // name == view.model.get("name")
-                    that.plot_views.set(name, view);
-                    that.listenTo(view, "plot:dirty", that.on_plot_dirty);
-                    return view;
-                }
-            ));
-        }
-
-        // When all child views are created, trigger on_all_*views_ready
-        this.view_promises = Promise.all(view_promises)
-        .then(
-            () => that.on_all_views_ready()
-        ).catch((e) => {
-            this.on_view_creation_failed(e);
-            throw e;
-        });
-        return this.view_promises;
-    }
-
-    on_view_creation_failed(err) {
-        console.error("Failed to initialize FigureView, error is: ", err);
-    }
-
-    on_data_dirty() {
-        console.log("on_data_dirty ", arguments);
-    }
-
-    on_plot_dirty() {
-        console.log("on_plot_dirty ", arguments);
-    }
-
-    on_all_views_ready() {
-        console.log("FigureView on_all_views_ready");
-        this.schedule_animation();
+        // FIXME: Trigger on already connected plot changed
+        console.log("on_plots_changed ", arguments);
     }
 
     update()
     {
         super.update(...arguments);
+
+        // TODO: New data or plot connected
+
         console.log("FigureView update", Object.keys(this.model.get("data")), arguments);
     }
 
     schedule_animation()
     {
         this.animation_frame_id = window.requestAnimationFrame(_.bind(this.animate, this));
+    }
+
+    pause_animation()
+    {
+        if (this.animation_frame_id !== undefined) {
+            window.cancelRequestAnimationFrame(this.animation_frame_id);
+            this.animation_frame_id = undefined;
+        }
     }
 
     animate(time)
@@ -229,12 +178,14 @@ class FigureView extends widgets.DOMWidgetView
     step_time(passed_time, time_step)
     {
         // Animate camera (for debugging)
+        /*
         let x = this.camera.position.x;
         let y = this.camera.position.y;
         let freq = 4;
         let theta = Math.PI * ((passed_time / freq) % 1.0);
         this.camera.position.z = 1000 * Math.cos(theta);
         this.camera.position.x = 1000 * Math.sin(theta);
+        */
 
         // TODO: Create uniforms acessible in shaders
         // Update oscillation uniforms with new time
@@ -254,76 +205,28 @@ class FigureView extends widgets.DOMWidgetView
 
     redraw()
     {
-        //let gl = this.gl;
-        //gl.clearColor(Math.abs(Math.sin(0.2*this.redraw_count)), 0.9, 0.9, 1.0);
-        //gl.clear(gl.COLOR_BUFFER_BIT);
+        // this.renderer.redraw();
 
-        // Simulate context loss (for testing)
-        //this.renderer.forceContextLoss();
-
-        // Adjust face culling (plot specific)
-        //this.renderer.setFaceCulling("back", "ccw");
-        this.renderer.setFaceCulling(false);
-
-        // TODO: Who owns the camera and the scene?
-        this.renderer.render(this.scene, this.camera);
-
-        /*
-        for (let plot of this.plots.entries()) {
-            // Use this to view plots in separate parts of figure
-            //this.renderer.setViewport(0, 0, this.width, this.height);
-            let scene = plot.process();
-        	this.renderer.render(scene, this.camera);
-        }
-        */
-    }
-
-    draft_threejs_setup()
-    {
-        // FIXME: Create textures from data arrays using THREE.DataTexture
-
-        // FIXME: Configure instanced attributes
-        //new THREE.InstancedBufferAttribute(array, itemSize, meshPerAttribute)
-
-        // FIXME: Configure one per-vertex attribute to appease webgl drivers
-        // next_vertex = new Uint32Array([1, 2, 3, 0]);
-        //new THREE.BufferAttribute(array, itemSize, normalized)
-
-        // FIXME: Configure geometry instance
-        //var geometry = new THREE.BufferGeometry();
-
-        // create a simple square shape. We duplicate the top left and bottom right
-        // vertices because each vertex needs to appear once per triangle.
-        /*
-        var vertices = new Float32Array( [
-            -1.0, -1.0,  1.0,
-            1.0, -1.0,  1.0,
-            1.0,  1.0,  1.0,
-
-            1.0,  1.0,  1.0,
-            -1.0,  1.0,  1.0,
-            -1.0, -1.0,  1.0
-        ] );
-        */
-        // itemSize = 3 because there are 3 values (components) per vertex
-        //geometry.addAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
-
-        // FIXME: Configure custom shaders
-        //var material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
-
-        // FIXME: Setup scene and camera
-        //var mesh = new THREE.Mesh(geometry, material);
-
-        // FIXME: Configure uniforms
-        /*
-        let uniforms = {
-	        time: { value: 1.0 },
-	        resolution: new THREE.Uniform(new THREE.Vector2())
-        };
-        */
+        //this.threejs_redraw();
     }
 };
 
+class TRenderer
+{
+
+
+    // Unoptimized naive threejs rendering
+    setup(plot, data)
+    {
+    }
+
+    redraw()
+    {
+        this.renderer = THREE.WebGLRenderer();
+
+        this.renderer.render(this.scene, this.camera);
+    }    
+}
 
 module.exports = {
     FigureModel, FigureView

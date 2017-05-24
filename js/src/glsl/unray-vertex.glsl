@@ -4,12 +4,12 @@ precision highp int;
 precision highp sampler2D;
 precision highp isampler2D;
 
-// Using webpack-glsl-loader to copy in shared code
-@import ./unray-lib;
-
 // Using underscore.js template engine to inject define values
 #define ENABLE_DEBUG_COLORS <%= debug_colors %>
 #define ENABLE_DEBUG_POSITIONS <%= debug_positions %>
+
+// Using webpack-glsl-loader to copy in shared code
+@import ./unray-lib;
 
 // Local vertex attributes (just a test, and we need at least one vertex attribute to draw)
 layout (location = 0) in int a_debug;
