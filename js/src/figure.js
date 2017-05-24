@@ -5,7 +5,7 @@ var _ = require('underscore');
 var THREE = require('three');
 
 var utils = require('./utils.js');
-var Renderer = require('./renderer.js');
+let renderer = require("./renderer.js")
 
 
 class FigureModel extends widgets.DOMWidgetModel
@@ -51,6 +51,7 @@ class FigureView extends widgets.DOMWidgetView
         this.renderer = null;
     }
 
+    /*
     on_context_lost()
     {
         this.renderer.on_context_lost();
@@ -62,9 +63,8 @@ class FigureView extends widgets.DOMWidgetView
         this.renderer.on_context_restored();
         this.schedule_animation();
     }
-
-    render()
-    {
+    */
+    render() {
         console.log("FigureView render");
         let that = this;
 
@@ -77,43 +77,51 @@ class FigureView extends widgets.DOMWidgetView
         this.canvas.setAttribute("width", width);
         this.canvas.setAttribute("height", height);
 
+        // Add it to the DOM
         this.el.innerHTML = "";
         this.el.className = "jupyter-widget jupyter-unray";
         this.el.appendChild(this.canvas);
 
-		this.canvas.addEventListener('webglcontextlost', (event) => {
-            console.log(event);
-            event.preventDefault();
-            that.on_context_lost();
-        }, false);
+        // Downscale width, height for renderer setup
+        width = width * downscale;
+        height = height * downscale;
 
-        this.canvas.addEventListener('webglcontextrestored', (event) => {
-            console.log(event);
-            that.on_context_restored();
-        }, false);
+        // Setup camera
+        // TODO: Use pythreejs camera and controller
+        // TODO: Setup camera to include coordinates bounding box in view
+        let near = 1;
+        let far = 1000;
+        let right = width * downscale * 0.5;
+        let top = height * downscale * 0.5;
+		this.camera = new THREE.OrthographicCamera(-right, right, top, -top, near, far);
+		this.camera.position.z = 4;
 
-        // Setup renderer (creates the webgl context)
-        this.renderer = new Renderer(this.canvas);
-        this.renderer.set_size(width * downscale, height * downscale);
+        // Setup scene
+        this.scene = new THREE.Scene();
 
+        // Setup renderer
+		this.renderer = new THREE.WebGLRenderer({
+            canvas: this.canvas,
+
+        });
+        this.renderer.setClearColor(0x000000);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setSize(width * downscale, height * downscale);
+
+        // Setup cloud model
+        this.tetrenderer = new renderer.TetrahedralMeshRenderer();
+
+        // FIXME: Need actual data to initialize
+        //this.tetrenderer.init(num_tetrahedrons, num_vertices);
+        //this.tetrenderer.setup();
+        //this.tetrenderer.update_perspective(this.camera); // TODO: On camera change
+		//this.scene.add(this.tetrenderer.meshes.get("...")); // FIXME: Add mesh to scene
+
+        // Wire listeners
         this.listenTo(this.model, "change:data", this.on_data_changed);
         this.listenTo(this.model, "change:plots", this.on_plots_changed);
         //this.wire_data_listeners();
         //this.wire_plot_listeners();
-
-        /*
-        // Setup camera
-        let fov = 60;
-        let aspect_ratio = width / height;
-        let near = 1;
-        let far = 10000;
-        //this.camera = new THREE.OrthographicCamera(left, right, top, bottom, near, far);
-        this.camera = new THREE.PerspectiveCamera(fov, aspect_ratio, near, far);
-        this.camera.position.x = 0;
-        this.camera.position.y = 0;
-        this.camera.position.z = 1000;
-        this.camera.lookAt(new THREE.Vector3(0,0,0));
-        */
 
         return Promise.resolve().then(() => { that.schedule_animation(); });
     }
@@ -187,46 +195,25 @@ class FigureView extends widgets.DOMWidgetView
         this.camera.position.x = 1000 * Math.sin(theta);
         */
 
-        // TODO: Create uniforms acessible in shaders
-        // Update oscillation uniforms with new time
-        /*
-        this.uniforms.time = passed_time;
-        this.uniforms.time_step = time_step;
-
-        let tpi = Math.PI * passed_time;
-        this.uniforms.sines = [
-            Math.sin(1 * tpi),
-            Math.sin(2 * tpi),
-            Math.sin(3 * tpi),
-            Math.sin(4 * tpi),
-        ];
-        */
+        // Update time in tetrenderer
+        this.tetrenderer.update_time(passed_time);
     }
 
     redraw()
     {
-        // this.renderer.redraw();
+        // TODO: On camera update, do this:
+        //this.tetrenderer.update_perspective(this.camera);
 
-        //this.threejs_redraw();
+        // TODO: React to data changes:
+        //this.tetrenderer.update_ranges();
+        //this.tetrenderer.update_method(method); // TODO: Better model for methods and data sharing
+        //this.tetrenderer.update_encoding(encoding);
+        //this.tetrenderer.update_data(data);
+
+        this.renderer.render(this.scene, this.camera);
     }
 };
 
-class TRenderer
-{
-
-
-    // Unoptimized naive threejs rendering
-    setup(plot, data)
-    {
-    }
-
-    redraw()
-    {
-        this.renderer = THREE.WebGLRenderer();
-
-        this.renderer.render(this.scene, this.camera);
-    }    
-}
 
 module.exports = {
     FigureModel, FigureView
