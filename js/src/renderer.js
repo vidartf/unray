@@ -324,8 +324,8 @@ class TetrahedralMeshRenderer
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             // Texture dimensions
-            u_cell_texture_shape: { value: new THREE.Vector2(0, 0) },
-            u_vertex_texture_shape: { value: new THREE.Vector2(0, 0) },
+            u_cell_texture_shape: { value: [0, 0] },
+            u_vertex_texture_shape: { value: [0, 0] },
             // Cell textures
             t_cells: { value: null },
             // Vertex textures (at least in the current implementation)
@@ -361,14 +361,10 @@ class TetrahedralMeshRenderer
         this.num_tetrahedrons = num_tetrahedrons;
         this.num_vertices = num_vertices;
 
-        // Compute suitable 2D texture shapes large
-        // enough to hold this number of values
-        this.cell_texture_shape = compute_texture_shape(this.num_tetrahedrons);
-        this.vertex_texture_shape = compute_texture_shape(this.num_vertices);
-
-        // Update texture property uniforms
-        this.uniforms.u_cell_texture_shape.value.set(...this.cell_texture_shape);
-        this.uniforms.u_vertex_texture_shape.value.set(...this.vertex_texture_shape);
+        // Compute suitable 2D texture shapes large enough
+        // to hold this number of values and store in uniforms
+        [...this.uniforms.u_cell_texture_shape.value] = compute_texture_shape(this.num_tetrahedrons);
+        [...this.uniforms.u_vertex_texture_shape.value] = compute_texture_shape(this.num_vertices);
     }
 
     // Update data ranges, also done automatically during update_data
@@ -565,7 +561,8 @@ class TetrahedralMeshRenderer
             case "vertex":
                 if (allocate) {
                     this.uniforms["t_" + channel_name].value = allocate_array_texture(
-                        channel.dtype, channel.item_size, this.vertex_texture_shape);
+                        channel.dtype, channel.item_size,
+                        this.uniforms.u_vertex_texture_shape.value);
                 }
                 if (update) {
                     update_array_texture(this.uniforms["t_" + channel_name].value, array);
@@ -583,7 +580,8 @@ class TetrahedralMeshRenderer
                     // to quickly switch between methods e.g. during camera rotation
                     if (ordered) {
                         this.uniforms["t_" + channel_name].value = allocate_array_texture(
-                            channel.dtype, channel.item_size, this.cell_texture_shape);
+                            channel.dtype, channel.item_size,
+                            this.uniforms.u_cell_texture_shape.value);
                     }
                 }
                 if (update) {
