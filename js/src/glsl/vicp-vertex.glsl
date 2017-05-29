@@ -235,7 +235,6 @@ void main()
     v_emission = get_at(emission, local_vertex_id);
     v_emission_gradient = XDinv * compute_edge_diff_vector(emission);
 #elif defined(ENABLE_EMISSION)
-//syntax  error  /;
     v_emission = texture2D(t_emission, v_uv).x;  // TODO: Validate
 #endif
 
@@ -253,5 +252,13 @@ void main()
     v_ray_lengths = with_nonzero_at(local_vertex_id, orthogonal_length / dot(n, v_view_direction));
 #endif
 
-    gl_Position = MVP * vec4(v_model_position, 1.0);
+    //gl_Position = MVP * vec4(v_model_position, 1.0);
+    //gl_Position = vec4(v_model_position, 1.0);
+
+    gl_Position = vec4(
+        local_vertex_id == 1 ? 1.0: 0.0,
+        local_vertex_id == 2 ? 1.0: 0.0,
+        local_vertex_id == 3 ? 1.0: 0.0,
+        1.0
+    );
 }

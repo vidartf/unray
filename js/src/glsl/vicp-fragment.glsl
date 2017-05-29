@@ -118,4 +118,10 @@ void main()
 #endif
 
     gl_FragColor = vec4(C, a);
+
+    // DEBUGGING:
+    //gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    //gl_FragColor = vec4(u_constant_color, 1.0);
+    //gl_FragColor = vec4(u_constant_color, a);
+    //gl_FragColor = vec4(0.0, 0.0, 1.0, a);
 }

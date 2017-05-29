@@ -123,14 +123,14 @@ class FigureView extends widgets.DOMWidgetView
             density: new Float32Array(num_vertices),
             emission: new Float32Array(num_vertices),
             density_lut: new Float32Array(4),
-            emission_lut: new Float32Array(4),
+            emission_lut: new Float32Array(3 * 4),
         };
         data.cells.set([0, 1, 2, 3]);
-        data.coordinates.set([0,0,0,  0,0,1,  0,1,0,  1,0,0])
-        data.density.set([1, 1, .3, .3])
-        data.emission.set([1, 0, 1, 0])
-        data.density_lut.set([0, .33, .66, 1])
-        data.emission_lut.set([0, .33, .66, 1])
+        data.coordinates.set([0,0,0,  0,0,1,  0,1,0,  1,0,0]);
+        data.density.set([1, 1, .3, .3]);
+        data.emission.set([1, .66, .33, 0]);
+        data.density_lut.set([0, .33, .66, 1]);
+        data.emission_lut.set([1,0,1, 0,1,1, 1,1,1, 1,1,0]);
         // end mock data
 
         // Initialize renderer once dimensions are known
@@ -210,7 +210,7 @@ class FigureView extends widgets.DOMWidgetView
         this.redraw();
 
         this.prev_time = time;
-        this.schedule_animation();
+        //this.schedule_animation();
     }
 
     step_time(passed_time, time_step)
@@ -240,7 +240,11 @@ class FigureView extends widgets.DOMWidgetView
         //this.tetrenderer.update_encoding(encoding);
         //this.tetrenderer.update_data(data);
 
+        console.log("Calling render");
+        console.log(this.scene);
+        console.log(this.camera);
         this.renderer.render(this.scene, this.camera);
+        console.log("Done rendering.");
     }
 };
 

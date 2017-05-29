@@ -50,7 +50,7 @@ const default_defines = {
 const method_properties = {
     surface: {
         transparent: false,
-        ordered: false,
+        sorted: false,
         side: THREE.DoubleSide, // TODO: Not necessary, pick side to debug facing issues easily
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
@@ -67,10 +67,9 @@ const method_properties = {
         blend_equation: THREE.MaxEquation,
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
-        ordered: false,
+        sorted: false,
         side: THREE.DoubleSide,
         defines: _.extend({}, default_defines, {
-            ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
         }),
         vertex_shader: shader_sources.vertex,
@@ -84,11 +83,10 @@ const method_properties = {
         blend_equation: THREE.AddEquation, // TODO: SubtractEquation?
         blend_src: THREE.SrcAlphaFactor,
         blend_dst: THREE.OneMinusDstAlphaFactor,
-        ordered: false,
+        sorted: false,
         side: THREE.BackSide,
         defines: _.extend({}, default_defines, {
-            ENABLE_SURFACE_MODEL: 1,
-            ENABLE_EMISSION: 1,
+            ENABLE_DENSITY: 1,
         }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
@@ -101,10 +99,9 @@ const method_properties = {
         blend_equation: THREE.AddEquation,
         blend_src: THREE.OneFactor,  // TODO: Check what THREE.SrcAlphaSaturateFactor does
         blend_dst: THREE.OneFactor,
-        ordered: false,
+        sorted: false,
         side: THREE.BackSide,
         defines: _.extend({}, default_defines, {
-            ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
         }),
         vertex_shader: shader_sources.vertex,
@@ -118,10 +115,10 @@ const method_properties = {
         blend_equation: THREE.AddEquation,
         blend_src: THREE.SrcAlphaFactor,
         blend_dst: THREE.OneMinusDstAlphaFactor,
-        ordered: true,
+        sorted: true,
         side: THREE.BackSide,
         defines: _.extend({}, default_defines, {
-            ENABLE_SURFACE_MODEL: 1,
+            ENABLE_DENSITY: 1,
             ENABLE_EMISSION: 1,
         }),
         vertex_shader: shader_sources.vertex,
@@ -220,6 +217,8 @@ function allocate_array_texture(dtype, item_size, texture_shape)
     let type = dtype2threetype[dtype];
     let format = dtype2threeformat[item_size];
 
+    console.log(`Creating texture with type ${type}, format ${format}.`);
+
     let texture = new THREE.DataTexture(padded_data,
         texture_shape[0], texture_shape[1],
         format, type);
@@ -296,19 +295,22 @@ class TetrahedralMeshRenderer
     {
         // Setup triangle strip to draw each tetrahedron instance
         // TODO: Check that strip ordering matches 
-        this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 1, 2, 3, 0, 1]));
-        
+        this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 1, 2, 3, 0, 1]), 1);
+
+        // Replacement for gl_VertexID which requires webgl2
+        this.local_vertex_id_buffer =  new THREE.BufferAttribute(new Float32Array([0,1,2,3]), 1);
+
         // Note: Seems like we need at least one vertex attribute
         // (i.e. per instance vertex) to please some webgl drivers
         // Setup local tetrahedron vertex indices in a pattern relative to each vertex
         // TODO: Arrange these such that normal computations become simpler,
         //   i.e. n0 = normal opposing v0 = v1->v2 x v1->v3 = pointing away from v0
-        this.local_vertices_buffer = new THREE.BufferAttribute(new Uint8Array([
+        this.local_vertices_buffer = new THREE.BufferAttribute(new Float32Array([
             0,   1, 2, 3,
             1,   2, 3, 0,
             2,   3, 0, 1,
             3,   0, 1, 2
-        ]));
+        ]), 4);
     }
 
     _init_uniforms()
@@ -323,6 +325,7 @@ class TetrahedralMeshRenderer
             // Input data ranges, 4 values: [min, max, max-min, 1.0/(max-min) or 1]
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+            u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
             // Texture dimensions
             u_cell_texture_shape: { value: [0, 0] },
             u_vertex_texture_shape: { value: [0, 0] },
@@ -342,8 +345,8 @@ class TetrahedralMeshRenderer
     {
         this.attributes = {
             // Cell attributes
-            c_ordering: null, // only if ordered
-            c_cells: null,    // only if non-ordered
+            c_ordering: null, // only if sorted
+            c_cells: null,    // only if non-sorted
         };
     }
 
@@ -376,10 +379,11 @@ class TetrahedralMeshRenderer
 
     allocate_ordering()
     {
-        // Initialize ordering array with contiguous indices
-        this.ordering = new Int32Array(this.num_tetrahedrons);
+        // Initialize ordering array with contiguous indices,
+        // stored as floats because webgl2 is required for integer attributes
+        this.ordering = new Float32Array(this.num_tetrahedrons);
         for (let i = 0; i < this.num_tetrahedrons; ++i) {
-            ordering[i] = i;
+            this.ordering[i] = i;
         }
         this.attributes.c_ordering = new THREE.InstancedBufferAttribute(this.ordering, 1, 1);
         this.attributes.c_ordering.setDynamic(true);
@@ -414,33 +418,44 @@ class TetrahedralMeshRenderer
     {
         let mp = method_properties[method];
         let encoding = this.encodings.get(method);
-        this._allocate_and_update(data, encoding, mp.channels, mp.ordered, false, true);
+        this._allocate_and_update(data, encoding, mp.channels, mp.sorted, false, true);
     }
 
-    _create_geometry(ordered)
+    _create_geometry(sorted)
     {
         let geometry = new THREE.InstancedBufferGeometry();
         geometry.maxInstancedCount = this.num_tetrahedrons;
         geometry.setIndex(this.element_buffer);
         geometry.addAttribute("a_local_vertices", this.local_vertices_buffer);
+        geometry.addAttribute("a_vertex_id", this.local_vertex_id_buffer);
 
         // Setup cells of geometry (using textures or attributes)
-        if (ordered) {
-            // Allocate ordering when first needed
-            if (this.attributes.c_ordering === null) {
-                this.allocate_ordering();
-            }
-            // Need ordering, let ordering be instanced and read cells from texture
-            geometry.addAttribute("c_ordering", this.attributes.c_ordering);
-        } else {
-            if (this.attributes.c_cells === null) {
-                console.error(`Haven't allocated cells yet!`);
-                // Don't need ordering, use cells instanced instead
-                // TODO: Add eventual other attributes with cell association here
-                geometry.addAttribute("c_cells", this.attributes.c_cells);
-            }
+
+        // Currently always need the ordering instance attribute
+        // in place of gl_InstanceID which requires webgl2.
+        // However it's probably possible to use c_cells instead
+        // of t_cells and skip c_ordering with some minor changes
+        // here and there. Try it later.
+
+        //if (sorted) {
+        // Allocate ordering when first needed
+        if (this.attributes.c_ordering === null) {
+            this.allocate_ordering();
         }
-        return geometry
+        // Need ordering, let ordering be instanced and read cells from texture
+        geometry.addAttribute("c_ordering", this.attributes.c_ordering);
+        //}
+
+        // TODO: Try this later. Currently not using c_cells, always using c_ordering and t_cells.
+        // if (!sorted) {
+        //     if (this.attributes.c_cells === null) {
+        //         console.error(`Haven't allocated cells yet!`);
+        //         // Don't need ordering, use cells instanced instead
+        //         // TODO: Add eventual other attributes with cell association here
+        //         geometry.addAttribute("c_cells", this.attributes.c_cells);
+        //     }
+        // }
+        return geometry;
     }
 
     _create_material(mp)
@@ -455,7 +470,11 @@ class TetrahedralMeshRenderer
             fragmentShader: mp.fragment_shader,
             side: mp.side,
             transparent: mp.transparent
-        })
+        });
+
+        // TODO: Configure depth test/write based on material and/or parameters
+        material.depthTest = false;
+        material.depthWrite = false;
 
         // Configure blending
         if (mp.blending === THREE.CustomBlending) {
@@ -485,10 +504,10 @@ class TetrahedralMeshRenderer
         encoding = encoding || mp.default_encoding;
 
         // Allocate various textures and buffers
-        this._allocate_and_update(null, encoding, mp.channels, mp.ordered, true, false);
+        this._allocate_and_update(null, encoding, mp.channels, mp.sorted, true, false);
 
         // Configure instanced geometry, each tetrahedron is an instance
-        let geometry = this._create_geometry(mp.ordered);
+        let geometry = this._create_geometry(mp.sorted);
 
         // Configure material (shader)
         let material = this._create_material(mp);
@@ -514,7 +533,7 @@ class TetrahedralMeshRenderer
         this.encodings.set(method, encoding);
     }
 
-    _allocate_and_update(data, encoding, channels, ordered, allocate, update)
+    _allocate_and_update(data, encoding, channels, sorted, allocate, update)
     {
         // The current implementation assumes:
         // - Each channel has only one possible association
@@ -522,6 +541,8 @@ class TetrahedralMeshRenderer
         // Process all passed channels
         for (let channel_name in channels)
         {
+            console.log("*** updating " + channel_name);
+
             // Get channel description
             let channel = channels[channel_name];
             if (channel === undefined) {
@@ -536,11 +557,11 @@ class TetrahedralMeshRenderer
                 continue;
             }
 
-            // Get data array
-            let array = null;
+            // Get new data value
+            let new_value = null;
             if (data) {
-                array = data[enc.field];
-                if (array === undefined) {
+                new_value = data[enc.field];
+                if (new_value === undefined) {
                     console.log(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
                     continue;
                 }
@@ -548,79 +569,114 @@ class TetrahedralMeshRenderer
 
             // Default association in channel, can override in encoding
             let association = enc.association || channel.association;
+            console.log("*** assiciation " + association);
+            let uniform = null;
             switch (association)
             {
             case "uniform":
-                if (allocate) {
-                    this.uniforms["u_" + channel_name].value = allocate_value(channel.item_size);
+                {
+                let uniform = this.uniforms["u_" + channel_name];
+                if (!uniform.value) {
+                    console.log("Allocating uniform object for " + channel_name);
+                    uniform.value = allocate_value(channel.item_size);
+                    console.log(uniform.value);
                 }
-                if (update) {
-                    this.uniforms["u_" + channel_name].value = array;
+                if (new_value) {
+                    console.log("Updating uniform value for " + channel_name);
+                    console.log(new_value);
+                    uniform.value = new_value;  // TODO: Copy? Set into existing object?
                 }
                 break;
+                }
             case "vertex":
-                if (allocate) {
-                    this.uniforms["t_" + channel_name].value = allocate_array_texture(
+                {
+                let uniform = this.uniforms["t_" + channel_name];
+                if (!uniform.value) {
+                    console.log("Allocating vertex texture for " + channel_name);
+                    console.log(new_value);
+                    uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
                         this.uniforms.u_vertex_texture_shape.value);
                 }
-                if (update) {
-                    update_array_texture(this.uniforms["t_" + channel_name].value, array);
-
-                    // Update data range TODO: Option to skip auto-update
-                    let range_name = "u_" + channel_name + "_range";
-                    if (this.uniforms.hasOwnProperty(range_name)) {
-                        this.uniforms[range_name].value.set(...compute_range(array));
-                    }
+                if (new_value) {
+                    console.log("Uploading to vertex texture for " + channel_name);
+                    console.log(new_value);
+                    update_array_texture(uniform.value, new_value);
                 }
                 break;
+                }
             case "cell":
-                if (allocate) {
-                    // TODO: Maybe we want to allocate both for the ordered and unordered case,
-                    // to quickly switch between methods e.g. during camera rotation
-                    if (ordered) {
-                        this.uniforms["t_" + channel_name].value = allocate_array_texture(
-                            channel.dtype, channel.item_size,
-                            this.uniforms.u_cell_texture_shape.value);
-                    }
+                {
+                // TODO: Currently always placing cell data as textures,
+                // update this for cell data as instance attributes when needed.
+                // Maybe we want to allocate or allow allocation for both the sorted and unsorted case,
+                // to quickly switch between methods e.g. during camera rotation.
+                let uniform = this.uniforms["t_" + channel_name];
+                if (!uniform.value) {
+                    console.log("Allocating cell texture for " + channel_name);
+                    console.log(new_value);
+                    uniform.value = allocate_array_texture(
+                        channel.dtype, channel.item_size,
+                        this.uniforms.u_cell_texture_shape.value);
                 }
-                if (update) {
-                    if (ordered) {
-                        update_array_texture(this.uniforms["t_" + channel_name].value, array);
-                    } else {
-                        let attrib = this.attributes["c_" + channel_name];
-                        if (attrib === null) {
-                            // Allocate instanced buffer attribute
-                            // TODO: Should we copy the array here?
-                            attrib = new THREE.InstancedBufferAttribute(array, channel.item_size, 1);
-                            if (channel.dynamic) {
-                                attrib.setDynamic(true);
-                            }
-                            this.attributes["c_" + channel_name] = attrib;
+                if (new_value) {
+                    console.log("Uploading to cell texture for " + channel_name);
+                    console.log(new_value);
+                    update_array_texture(uniform.value, new_value);
+                }
 
-                            // FIXME: Hack! The data flow here is not very nice.
-                            this.meshes.get("surface").geometry.addAttribute("c_" + channel_name, attrib);
-                        } else {
-                            // Update contents of instanced buffer attribute
-                            attrib.array.set(array);
-                            attrib.needsUpdate = true;
-                        }
-                    }
-                }
+                // var upload_as_instanced_buffer = false;
+                // if (upload_as_instanced_buffer && new_value) {
+                //     let attrib = this.attributes["c_" + channel_name];
+                //     if (!attrib) {
+                //         // Allocate instanced buffer attribute
+                //         // TODO: Should we copy the new_value here?
+                //         attrib = new THREE.InstancedBufferAttribute(new_value, channel.item_size, 1);
+                //         if (channel.dynamic) {
+                //             attrib.setDynamic(true);
+                //         }
+                //         this.attributes["c_" + channel_name] = attrib;
+
+                //         // FIXME: Hack! The data flow here is not very nice.
+                //         let method = "surface";
+                //         this.meshes.get(method).geometry.addAttribute("c_" + channel_name, attrib);
+                //     } else {
+                //         // Update contents of instanced buffer attribute
+                //         attrib.array.set(new_value);
+                //         attrib.needsUpdate = true;
+                //     }
+                // }
                 break;
+                }
             case "lut":
-                if (allocate) {
-                }
-                if (update) {
+                {
+                if (new_value) {
                     let uniform = this.uniforms["t_" + channel_name];
-                    if (uniform.value === null) {
+                    if (!uniform.value) {
+                        console.log("Allocating lut texture for " + channel_name);
+                        console.log(uniform.value, new_value);
                         uniform.value = allocate_array_texture(
-                            channel.dtype, channel.item_size, [array.length / channel.item_size, 1]);
+                            channel.dtype, channel.item_size, [new_value.length / channel.item_size, 1]);
                     } else {
-                        update_array_texture(uniform.value, array);
+                        console.log("Updating lut texture for " + channel_name);
+                        console.log(uniform.value, new_value);
+                        update_array_texture(uniform.value, new_value);
                     }
                 }
                 break;
+                }
+            default:
+                console.log("unknown association " + association);
+            }
+
+            // Update associated data range TODO: Option to skip auto-update
+            if (new_value) {
+                let range_name = "u_" + channel_name + "_range";
+                if (this.uniforms.hasOwnProperty(range_name)) {
+                    this.uniforms[range_name].value.set(...compute_range(new_value));
+                    console.log("Updating data range for " + channel_name);
+                    console.log(range_name, this.uniforms[range_name].value);
+                }
             }
         }
     }
