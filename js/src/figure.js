@@ -111,29 +111,41 @@ class FigureView extends widgets.DOMWidgetView
         // Setup cloud model
         this.tetrenderer = new renderer.TetrahedralMeshRenderer();
 
-        // let data = {
-        //     ordering: new Uint32Array(this.num_tetrahedrons),
-        //     cells: new Uint32Array(4 * this.num_tetrahedrons),
-        //     coordinates: new Float32Array(3 * this.num_vertices),
-        //     density: new Float32Array(this.num_vertices),
-        //     emission: new Float32Array(this.num_vertices),
-        //     density_lut: new Float32Array(256),
-        //     emission_lut: new Float32Array(256),
-        // };
+        // FIXME: Initialize with actual data
 
-        // FIXME: Need actual data to initialize
-        //this.tetrenderer.init(num_tetrahedrons, num_vertices);
+        // Mock data
+        let num_tetrahedrons = 1;
+        let num_vertices = 4;
+        let data = {
+            //ordering: new Int32Array(this.num_tetrahedrons),
+            cells: new Int32Array(4 * num_tetrahedrons),
+            coordinates: new Float32Array(3 * num_vertices),
+            density: new Float32Array(num_vertices),
+            emission: new Float32Array(num_vertices),
+            density_lut: new Float32Array(4),
+            emission_lut: new Float32Array(4),
+        };
+        data.cells.set([0, 1, 2, 3]);
+        data.coordinates.set([0,0,0,  0,0,1,  0,1,0,  1,0,0])
+        data.density.set([1, 1, .3, .3])
+        data.emission.set([1, 0, 1, 0])
+        data.density_lut.set([0, .33, .66, 1])
+        data.emission_lut.set([0, .33, .66, 1])
+        // end mock data
+
+        // Initialize renderer once dimensions are known
+        this.tetrenderer.init(num_tetrahedrons, num_vertices);
 
         // // TODO: Better handling of multiple configurations with data sharing
-        // let method = "surface";
-        // let encoding = undefined;
-        // this.tetrenderer.configure(method, encoding);
+        let method = "surface";
+        let encoding = undefined;
+        this.tetrenderer.configure(method, encoding);
 
         // // Upload data to textures
-        // this.tetrenderer.upload(data, method);
+        this.tetrenderer.upload(data, method);
 
-        //this.tetrenderer.update_perspective(this.camera); // TODO: On camera change
-		//this.scene.add(this.tetrenderer.meshes.get(method)); // FIXME: Add mesh to scene
+        this.tetrenderer.update_perspective(this.camera); // TODO: On camera change
+		this.scene.add(this.tetrenderer.meshes.get(method)); // FIXME: Add mesh to scene
 
         // Wire listeners
         this.listenTo(this.model, "change:data", this.on_data_changed);

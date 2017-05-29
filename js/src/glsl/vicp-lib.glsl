@@ -30,6 +30,64 @@ int bsum4(bvec4 b) {
     return c;
 }
 
+int get_at(ivec4 v, int i)
+{
+    // return v[i];  // webgl doesn't support indexing by non-constants
+    if      (i == 0)  return v[0];
+    else if (i == 1)  return v[1];
+    else if (i == 2)  return v[2];
+    else if (i == 3)  return v[3];
+    return 0;
+}
+
+float get_at(vec2 v, int i)
+{
+    // return v[i];  // webgl doesn't support indexing by non-constants
+    if      (i == 0)  return v[0];
+    else if (i == 1)  return v[1];
+    return 0.0;
+}
+
+float get_at(vec3 v, int i)
+{
+    // return v[i];  // webgl doesn't support indexing by non-constants
+    if      (i == 0)  return v[0];
+    else if (i == 1)  return v[1];
+    else if (i == 2)  return v[2];
+    return 0.0;
+}
+
+float get_at(vec4 v, int i)
+{
+    // return v[i];  // webgl doesn't support indexing by non-constants
+    if      (i == 0)  return v[0];
+    else if (i == 1)  return v[1];
+    else if (i == 2)  return v[2];
+    else if (i == 3)  return v[3];
+    return 0.0;
+}
+
+vec2 get_at(vec2 v[4], int i)
+{
+    // return v[i];  // webgl doesn't support indexing by non-constants
+    if      (i == 0)  return v[0];
+    else if (i == 1)  return v[1];
+    else if (i == 2)  return v[2];
+    else if (i == 3)  return v[3];
+    return vec2(0.0);
+}
+
+vec4 with_nonzero_at(int i, float value)
+{
+    vec4 v = vec4(0.0);
+    // v[i] = value;  // webgl doesn't support indexing by non-constants
+    if      (i == 0)  v[0] = value;
+    else if (i == 1)  v[1] = value;
+    else if (i == 2)  v[2] = value;
+    else if (i == 3)  v[3] = value;
+    return v;    
+}
+
 vec4 integrate_constant_ray(
     float depth,
     vec3 emission,
@@ -41,7 +99,7 @@ vec4 integrate_constant_ray(
     // Evaluate ray integral, use in combination
     // with blend equation: RGB_src * A_dst + RGB_dst
     float transparency = exp(-depth * extinction);
-    float alpha = 1.0f - transparency;
+    float alpha = 1.0 - transparency;
     return vec4(alpha * emission, alpha);
 }
 
@@ -49,9 +107,9 @@ vec4 integrate_constant_ray(
 float smallest_positive(vec4 x) {
     //const float infinity = 1e38f;
     bool touched = false;
-    float depth = 0.0f;
+    float depth = 0.0;
     for (int i = 0; i < 4; ++i) {
-        if (x[i] > 0.0f) {
+        if (x[i] > 0.0) {
             if (touched) {
                 depth = min(depth, x[i]);
             } else {
@@ -73,11 +131,13 @@ vec3 compute_edge_diff_vector(vec4 v)
     return vec3(v[1] - v[0], v[2] - v[0], v[3] - v[0]);
 }
 
-vec2 index_to_uv(uint index, uvec2 shape)
+vec2 index_to_uv(int index, ivec2 shape)
 {
-    uvec2 uv = uvec2(index % shape.x, index / shape.x);
+    //int u = index % shape.x;
+    int v = index / shape.x;
+    int u = index - shape.x * v;
     return vec2(
-        (0.5f + float(uv.x)) / float(shape.x + 1),
-        (0.5f + float(uv.y)) / float(shape.y + 1),
+        (0.5 + float(u)) / float(shape.x + 1),
+        (0.5 + float(v)) / float(shape.y + 1)
     );
 }

@@ -19,7 +19,7 @@ const shader_sources = {
 
 
 const default_channels = {
-    cells:        { association: "cell",   dtype: "uint32",  item_size: 4, dynamic: false },
+    cells:        { association: "cell",   dtype: "int32",   item_size: 4, dynamic: false },
     coordinates:  { association: "vertex", dtype: "float32", item_size: 3, dynamic: false },
     density:      { association: "vertex", dtype: "float32", item_size: 1, dynamic: true },
     emission:     { association: "vertex", dtype: "float32", item_size: 1, dynamic: true },
@@ -42,15 +42,20 @@ const default_encoding = {
 // TODO: Add culling
 // TODO: Add defaults to reduce the size of this?
 // Note: defines are used as "ifdef FOO" not "if FOO" so the value is irrelevant
+const default_defines = {
+    // Always need cell ordering array with
+    // webgl1 because gl_InstanceID is not available
+    ENABLE_CELL_ORDERING: 1,
+};
 const method_properties = {
     surface: {
         transparent: false,
         ordered: false,
         side: THREE.DoubleSide, // TODO: Not necessary, pick side to debug facing issues easily
-        defines: {
+        defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
-        },
+        }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
@@ -64,7 +69,10 @@ const method_properties = {
         blend_dst: THREE.OneFactor,
         ordered: false,
         side: THREE.DoubleSide,
-        defines: {},
+        defines: _.extend({}, default_defines, {
+            ENABLE_SURFACE_MODEL: 1,
+            ENABLE_EMISSION: 1,
+        }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
@@ -78,7 +86,10 @@ const method_properties = {
         blend_dst: THREE.OneMinusDstAlphaFactor,
         ordered: false,
         side: THREE.BackSide,
-        defines: {},
+        defines: _.extend({}, default_defines, {
+            ENABLE_SURFACE_MODEL: 1,
+            ENABLE_EMISSION: 1,
+        }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
@@ -92,7 +103,10 @@ const method_properties = {
         blend_dst: THREE.OneFactor,
         ordered: false,
         side: THREE.BackSide,
-        defines: {},
+        defines: _.extend({}, default_defines, {
+            ENABLE_SURFACE_MODEL: 1,
+            ENABLE_EMISSION: 1,
+        }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
@@ -106,7 +120,10 @@ const method_properties = {
         blend_dst: THREE.OneMinusDstAlphaFactor,
         ordered: true,
         side: THREE.BackSide,
-        defines: {},
+        defines: _.extend({}, default_defines, {
+            ENABLE_SURFACE_MODEL: 1,
+            ENABLE_EMISSION: 1,
+        }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
@@ -161,9 +178,12 @@ function allocate_value(item_size)
 
 function compute_texture_shape(size)
 {
-    let width = (Math.ceil(Math.sqrt(size)) + 3) % 4;
-    let height = (Math.ceil(size / width) + 3) % 4;
-    if (width * height > size) {
+    if (size <= 0) {
+        throw `Expecting a positive size, got ${size}.`;
+    }
+    let width = Math.pow(2, Math.floor(Math.log2(size) / 2));
+    let height = Math.ceil(size / width);
+    if (width * height < size) {
         throw `Texture shape computation failed! size=${size}, width=${width}, height=${height}`;
     }
     return [width, height];
@@ -210,7 +230,11 @@ function allocate_array_texture(dtype, item_size, texture_shape)
 
 function update_array_texture(texture, data)
 {
-    texture.data.set(data);
+    try {
+        texture.image.data.set(data);
+    } catch(e) {
+        console.error("failed to update texture");
+    }
     texture.needsUpdate = true;
 }
 
@@ -272,7 +296,7 @@ class TetrahedralMeshRenderer
     {
         // Setup triangle strip to draw each tetrahedron instance
         // TODO: Check that strip ordering matches 
-        this.element_buffer = new THREE.BufferAttribute(new Uint32Array([0, 1, 2, 3, 0, 1]));
+        this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 1, 2, 3, 0, 1]));
         
         // Note: Seems like we need at least one vertex attribute
         // (i.e. per instance vertex) to please some webgl drivers
@@ -357,7 +381,7 @@ class TetrahedralMeshRenderer
     allocate_ordering()
     {
         // Initialize ordering array with contiguous indices
-        this.ordering = new Uint32Array(this.num_tetrahedrons);
+        this.ordering = new Int32Array(this.num_tetrahedrons);
         for (let i = 0; i < this.num_tetrahedrons; ++i) {
             ordering[i] = i;
         }
@@ -407,15 +431,18 @@ class TetrahedralMeshRenderer
         // Setup cells of geometry (using textures or attributes)
         if (ordered) {
             // Allocate ordering when first needed
-            if (this.attributes.c_ordering === undefined) {
+            if (this.attributes.c_ordering === null) {
                 this.allocate_ordering();
             }
             // Need ordering, let ordering be instanced and read cells from texture
             geometry.addAttribute("c_ordering", this.attributes.c_ordering);
         } else {
-            // Don't need ordering, use cells instanced instead
-            // TODO: Add eventual other attributes with cell association here
-            geometry.addAttribute("c_cells", this.attributes.c_cells);
+            if (this.attributes.c_cells === null) {
+                console.error(`Haven't allocated cells yet!`);
+                // Don't need ordering, use cells instanced instead
+                // TODO: Add eventual other attributes with cell association here
+                geometry.addAttribute("c_cells", this.attributes.c_cells);
+            }
         }
         return geometry
     }
@@ -444,7 +471,10 @@ class TetrahedralMeshRenderer
 
         // Apply method #defines to shaders
         // TODO: May also add defines based on encoding if necessary
-        _.extend(material.defines, mp.defines);
+        // TODO: Dependency graph for defines? Not worth spending to much time on.
+        material.defines = mp.defines;
+
+        //material.extensions = {};
 
         return material;
     }
@@ -554,34 +584,43 @@ class TetrahedralMeshRenderer
                     if (ordered) {
                         this.uniforms["t_" + channel_name].value = allocate_array_texture(
                             channel.dtype, channel.item_size, this.cell_texture_shape);
-                    } else {
-                        // Allocate instanced buffer attribute
-                        // TODO: Should we copy the array here?
-                        let attrib = new THREE.InstancedBufferAttribute(array, channel.item_size, 1);
-                        if (channel.dynamic) {
-                            attrib.setDynamic(true);
-                        }
-                        this.attributes["c_" + channel_name] = attrib;
                     }
                 }
                 if (update) {
                     if (ordered) {
                         update_array_texture(this.uniforms["t_" + channel_name].value, array);
                     } else {
-                        // Update contents of instanced buffer attribute
                         let attrib = this.attributes["c_" + channel_name];
-                        attrib.array.set(array);
-                        attrib.needsUpdate = true;
+                        if (attrib === null) {
+                            // Allocate instanced buffer attribute
+                            // TODO: Should we copy the array here?
+                            attrib = new THREE.InstancedBufferAttribute(array, channel.item_size, 1);
+                            if (channel.dynamic) {
+                                attrib.setDynamic(true);
+                            }
+                            this.attributes["c_" + channel_name] = attrib;
+
+                            // FIXME: Hack! The data flow here is not very nice.
+                            this.meshes.get("surface").geometry.addAttribute("c_" + channel_name, attrib);
+                        } else {
+                            // Update contents of instanced buffer attribute
+                            attrib.array.set(array);
+                            attrib.needsUpdate = true;
+                        }
                     }
                 }
                 break;
             case "lut":
                 if (allocate) {
-                    this.uniforms["t_" + channel_name].value = allocate_array_texture(
-                        channel.dtype, channel.item_size, [array.length / channel.item_size, 1]);
                 }
                 if (update) {
-                    update_array_texture(this.uniforms["t_" + channel_name].value, array);
+                    let uniform = this.uniforms["t_" + channel_name];
+                    if (uniform.value === null) {
+                        uniform.value = allocate_array_texture(
+                            channel.dtype, channel.item_size, [array.length / channel.item_size, 1]);
+                    } else {
+                        update_array_texture(uniform.value, array);
+                    }
                 }
                 break;
             }

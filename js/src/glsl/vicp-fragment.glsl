@@ -1,10 +1,10 @@
 // Fragment shader for the Unray project implementing
 // variations of View Independent Cell Projection
 
-precision highp float;
-precision highp int;
-precision highp sampler2D;
-precision highp isampler2D;
+// precision highp float;
+// precision highp int;
+// precision highp sampler2D;
+// precision highp usampler2D;
 
 
 // Using webpack-glsl-loader to copy in shared code
@@ -27,22 +27,40 @@ uniform vec4 u_oscillators;
 uniform vec3 u_view_direction;
 
 // Input data uniforms
+#ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
+#endif
+#ifdef ENABLE_EMISSION
 uniform vec4 u_emission_range;
+#endif
 uniform vec3 u_constant_color;
 
 // LUT textures
+#ifdef ENABLE_DENSITY
 uniform sampler2D t_density_lut;
+#endif
+#ifdef ENABLE_EMISSION
 uniform sampler2D t_emission_lut;
+#endif
 
 // Varyings
 varying vec3 v_model_position;
-flat varying vec3 v_view_direction;
+varying vec3 v_view_direction; // flat
+#ifdef ENABLE_DEPTH
 varying vec4 v_ray_lengths;
+#endif
+#ifdef ENABLE_DENSITY
 varying float v_density;
+#endif
+#ifdef ENABLE_EMISSION
 varying float v_emission;
-flat varying float v_density_gradient;
-flat varying float v_emission_gradient;
+#endif
+#ifdef ENABLE_DENSITY_BACK
+varying float v_density_gradient; // FIXME: flat
+#endif
+#ifdef ENABLE_EMISSION_BACK
+varying float v_emission_gradient; // flat
+#endif
 
 void main()
 {
@@ -59,13 +77,13 @@ void main()
 
     // Map components of values from [range.x, range.y] to [0, 1],
     // optimized by expecting
-    //    range.w == 1.0f / (range.x - range.y) or 1 if range.x == range.y
+    //    range.w == 1.0 / (range.x - range.y) or 1 if range.x == range.y
 #ifdef ENABLE_DENSITY
-    float mapped_density = (density - u_density_range.x) * u_density_range.w;
+    float mapped_density = (v_density - u_density_range.x) * u_density_range.w;
 #endif
 
 #ifdef ENABLE_EMISSION
-    float mapped_emission = (emission - u_emission_range.x) * u_emission_range.w;
+    float mapped_emission = (v_emission - u_emission_range.x) * u_emission_range.w;
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
@@ -81,13 +99,13 @@ void main()
     float mapped_emission_back = (emission_back - u_emission_range.x) * u_emission_range.w;
 #endif
 
-    vec3 C = vec3(1.0f);
-    float a = 1.0f;
+    vec3 C = vec3(1.0);
+    float a = 1.0;
 
 #ifdef ENABLE_SURFACE_MODEL
     // TODO: Could add some light model for the surface shading here
     #ifdef ENABLE_EMISSION
-    C = texture2D(t_emission_lut, vec2(mapped_emission, 0.5f));
+    C = texture2D(t_emission_lut, vec2(mapped_emission, 0.5)).xyz;
     #else
     C = u_constant_color;
     #endif
@@ -99,5 +117,5 @@ void main()
 #ifdef ENABLE_MAX_MODEL
 #endif
 
-    gl_fragColor = vec4(C, a);
+    gl_FragColor = vec4(C, a);
 }
