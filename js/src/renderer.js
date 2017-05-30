@@ -147,8 +147,12 @@ function join_defines(defines)
 
 function compute_range(array)
 {
-    let min = array.reduce(Math.min, array[0]);
-    let max = array.reduce(Math.max, array[0]);
+    let min = array[0];
+    let max = array[0];
+    for (let v of array) {
+        min = Math.min(min, v);
+        max = Math.max(max, v);
+    }
     let range = max - min;
     let scale = range > 0.0 ? 1.0 / range : 1.0;
     return [min, max, range, scale];
@@ -210,14 +214,22 @@ const dtype2threeformat = {
 
 function allocate_array_texture(dtype, item_size, texture_shape)
 {
-    let arraytype = dtype2arraytype[dtype];
     let size = texture_shape[0] * texture_shape[1] * item_size;
-    let padded_data = new arraytype(size);
 
-    let type = dtype2threetype[dtype];
+    // Textures using Int32Array and Uint32Array require webgl2,
+    // so currently just ignoring the dtype during prototyping.
+    // Some redesign may be in order once the prototype is working,
+    // or maybe porting to webgl2.
+    // let arraytype = dtype2arraytype[dtype];
+    // let padded_data = new arraytype(size);
+    // let type = dtype2threetype[dtype];
+
+    let padded_data = new Float32Array(size);
+    let type = dtype2threetype["float32"];
+
     let format = dtype2threeformat[item_size];
 
-    console.log(`Creating texture with type ${type}, format ${format}.`);
+    console.log(`Creating texture for dtype ${dtype} and item size ${item_size} with type ${type} and format ${format}.`);
 
     let texture = new THREE.DataTexture(padded_data,
         texture_shape[0], texture_shape[1],
@@ -230,6 +242,11 @@ function allocate_array_texture(dtype, item_size, texture_shape)
 function update_array_texture(texture, data)
 {
     try {
+        // Note that input data may be Int32Array or Uint32Array
+        // here while image.data is currently always Float32Array
+        // (see allocate_array_texture) because webgl doesn't support
+        // large integer textures, but this .set operation still works
+        // fine and doubles as type casting the data before uploading.
         texture.image.data.set(data);
     } catch(e) {
         console.error("failed to update texture");
@@ -325,7 +342,7 @@ class TetrahedralMeshRenderer
             // Input data ranges, 4 values: [min, max, max-min, 1.0/(max-min) or 1]
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
-            u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
+            u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
             // Texture dimensions
             u_cell_texture_shape: { value: [0, 0] },
             u_vertex_texture_shape: { value: [0, 0] },
@@ -375,6 +392,7 @@ class TetrahedralMeshRenderer
     {
         this.uniforms.u_density_range.value.set(...compute_range(data.density));
         this.uniforms.u_emission_range.value.set(...compute_range(data.emission));
+        console.log("Updated data ranges: ", this.uniforms.u_density_range.value, this.uniforms.u_emission_range.value);
     }
 
     allocate_ordering()
@@ -651,17 +669,23 @@ class TetrahedralMeshRenderer
             case "lut":
                 {
                 if (new_value) {
+                    let dim = new_value.length / channel.item_size;
                     let uniform = this.uniforms["t_" + channel_name];
                     if (!uniform.value) {
                         console.log("Allocating lut texture for " + channel_name);
                         console.log(uniform.value, new_value);
                         uniform.value = allocate_array_texture(
-                            channel.dtype, channel.item_size, [new_value.length / channel.item_size, 1]);
-                    } else {
-                        console.log("Updating lut texture for " + channel_name);
+                            channel.dtype, channel.item_size, [dim, 1]);
+                    } else if (uniform.value.image.width != dim) {
+                        console.log("Reallocating lut texture for " + channel_name);
                         console.log(uniform.value, new_value);
-                        update_array_texture(uniform.value, new_value);
+                        // TODO: Should we deallocate the gl texture via uniform.value somehow?
+                        uniform.value = allocate_array_texture(
+                            channel.dtype, channel.item_size, [dim, 1]);
                     }
+                    console.log("Updating lut texture for " + channel_name);
+                    console.log(uniform.value, new_value);
+                    update_array_texture(uniform.value, new_value);
                 }
                 break;
                 }

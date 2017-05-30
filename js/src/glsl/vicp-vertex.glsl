@@ -1,6 +1,7 @@
 // Vertex shader for the Unray project implementing
 // variations of View Independent Cell Projection
 
+
 // precision highp float;
 // precision highp int;
 // precision highp sampler2D;
@@ -34,7 +35,11 @@ uniform mat3 normalMatrix;
 uniform vec3 cameraPosition;
 */
 
-// Crude dependency graph for ENABLE_FOO code blocks
+
+// Crude dependency graph for ENABLE_FOO code blocks.
+// It's useful to share this between the vertex and fragment shader,
+// so if something needs to be toggled separately in those there
+// needs to be separate define names.
 
 #ifdef ENABLE_CELL_ORDERING
 #define ENABLE_CELL_UV 1
@@ -48,12 +53,14 @@ uniform vec3 cameraPosition;
 #define ENABLE_EMISSION 1
 #define ENABLE_DEPTH 1
 #define ENABLE_JACOBIAN_INVERSE 1
+#define ENABLE_VIEW_DIRECTION 1
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
 #define ENABLE_DENSITY 1
 #define ENABLE_DEPTH 1
 #define ENABLE_JACOBIAN_INVERSE 1
+#define ENABLE_VIEW_DIRECTION 1
 #endif
 
 #ifdef ENABLE_DENSITY
@@ -81,13 +88,13 @@ uniform vec4 u_oscillators;
 uniform vec3 u_view_direction;
 
 // Input data uniforms
+uniform vec3 u_constant_color;
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
 #ifdef ENABLE_EMISSION
 uniform vec4 u_emission_range;
 #endif
-uniform vec3 u_constant_color;
 
 // Texture property uniforms
 #ifdef ENABLE_CELL_UV
@@ -103,12 +110,12 @@ attribute vec4 a_local_vertices;  // webgl doesn't support ivec4
 
 // Cell attributes
 #ifdef ENABLE_CELL_ORDERING
-attribute float c_ordering;  // webgl doesn't support int
+attribute float c_ordering;  // webgl doesn't support int attributes
 #else
 // TODO: Could still use c_cells as an instance attribute
-//       to avoid 
+//       to avoid texture lookups here
 //       if c_ordering is set to the identity mapping i->i
-attribute vec4 c_cells;  // webgl doesn't support ivec4
+attribute vec4 c_cells;  // webgl doesn't support ivec4 attributes
 #endif
 
 // Cell textures
@@ -219,23 +226,23 @@ void main()
 #ifdef ENABLE_DENSITY_BACK
     vec4 density;
     for (int i = 0; i < 4; ++i) {
-        density[i] = texture2D(t_density, vertex_uv[i]).x;  // TODO: Validate
+        density[i] = texture2D(t_density, vertex_uv[i]).a;
     }
     v_density = get_at(density, local_vertex_id);
     v_density_gradient = XDinv * compute_edge_diff_vector(density);
 #elif defined(ENABLE_DENSITY)
-    v_density = texture2D(t_density, v_uv).x;  // TODO: Validate
+    v_density = texture2D(t_density, v_uv).a;
 #endif
 
 #ifdef ENABLE_EMISSION_BACK
     vec4 emission;
     for (int i = 0; i < 4; ++i) {
-        emission[i] = texture2D(t_emission, vertex_uv[i]).x;  // TODO: Validate
+        emission[i] = texture2D(t_emission, vertex_uv[i]).a;
     }
     v_emission = get_at(emission, local_vertex_id);
     v_emission_gradient = XDinv * compute_edge_diff_vector(emission);
 #elif defined(ENABLE_EMISSION)
-    v_emission = texture2D(t_emission, v_uv).x;  // TODO: Validate
+    v_emission = texture2D(t_emission, v_uv).a;
 #endif
 
 #ifdef ENABLE_DEPTH

@@ -128,9 +128,9 @@ class FigureView extends widgets.DOMWidgetView
         data.cells.set([0, 1, 2, 3]);
         data.coordinates.set([0,0,0,  0,0,1,  0,1,0,  1,0,0]);
         data.density.set([1, 1, .3, .3]);
-        data.emission.set([1, .66, .33, 0]);
+        data.emission.set([1, .66, .33, .2]);
         data.density_lut.set([0, .33, .66, 1]);
-        data.emission_lut.set([1,0,1, 0,1,1, 1,1,1, 1,1,0]);
+        data.emission_lut.set([1,0,0, 0,1,0, 0,0,1, 1,1,0]);
         // end mock data
 
         // Initialize renderer once dimensions are known
