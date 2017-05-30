@@ -260,12 +260,12 @@ void main()
 #endif
 
     //gl_Position = MVP * vec4(v_model_position, 1.0);
-    //gl_Position = vec4(v_model_position, 1.0);
+    // gl_Position = vec4(v_model_position, 1.0);
 
     gl_Position = vec4(
-        local_vertex_id == 1 ? 1.0: 0.0,
-        local_vertex_id == 2 ? 1.0: 0.0,
-        local_vertex_id == 3 ? 1.0: 0.0,
+        local_vertex_id == 1 ? 1.0 : 0.0,
+        local_vertex_id == 2 ? 1.0 : 0.0,
+        local_vertex_id == 3 ? 1.0 : 0.0,
         1.0
     );
 }

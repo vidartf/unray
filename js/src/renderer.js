@@ -342,7 +342,7 @@ class TetrahedralMeshRenderer
             // Input data ranges, 4 values: [min, max, max-min, 1.0/(max-min) or 1]
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
-            u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
+            u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
             // Texture dimensions
             u_cell_texture_shape: { value: [0, 0] },
             u_vertex_texture_shape: { value: [0, 0] },
@@ -508,6 +508,9 @@ class TetrahedralMeshRenderer
         material.defines = mp.defines;
 
         //material.extensions = {};
+
+        console.log("Created material:");
+        console.log(shader_sources.fragment);
 
         return material;
     }
