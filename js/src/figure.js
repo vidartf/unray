@@ -72,6 +72,8 @@ class FigureView extends widgets.DOMWidgetView
         let height = this.model.get("height");
         let downscale = this.model.get("downscale");
 
+        this.aspect_ratio = width / height;
+
         // Setup canvas
         this.canvas = document.createElement("canvas");
         this.canvas.setAttribute("width", width);
@@ -94,20 +96,26 @@ class FigureView extends widgets.DOMWidgetView
         // Setup scene
         this.scene = new THREE.Scene();
 
+
+        // FIXME: Compute bounding sphere of model
+        this.bounding_center = new THREE.Vector3(0, 0, 0);
+        this.bounding_radius = 2.0;
+
+
         // Setup camera
         // TODO: Use pythreejs camera and controller
         // TODO: Setup camera to include coordinates bounding box in view
         let near = 0;
         let far = 2000.0;  // FIXME: Set from radius (just needs to be large enough)
-        let radius = 2.0;  // FIXME: get from bounding sphere of model
-        let ar = width / height;
-        let w = Math.max(radius, ar * radius);
-        let h = w / ar;
+
+        let w = Math.max(this.bounding_radius, this.aspect_ratio * this.bounding_radius);
+        let h = w / this.aspect_ratio;
+
 		this.camera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, near, far);
-		this.camera.position.x = 10;
-		this.camera.position.y = 0;
+		this.camera.position.x = 2 * this.bounding_radius;
+		this.camera.position.y = this.bounding_radius;
 		this.camera.position.z = 0;
-        this.camera.lookAt(this.scene.position);
+        this.camera.lookAt(this.bounding_center);
 
         // Setup cloud model
         this.tetrenderer = new renderer.TetrahedralMeshRenderer();
@@ -216,15 +224,20 @@ class FigureView extends widgets.DOMWidgetView
 
     step_time(passed_time, time_step)
     {
-        // Animate camera (for debugging)
-        let freq = 1;
-        let theta = 2.0 * Math.PI * ((passed_time / freq) % 1.0);
-        let radius = 10;
-        this.camera.position.x = Math.cos(theta) * radius;
-		this.camera.position.y = 0;
-        this.camera.position.z = Math.sin(theta) * radius;
-        this.camera.lookAt(this.scene.position);
         console.log("step_time: ", passed_time, time_step);
+
+        // Animate camera (just some values hardcoded for debugging)
+        let freq1 = .3;
+        let freq2 = .1;
+        let theta = 2.0 * Math.PI * ((passed_time * freq1) % 1.0);
+        let phi = 2.0 * Math.PI * ((passed_time * freq2) % 1.0);
+
+        let radius = 2 * this.bounding_radius;
+
+        this.camera.position.x = radius * Math.cos(phi) * Math.cos(theta);
+		this.camera.position.y = radius * Math.sin(phi);
+        this.camera.position.z = radius * Math.cos(phi) * Math.sin(theta);
+        this.camera.lookAt(this.bounding_center);
 
         // Update time in tetrenderer
         this.tetrenderer.update_time(passed_time);

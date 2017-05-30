@@ -49,9 +49,9 @@ const default_defines = {
 };
 const method_properties = {
     surface: {
-        transparent: false,
         sorted: false,
         side: THREE.DoubleSide, // TODO: Not necessary, pick side to debug facing issues easily
+        transparent: false,
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
@@ -62,13 +62,13 @@ const method_properties = {
         default_encoding: default_encoding,
     },
     mip: { // TODO: call it max and min instead?
+        sorted: false,
+        side: THREE.DoubleSide,
         transparent: true,
         blending: THREE.CustomBlending,
         blend_equation: THREE.MaxEquation,
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
-        sorted: false,
-        side: THREE.DoubleSide,
         defines: _.extend({}, default_defines, {
             ENABLE_EMISSION: 1,
         }),
@@ -78,13 +78,13 @@ const method_properties = {
         default_encoding: default_encoding,
     },
     xray: {
+        sorted: false,
+        side: THREE.BackSide,
         transparent: true,
         blending: THREE.CustomBlending, // TODO: Configure
         blend_equation: THREE.AddEquation, // TODO: SubtractEquation?
         blend_src: THREE.SrcAlphaFactor,
         blend_dst: THREE.OneMinusDstAlphaFactor,
-        sorted: false,
-        side: THREE.BackSide,
         defines: _.extend({}, default_defines, {
             ENABLE_DENSITY: 1,
         }),
@@ -93,14 +93,14 @@ const method_properties = {
         channels: default_channels,
         default_encoding: default_encoding,
     },
-    splat: { // TODO: 'sum'?
+    splat: { // TODO: call it 'sum'?
+        sorted: false,
+        side: THREE.BackSide,
         transparent: true,
         blending: THREE.CustomBlending,
         blend_equation: THREE.AddEquation,
         blend_src: THREE.OneFactor,  // TODO: Check what THREE.SrcAlphaSaturateFactor does
         blend_dst: THREE.OneFactor,
-        sorted: false,
-        side: THREE.BackSide,
         defines: _.extend({}, default_defines, {
             ENABLE_EMISSION: 1,
         }),
@@ -110,13 +110,13 @@ const method_properties = {
         default_encoding: default_encoding,
     },
     cloud: {
+        sorted: true,
+        side: THREE.BackSide,
         transparent: true,
         blending: THREE.CustomBlending, // TODO: Configure
         blend_equation: THREE.AddEquation,
         blend_src: THREE.SrcAlphaFactor,
         blend_dst: THREE.OneMinusDstAlphaFactor,
-        sorted: true,
-        side: THREE.BackSide,
         defines: _.extend({}, default_defines, {
             ENABLE_DENSITY: 1,
             ENABLE_EMISSION: 1,
@@ -487,12 +487,11 @@ class TetrahedralMeshRenderer
             vertexShader: mp.vertex_shader,
             fragmentShader: mp.fragment_shader,
             side: mp.side,
-            transparent: mp.transparent
+            transparent: mp.transparent,
+            // TODO: depthTest also makes sense for transparent methods if there's something else opaque in the scene like axes
+            depthTest: !mp.transparent,
+            depthWrite: !mp.transparent,
         });
-
-        // TODO: Configure depth test/write based on material and/or parameters
-        material.depthTest = false;
-        material.depthWrite = false;
 
         // Configure blending
         if (mp.blending === THREE.CustomBlending) {
