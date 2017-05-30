@@ -89,6 +89,7 @@ uniform vec3 u_view_direction;
 
 // Input data uniforms
 uniform vec3 u_constant_color;
+uniform float u_particle_area;
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
@@ -148,10 +149,10 @@ varying float v_emission;
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
-varying float v_density_gradient; // flat
+varying vec3 v_density_gradient; // flat
 #endif
 #ifdef ENABLE_EMISSION_BACK
-varying float v_emission_gradient; // flat
+varying vec3 v_emission_gradient; // flat
 #endif
 
 void main()
@@ -179,16 +180,16 @@ void main()
     ivec4 cell = ivec4(c_cells);
 #endif
 
-#ifdef ENABLE_VERTEX_INDICES
-    // FIXME: Not quite sure how to use the vertex_indices local to local mapping yet
-
     // Local to local mapping 0-3 -> 0-3
     ivec4 local_vertices = ivec4(a_local_vertices);
+
+#ifdef ENABLE_VERTEX_INDICES
+    // FIXME: Not quite sure how to use the vertex_indices local to local mapping yet
 
     // Locally reordered global vertex indices
     ivec4 vertex_indices;
     for (int i = 0; i < 4; ++i) {
-        vertex_indices[i] = cell[local_vertices[i]];
+        vertex_indices[i] = get_at(cell, local_vertices[i]);
     }
     // Should this use the vertex_indices mapping?
     int global_vertex_id = get_at(vertex_indices, local_vertex_id);
@@ -250,14 +251,18 @@ void main()
 #ifdef ENABLE_DEPTH
     // FIXME: pick a_local_vertices properly and update this to be outwards pointing
     // Compute the normal vector of the tetrahedon face opposing this vertex
-    vec3 x1 = coordinates[a_local_vertices[1]];
-    vec3 edge_a = coordinates[a_local_vertices[2]] - x1;
-    vec3 edge_b = coordinates[a_local_vertices[3]] - x1;
+    vec3 x0 = get_at(coordinates, local_vertices[0]);
+    vec3 x1 = get_at(coordinates, local_vertices[1]);
+    vec3 x2 = get_at(coordinates, local_vertices[2]);
+    vec3 x3 = get_at(coordinates, local_vertices[3]);
+
+    vec3 edge_a = x2 - x1;
+    vec3 edge_b = x3 - x1;
     vec3 n = normalize(cross(edge_a, edge_b));
 
     // Compute the distance from this vertex along the view direction to the plane of the opposing face
     // Note: orthogonal_length is a constant property of the opposing face of this cell
-    float orthogonal_length = dot(n, coordinates[a_local_vertices[1]] - coordinates[a_local_vertices[0]]);
+    float orthogonal_length = dot(n, x1 - x0);
     v_ray_lengths = with_nonzero_at(local_vertex_id, orthogonal_length / dot(n, v_view_direction));
 #endif
 

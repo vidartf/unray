@@ -25,9 +25,11 @@ def render(coordinates, cells,
 
       - surface: opaque surface of geometry
 
-      - mip: maximum intensity projection
+      - max: maximum intensity projection
 
-      - splat: emissive cloud without absorption
+      - min: minimum intensity projection
+
+      - sum: emissive cloud without absorption
 
       - volume: absorption-emission model
 

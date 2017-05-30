@@ -38,40 +38,80 @@ const default_encoding = {
 };
 
 
-// TODO: Configure blend equations
-// TODO: Add culling
-// TODO: Add defaults to reduce the size of this?
+// FIXME: Figure out backside culling!
+// TODO: Define channels for all methods.
+// TODO: Configure blend equations for all methods
+// TODO: Let defines follow from channels, encoding, and possibly data.
+
 // Note: defines are used as "ifdef FOO" not "if FOO" so the value is irrelevant
 const default_defines = {
     // Always need cell ordering array with
     // webgl1 because gl_InstanceID is not available
     ENABLE_CELL_ORDERING: 1,
 };
+
 const method_properties = {
     surface: {
         sorted: false,
-        side: THREE.DoubleSide, // TODO: Not necessary, pick side to debug facing issues easily
         transparent: false,
+
+        // FIXME: Pick side to see which sides the tetrahedron show and adjust strip etc
+        side: THREE.FrontSide,
+        // side: THREE.BackSide,
+
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
         }),
+
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
         default_encoding: default_encoding,
     },
-    mip: { // TODO: call it max and min instead?
+    max: {
         sorted: false,
-        side: THREE.DoubleSide,
         transparent: true,
+
+        // Rendering both sides automatically includes the
+        // backside boundary of the mesh at cost of doubling
+        // the number of faces.
+        side: THREE.DoubleSide,
+
         blending: THREE.CustomBlending,
         blend_equation: THREE.MaxEquation,
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
+
         defines: _.extend({}, default_defines, {
-            ENABLE_EMISSION: 1,
+            ENABLE_MAX_MODEL: 1,
+            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
         }),
+
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },
+    min: {
+        sorted: false,
+        transparent: true,
+
+        // Rendering both sides automatically includes the
+        // backside boundary of the mesh at cost of doubling
+        // the number of faces.
+        side: THREE.DoubleSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.MinEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_MIN_MODEL: 1,
+            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+        }),
+
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
@@ -79,48 +119,67 @@ const method_properties = {
     },
     xray: {
         sorted: false,
-        side: THREE.BackSide,
         transparent: true,
-        blending: THREE.CustomBlending, // TODO: Configure
+
+        side: THREE.FrontSide,  // FIXME: Use side chosen after working on surface
+
+        blending: THREE.CustomBlending,
         blend_equation: THREE.AddEquation, // TODO: SubtractEquation?
-        blend_src: THREE.SrcAlphaFactor,
-        blend_dst: THREE.OneMinusDstAlphaFactor,
+        blend_src: THREE.SrcAlphaFactor,  // FIXME: Consider if this is correct
+        blend_dst: THREE.OneMinusDstAlphaFactor,  // FIXME: Consider if this is correct
+
         defines: _.extend({}, default_defines, {
-            ENABLE_DENSITY: 1,
+            ENABLE_XRAY_MODEL: 1,
+            ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here?
+            ENABLE_DENSITY_BACK: 1,
         }),
+
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
         default_encoding: default_encoding,
     },
-    splat: { // TODO: call it 'sum'?
+    sum: {
         sorted: false,
-        side: THREE.BackSide,
         transparent: true,
+
+        side: THREE.FrontSide,  // FIXME: Use side chosen after working on surface
+
         blending: THREE.CustomBlending,
         blend_equation: THREE.AddEquation,
         blend_src: THREE.OneFactor,  // TODO: Check what THREE.SrcAlphaSaturateFactor does
         blend_dst: THREE.OneFactor,
+
         defines: _.extend({}, default_defines, {
-            ENABLE_EMISSION: 1,
+            ENABLE_SUM_MODEL: 1,
+            ENABLE_EMISSION: 1,        // TODO: It might make sense to use emission OR density here?
+            ENABLE_EMISSION_BACK: 1,
         }),
+
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
         default_encoding: default_encoding,
     },
-    cloud: {
+    volume: {
         sorted: true,
-        side: THREE.BackSide,
         transparent: true,
-        blending: THREE.CustomBlending, // TODO: Configure
+
+        side: THREE.FrontSide,  // FIXME: Use side chosen after working on surface
+
+        blending: THREE.CustomBlending,
         blend_equation: THREE.AddEquation,
-        blend_src: THREE.SrcAlphaFactor,
+        blend_src: THREE.SrcAlphaFactor, // TODO: Configure
         blend_dst: THREE.OneMinusDstAlphaFactor,
+
         defines: _.extend({}, default_defines, {
-            ENABLE_DENSITY: 1,
+            ENABLE_VOLUME_MODEL: 1,
+            ENABLE_DENSITY: 1,      // TODO: All combinations of density/emission with/without backside are valid.
             ENABLE_EMISSION: 1,
+            ENABLE_DENSITY_BACK: 1,
+            ENABLE_EMISSION_BACK: 1,
         }),
+
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
@@ -338,11 +397,13 @@ class TetrahedralMeshRenderer
             u_time: { value: 0.0 },
             u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0) },
             // Camera uniforms (threejs provides cameraPosition)
-            u_view_direction: new THREE.Vector3(),
+            u_view_direction: { value: new THREE.Vector3(0, 0, 1) },
+            // Input constants
+            u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
+            u_particle_area: { value: 0.2 },
             // Input data ranges, 4 values: [min, max, max-min, 1.0/(max-min) or 1]
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
-            u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
             // Texture dimensions
             u_cell_texture_shape: { value: [0, 0] },
             u_vertex_texture_shape: { value: [0, 0] },
@@ -507,9 +568,6 @@ class TetrahedralMeshRenderer
         material.defines = mp.defines;
 
         //material.extensions = {};
-
-        console.log("Created material:");
-        console.log(shader_sources.fragment);
 
         return material;
     }

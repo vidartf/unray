@@ -21,6 +21,9 @@ class FigureModel extends widgets.DOMWidgetModel
             height : 600,
             downscale : 1.0,
 
+            // Presentation properties
+            animate : true,  // Used for debugging
+
             // Collection of data
             data : {},
 
@@ -64,6 +67,7 @@ class FigureView extends widgets.DOMWidgetView
         this.schedule_animation();
     }
     */
+
     render() {
         console.log("FigureView render");
         let that = this;
@@ -87,11 +91,22 @@ class FigureView extends widgets.DOMWidgetView
         // Setup renderer
 		this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-
+            precision: "highp",
+            alpha: true,
+            premultipliedAlpha: true, // TODO: Figure out what this affects
+            antialias: false,
+            stencil: false,
+            preserveDrawingBuffer: true,
+            depth: true,
+            logarithmicDepthBuffer: false,
         });
         this.renderer.setClearColor(0x000000);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width * downscale, height * downscale);
+        // this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCW);
+        // this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCCW);
+        // this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCW);
+        // this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCCW);
 
         // Setup scene
         this.scene = new THREE.Scene();
@@ -99,7 +114,7 @@ class FigureView extends widgets.DOMWidgetView
 
         // FIXME: Compute bounding sphere of model
         this.bounding_center = new THREE.Vector3(0, 0, 0);
-        this.bounding_radius = 2.0;
+        this.bounding_radius = 1.0;
 
 
         // Setup camera
@@ -108,12 +123,12 @@ class FigureView extends widgets.DOMWidgetView
         let near = 0;
         let far = 2000.0;  // FIXME: Set from radius (just needs to be large enough)
 
-        let w = Math.max(this.bounding_radius, this.aspect_ratio * this.bounding_radius);
+        let w = Math.max(2.0 * this.bounding_radius, this.aspect_ratio * 2.0 * this.bounding_radius);
         let h = w / this.aspect_ratio;
 
 		this.camera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, near, far);
-		this.camera.position.x = 2 * this.bounding_radius;
-		this.camera.position.y = this.bounding_radius;
+		this.camera.position.x = 4 * this.bounding_radius;
+		this.camera.position.y = 0;
 		this.camera.position.z = 0;
         this.camera.lookAt(this.bounding_center);
 
@@ -146,7 +161,7 @@ class FigureView extends widgets.DOMWidgetView
         this.tetrenderer.init(num_tetrahedrons, num_vertices);
 
         // // TODO: Better handling of multiple configurations with data sharing
-        let method = "surface";
+        let method = "xray";
         let encoding = undefined;
         this.tetrenderer.configure(method, encoding);
 
@@ -157,12 +172,23 @@ class FigureView extends widgets.DOMWidgetView
 		this.scene.add(this.tetrenderer.meshes.get(method)); // FIXME: Add mesh to scene
 
         // Wire listeners
+        this.listenTo(this.model, "change:animate", this.on_animate_changed);
         this.listenTo(this.model, "change:data", this.on_data_changed);
         this.listenTo(this.model, "change:plots", this.on_plots_changed);
         //this.wire_data_listeners();
         //this.wire_plot_listeners();
 
         return Promise.resolve().then(() => { that.schedule_animation(); });
+    }
+
+    on_animate_changed()
+    {
+        console.log("on_animate_changed ", arguments);
+
+        //let data = this.model.get("data"); //[name];
+        //this.renderer.on_data_changed(name, data.array);
+
+        this.schedule_animation();
     }
 
     on_data_changed()
@@ -172,14 +198,22 @@ class FigureView extends widgets.DOMWidgetView
         //let data = this.model.get("data"); //[name];
         //this.renderer.on_data_changed(name, data.array);
 
-        //this.schedule_animation();  // Need this? Currently always animated
+        this.schedule_animation();
     }
 
     on_plots_changed()
     {
         // FIXME: Trigger on already connected plot changed
         console.log("on_plots_changed ", arguments);
+
+        this.schedule_animation();
     }
+
+    // TODO: Wire camera change to trigger this function, currently called in stepping
+    on_camera_changed() {
+        this.tetrenderer.update_perspective(this.camera);
+    }
+
 
     update()
     {
@@ -211,43 +245,55 @@ class FigureView extends widgets.DOMWidgetView
             this.start_time = time;
             this.prev_time = time;
         }
-        let time_step = time - this.prev_time;
-        let passed_time = time - this.start_time;
-        this.redraw_count = this.redraw_count ? this.redraw_count + 1: 1;
 
-        this.step_time(passed_time, time_step);
+        let animating = this.model.get("animate");
+        if (animating) {
+            let time_step = time - this.prev_time;
+            let passed_time = time - this.start_time;
+            this.step_time(passed_time, time_step);
+        }
+
+        this.redraw_count = this.redraw_count ? this.redraw_count + 1: 1;
         this.redraw();
 
         this.prev_time = time;
-        this.schedule_animation();
+
+        if (animating) {
+            this.schedule_animation();
+        }
     }
 
     step_time(passed_time, time_step)
     {
         console.log("step_time: ", passed_time, time_step);
 
+        // TODO: Later want camera to be controlled via connected pythreejs widget
+        this.step_camera(passed_time);
+
+        // Update time in tetrenderer
+        this.tetrenderer.update_time(passed_time);
+    }
+
+    step_camera(passed_time) {
         // Animate camera (just some values hardcoded for debugging)
         let freq1 = .3;
         let freq2 = .1;
         let theta = 2.0 * Math.PI * ((passed_time * freq1) % 1.0);
         let phi = 2.0 * Math.PI * ((passed_time * freq2) % 1.0);
 
-        let radius = 2 * this.bounding_radius;
+        let radius = 4 * this.bounding_radius;
 
         this.camera.position.x = radius * Math.cos(phi) * Math.cos(theta);
 		this.camera.position.y = radius * Math.sin(phi);
         this.camera.position.z = radius * Math.cos(phi) * Math.sin(theta);
         this.camera.lookAt(this.bounding_center);
 
-        // Update time in tetrenderer
-        this.tetrenderer.update_time(passed_time);
+        // Manually trigger camera change for now
+        this.on_camera_changed();
     }
 
     redraw()
     {
-        // TODO: On camera update, do this:
-        //this.tetrenderer.update_perspective(this.camera);
-
         // TODO: React to data changes:
         //this.tetrenderer.update_ranges();
         //this.tetrenderer.update_method(method); // TODO: Better model for methods and data sharing

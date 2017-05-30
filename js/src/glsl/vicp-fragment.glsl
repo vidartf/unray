@@ -54,6 +54,7 @@ uniform vec3 u_view_direction;
 
 // Input data uniforms
 uniform vec3 u_constant_color;
+uniform float u_particle_area;
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
@@ -82,10 +83,10 @@ varying float v_density;
 varying float v_emission;
 #endif
 #ifdef ENABLE_DENSITY_BACK
-varying float v_density_gradient; // FIXME: flat
+varying vec3 v_density_gradient; // FIXME: flat
 #endif
 #ifdef ENABLE_EMISSION_BACK
-varying float v_emission_gradient; // flat
+varying vec3 v_emission_gradient; // flat
 #endif
 
 void main()
@@ -160,78 +161,86 @@ void main()
 #endif
 
 
-// #ifdef ENABLE_SURFACE_DERIVATIVE_MODEL
-//     // TODO: Could we do something interesting with the gradient below the surface.
-//     // The gradient is unbounded, needs some mapping to [0,1].
-//     // Can use de/dv (below) or v_emission_gradient (or same for density)
-//     // float emission_view_derivative = (emission - emission_back) / depth;
-// #endif
+#ifdef ENABLE_SURFACE_DERIVATIVE_MODEL
+    // TODO: Could we do something interesting with the gradient below the surface.
+    // The gradient is unbounded, needs some mapping to [0,1].
+    // Can use de/dv (below) or v_emission_gradient (or same for density)
+    // float emission_view_derivative = (emission - emission_back) / depth;
+#endif
 
 
-// #ifdef ENABLE_XRAY_MODEL
-//     #if defined(ENABLE_EMISSION)
-//     #error "Xray model does not accept emission, only density."
-//     #elif defined(ENABLE_DENSITY_BACK)
-//     float a = depth * 0.5 * (evaluated_density + evaluated_density_back);  // CHECKME
-//     #elif defined(ENABLE_DENSITY)
-//     float a = depth * evaluated_density;  // CHECKME
-//     #else
-//     #error "Xray model needs density and density only."
-//     #endif
-//     // Always constant color
-//     vec3 C = u_constant_color; // CHECKME
-// #endif
+#ifdef ENABLE_XRAY_MODEL
+    #if defined(ENABLE_EMISSION)
+    compile_error();  // Xray model does not accept emission, only density
+    #elif defined(ENABLE_DENSITY_BACK)
+    // This is the currently selected version:
+    float rho = mix(evaluated_density, evaluated_density_back, 0.5);
+    #elif defined(ENABLE_DENSITY)
+    float rho = evaluated_density;
+    #else
+    compile_error();  // Xray model needs density and density only
+    #endif
+    float a = exp(-depth * u_particle_area * rho);  // CHECKME
+    // Always constant color
+    vec3 C = u_constant_color * a; // CHECKME
+
+#endif
 
 
-// #ifdef ENABLE_MAX_MODEL
-//     // TODO: This can also be done without the LUT,
-//     // using mapped_foo instead of evaluated_foo
+#ifdef ENABLE_MAX_MODEL
+    // TODO: This can also be done without the LUT,
+    // using mapped_foo instead of evaluated_foo
 
-//     // Define color
-//     #if defined(ENABLE_EMISSION_BACK)
-//     vec3 C = max(evaluated_emission, evaluated_emission_back);  // CHECKME
-//     #elif defined(ENABLE_EMISSION)
-//     vec3 C = evaluated_emission;  // CHECKME
-//     #elif defined(ENABLE_DENSITY_BACK)
-//     vec3 C = u_constant_color * max(evaluated_density, evaluated_density_back);  // CHECKME
-//     #elif defined(ENABLE_DENSITY)
-//     vec3 C = u_constant_color * evaluated_density;  // CHECKME
-//     #else
-//     #error "Max model needs emission or density."
-//     #endif
+    // Define color
+    #if defined(ENABLE_EMISSION_BACK)
+    vec3 C = max(evaluated_emission, evaluated_emission_back);  // CHECKME
+    #elif defined(ENABLE_EMISSION)
+    vec3 C = evaluated_emission;  // CHECKME
+    #elif defined(ENABLE_DENSITY_BACK)
+    vec3 C = u_constant_color * max(evaluated_density, evaluated_density_back);  // CHECKME
+    #elif defined(ENABLE_DENSITY)
+    vec3 C = u_constant_color * evaluated_density;  // CHECKME
+    #else
+    compile_error();  // Max model needs emission or density
+    #endif
 
-//     // TODO: Consider opacity computation and blend mode together.
-//     float a = 1.0;
-// #endif
+    // TODO: Consider opacity computation and blend mode together.
+    float a = 1.0;
+#endif
 
 
-// #ifdef ENABLE_CLOUD_MODEL
-//     //#if defined(ENABLE_DENSITY_BACK) && defined(ENABLE_EMISSION_BACK)
-//     // TODO: Implement Moreland partial pre-integration
+#ifdef ENABLE_MIN_MODEL
+// TODO
+#endif
 
-//     #if defined(ENABLE_DENSITY_BACK)
-//     // TODO: Currently only using average density, more accurate options exist.
-//     float rho = mix(evaluated_density, evaluated_density_back, 0.5); // CHECKME
-//     #elif defined(ENABLE_DENSITY)
-//     float rho = evaluated_density; // CHECKME
-//     #else
-//     #error "Cloud model requires density."
-//     #endif
 
-//     #if defined(ENABLE_EMISSION_BACK)
-//     // TODO: Currently only using average color, more accurate options exist.
-//     vec3 L = mix(evaluated_emission, evaluated_emission_back, 0.5); // CHECKME
-//     #elif defined(ENABLE_EMISSION)
-//     vec3 L = evaluated_emission; // CHECKME
-//     #else
-//     #error "Cloud model requires density."
-//     #endif
+#ifdef ENABLE_VOLUME_MODEL
+    //#if defined(ENABLE_DENSITY_BACK) && defined(ENABLE_EMISSION_BACK)
+    // TODO: Implement Moreland partial pre-integration
 
-//     // Evaluate ray integral, use in combination
-//     // with blend equation: RGB_src * A_dst + RGB_dst
-//     float a = 1.0 - exp(-depth * u_particle_area * rho); // CHECKME
-//     vec3 C = a * L;
-// #endif
+    #if defined(ENABLE_DENSITY_BACK)
+    // TODO: Currently only using average density, more accurate options exist.
+    float rho = mix(evaluated_density, evaluated_density_back, 0.5); // CHECKME
+    #elif defined(ENABLE_DENSITY)
+    float rho = evaluated_density; // CHECKME
+    #else
+    compile_error();  // Volume model requires density
+    #endif
+
+    #if defined(ENABLE_EMISSION_BACK)
+    // TODO: Currently only using average color, more accurate options exist.
+    vec3 L = mix(evaluated_emission, evaluated_emission_back, 0.5); // CHECKME
+    #elif defined(ENABLE_EMISSION)
+    vec3 L = evaluated_emission; // CHECKME
+    #else
+    compile_error();  // Volume model requires emission
+    #endif
+
+    // Evaluate ray integral, use in combination
+    // with blend equation: RGB_src * A_dst + RGB_dst
+    float a = 1.0 - exp(-depth * u_particle_area * rho); // CHECKME
+    vec3 C = a * L;
+#endif
 
     // Record result. Note that this will fail to compile
     // if C and a are not defined correctly above, providing a
