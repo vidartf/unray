@@ -262,10 +262,10 @@ void main()
 #endif
 
     // FIXME: Get the correct MVP matrix or configure camera properly
-    // gl_Position = MVP * vec4(v_model_position, 1.0);
+    gl_Position = MVP * vec4(v_model_position, 1.0);
 
     // Debugging: Ignore camera to check v_model_position
-    gl_Position = vec4(v_model_position, 1.0);
+    // gl_Position = vec4(v_model_position, 1.0);
 
     // Debugging: Check that this_vertex_uv varies within [0,1]^2    
     // gl_Position = vec4(this_vertex_uv, 0.0, 1.0);

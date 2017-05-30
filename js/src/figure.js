@@ -82,27 +82,6 @@ class FigureView extends widgets.DOMWidgetView
         this.el.className = "jupyter-widget jupyter-unray";
         this.el.appendChild(this.canvas);
 
-        // Downscale width, height for renderer setup
-        width = width * downscale;
-        height = height * downscale;
-
-        // Setup camera
-        // TODO: Use pythreejs camera and controller
-        // TODO: Setup camera to include coordinates bounding box in view
-        let near = 0;
-        let far = 1000;
-        let right = width * downscale * 0.5;
-        let top = height * downscale * 0.5;
-        // let near = -2.0;
-        // let far = 2.0;
-        // let right = 2.0;
-        // let top = 2.0;
-		this.camera = new THREE.OrthographicCamera(-right, right, top, -top, near, far);
-		this.camera.position.z = 4;
-
-        // Setup scene
-        this.scene = new THREE.Scene();
-
         // Setup renderer
 		this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
@@ -111,6 +90,24 @@ class FigureView extends widgets.DOMWidgetView
         this.renderer.setClearColor(0x000000);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width * downscale, height * downscale);
+
+        // Setup scene
+        this.scene = new THREE.Scene();
+
+        // Setup camera
+        // TODO: Use pythreejs camera and controller
+        // TODO: Setup camera to include coordinates bounding box in view
+        let near = 0;
+        let far = 2000.0;  // FIXME: Set from radius (just needs to be large enough)
+        let radius = 2.0;  // FIXME: get from bounding sphere of model
+        let ar = width / height;
+        let w = Math.max(radius, ar * radius);
+        let h = w / ar;
+		this.camera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, near, far);
+		this.camera.position.x = 10;
+		this.camera.position.y = 0;
+		this.camera.position.z = 0;
+        this.camera.lookAt(this.scene.position);
 
         // Setup cloud model
         this.tetrenderer = new renderer.TetrahedralMeshRenderer();
@@ -214,20 +211,20 @@ class FigureView extends widgets.DOMWidgetView
         this.redraw();
 
         this.prev_time = time;
-        //this.schedule_animation();
+        this.schedule_animation();
     }
 
     step_time(passed_time, time_step)
     {
         // Animate camera (for debugging)
-        /*
-        let x = this.camera.position.x;
-        let y = this.camera.position.y;
-        let freq = 4;
-        let theta = Math.PI * ((passed_time / freq) % 1.0);
-        this.camera.position.z = 1000 * Math.cos(theta);
-        this.camera.position.x = 1000 * Math.sin(theta);
-        */
+        let freq = 1;
+        let theta = 2.0 * Math.PI * ((passed_time / freq) % 1.0);
+        let radius = 10;
+        this.camera.position.x = Math.cos(theta) * radius;
+		this.camera.position.y = 0;
+        this.camera.position.z = Math.sin(theta) * radius;
+        this.camera.lookAt(this.scene.position);
+        console.log("step_time: ", passed_time, time_step);
 
         // Update time in tetrenderer
         this.tetrenderer.update_time(passed_time);
