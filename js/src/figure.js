@@ -89,10 +89,14 @@ class FigureView extends widgets.DOMWidgetView
         // Setup camera
         // TODO: Use pythreejs camera and controller
         // TODO: Setup camera to include coordinates bounding box in view
-        let near = 1;
+        let near = 0;
         let far = 1000;
         let right = width * downscale * 0.5;
         let top = height * downscale * 0.5;
+        // let near = -2.0;
+        // let far = 2.0;
+        // let right = 2.0;
+        // let top = 2.0;
 		this.camera = new THREE.OrthographicCamera(-right, right, top, -top, near, far);
 		this.camera.position.z = 4;
 
@@ -128,7 +132,7 @@ class FigureView extends widgets.DOMWidgetView
         data.cells.set([0, 1, 2, 3]);
         data.coordinates.set([0,0,0,  0,0,1,  0,1,0,  1,0,0]);
         data.density.set([1, 1, .3, .3]);
-        data.emission.set([1, .66, .33, .2]);
+        data.emission.set([1, .66, .33, 0.0]);
         data.density_lut.set([0, .33, .66, 1]);
         data.emission_lut.set([1,0,0, 0,1,0, 0,0,1, 1,1,0]);
         // end mock data

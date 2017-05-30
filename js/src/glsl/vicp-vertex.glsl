@@ -201,15 +201,17 @@ void main()
     for (int i = 0; i < 4; ++i) {
         vertex_uv[i] = index_to_uv(cell[i], u_vertex_texture_shape);
     }
-    vec2 v_uv = get_at(vertex_uv, local_vertex_id);
+    vec2 this_vertex_uv = get_at(vertex_uv, local_vertex_id);
 #endif
 
 #ifdef ENABLE_COORDINATES
     vec3 coordinates[4];
     for (int i = 0; i < 4; ++i) {
-        coordinates[i] = texture2D(t_coordinates, vertex_uv[i]);
+        coordinates[i] = texture2D(t_coordinates, vertex_uv[i]).xyz;
     }
     v_model_position = get_at(coordinates, local_vertex_id);
+#else
+    v_model_position = texture2D(t_coordinates, this_vertex_uv).xyz;
 #endif
 
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
@@ -231,7 +233,7 @@ void main()
     v_density = get_at(density, local_vertex_id);
     v_density_gradient = XDinv * compute_edge_diff_vector(density);
 #elif defined(ENABLE_DENSITY)
-    v_density = texture2D(t_density, v_uv).a;
+    v_density = texture2D(t_density, this_vertex_uv).a;
 #endif
 
 #ifdef ENABLE_EMISSION_BACK
@@ -242,7 +244,7 @@ void main()
     v_emission = get_at(emission, local_vertex_id);
     v_emission_gradient = XDinv * compute_edge_diff_vector(emission);
 #elif defined(ENABLE_EMISSION)
-    v_emission = texture2D(t_emission, v_uv).a;
+    v_emission = texture2D(t_emission, this_vertex_uv).a;
 #endif
 
 #ifdef ENABLE_DEPTH
@@ -259,13 +261,35 @@ void main()
     v_ray_lengths = with_nonzero_at(local_vertex_id, orthogonal_length / dot(n, v_view_direction));
 #endif
 
-    //gl_Position = MVP * vec4(v_model_position, 1.0);
-    // gl_Position = vec4(v_model_position, 1.0);
+    // FIXME: Get the correct MVP matrix or configure camera properly
+    // gl_Position = MVP * vec4(v_model_position, 1.0);
 
-    gl_Position = vec4(
-        local_vertex_id == 1 ? 1.0 : 0.0,
-        local_vertex_id == 2 ? 1.0 : 0.0,
-        local_vertex_id == 3 ? 1.0 : 0.0,
-        1.0
-    );
+    // Debugging: Ignore camera to check v_model_position
+    gl_Position = vec4(v_model_position, 1.0);
+
+    // Debugging: Check that this_vertex_uv varies within [0,1]^2    
+    // gl_Position = vec4(this_vertex_uv, 0.0, 1.0);
+
+    // Debugging: Check that this_vertex_uv varies within [0,1]^2    
+    // gl_Position = vec4(2.0*this_vertex_uv - vec2(1.0), 0.0, 1.0);
+
+    // Debugging: Check that local_vertex_id varies 0...3
+    // gl_Position = vec4(
+    //     local_vertex_id == 1 ? 1.0 : 0.0,
+    //     local_vertex_id == 2 ? 1.0 : 0.0,
+    //     local_vertex_id == 3 ? 1.0 : 0.0,
+    //     1.0
+    // );
+
+    // Debugging: Check that local_vertex_id varies 0...3
+    // Placing vertices on a unit circle with angle = id * 90 degrees
+    // gl_Position = vec4(1.0);  // Should never hit the (1,1) corner
+    // if (local_vertex_id == 0)
+    //     gl_Position = vec4( 1.0, 0.0, 0.0, 1.0);
+    // if (local_vertex_id == 1)
+    //     gl_Position = vec4( 0.0, 1.0, 0.0, 1.0);
+    // if (local_vertex_id == 2)
+    //     gl_Position = vec4(-1.0, 0.0, 0.0, 1.0);
+    // if (local_vertex_id == 3)
+    //     gl_Position = vec4( 0.0,-1.0, 0.0, 1.0);
 }

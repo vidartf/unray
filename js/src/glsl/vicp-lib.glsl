@@ -1,61 +1,6 @@
 
-int get_at(ivec4 v, int i)
-{
-    // return v[i];  // webgl doesn't support indexing by non-constants
-    if      (i == 0)  return v[0];
-    else if (i == 1)  return v[1];
-    else if (i == 2)  return v[2];
-    else if (i == 3)  return v[3];
-    return 0;
-}
 
-float get_at(vec2 v, int i)
-{
-    // return v[i];  // webgl doesn't support indexing by non-constants
-    if      (i == 0)  return v[0];
-    else if (i == 1)  return v[1];
-    return 0.0;
-}
-
-float get_at(vec3 v, int i)
-{
-    // return v[i];  // webgl doesn't support indexing by non-constants
-    if      (i == 0)  return v[0];
-    else if (i == 1)  return v[1];
-    else if (i == 2)  return v[2];
-    return 0.0;
-}
-
-float get_at(vec4 v, int i)
-{
-    // return v[i];  // webgl doesn't support indexing by non-constants
-    if      (i == 0)  return v[0];
-    else if (i == 1)  return v[1];
-    else if (i == 2)  return v[2];
-    else if (i == 3)  return v[3];
-    return 0.0;
-}
-
-vec2 get_at(vec2 v[4], int i)
-{
-    // return v[i];  // webgl doesn't support indexing by non-constants
-    if      (i == 0)  return v[0];
-    else if (i == 1)  return v[1];
-    else if (i == 2)  return v[2];
-    else if (i == 3)  return v[3];
-    return vec2(0.0);
-}
-
-vec4 with_nonzero_at(int i, float value)
-{
-    vec4 v = vec4(0.0);
-    // v[i] = value;  // webgl doesn't support indexing by non-constants
-    if      (i == 0)  v[0] = value;
-    else if (i == 1)  v[1] = value;
-    else if (i == 2)  v[2] = value;
-    else if (i == 3)  v[3] = value;
-    return v;    
-}
+@import ./get-at;
 
 
 // Map contiguous 1D index to UV coordinates
@@ -66,8 +11,8 @@ vec2 index_to_uv(int index, ivec2 shape)
     int v = index / shape.x;
     int u = index - shape.x * v;
     return vec2(
-        (0.5 + float(u)) / float(shape.x + 1),
-        (0.5 + float(v)) / float(shape.y + 1)
+        (0.5 + float(u)) / float(shape.x),
+        (0.5 + float(v)) / float(shape.y)
     );
 }
 
