@@ -248,7 +248,6 @@ void main()
     // ifdef landscape above.
     gl_FragColor = vec4(C, a);
 
-
     // DEBUGGING:
     // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
     // gl_FragColor = vec4(u_constant_color, 1.0);

@@ -266,7 +266,7 @@ void main()
     v_ray_lengths = with_nonzero_at(local_vertex_id, orthogonal_length / dot(n, v_view_direction));
 #endif
 
-    // FIXME: Get the correct MVP matrix or configure camera properly
+    // Map model coordinate to clip space
     gl_Position = MVP * vec4(v_model_position, 1.0);
 
     // Debugging: Ignore camera to check v_model_position

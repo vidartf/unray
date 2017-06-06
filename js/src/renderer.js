@@ -11,6 +11,9 @@ var THREE = require('three');
 
 // TODO: Extend shader functionality
 
+//var debug = _.bind(console.log, console);
+var debug = function() {}
+
 
 const shader_sources = {
     vertex: require("./glsl/vicp-vertex.glsl"),
@@ -61,8 +64,9 @@ const method_properties = {
         transparent: false,
 
         // FIXME: Pick side to see which sides the tetrahedron show and adjust strip etc
-        side: THREE.FrontSide,
+        // side: THREE.FrontSide,
         // side: THREE.BackSide,
+        side: THREE.DoubleSide,
 
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
@@ -293,7 +297,7 @@ function allocate_array_texture(dtype, item_size, texture_shape)
 
     let format = dtype2threeformat[item_size];
 
-    console.log(`Creating texture for dtype ${dtype} and item size ${item_size} with type ${type} and format ${format}.`);
+    debug(`Creating texture for dtype ${dtype} and item size ${item_size} with type ${type} and format ${format}.`);
 
     let texture = new THREE.DataTexture(padded_data,
         texture_shape[0], texture_shape[1],
@@ -458,7 +462,7 @@ class TetrahedralMeshRenderer
     {
         this.uniforms.u_density_range.value.set(...compute_range(data.density));
         this.uniforms.u_emission_range.value.set(...compute_range(data.emission));
-        console.log("Updated data ranges: ", this.uniforms.u_density_range.value, this.uniforms.u_emission_range.value);
+        debug("Updated data ranges: ", this.uniforms.u_density_range.value, this.uniforms.u_emission_range.value);
     }
 
     allocate_ordering()
@@ -484,7 +488,7 @@ class TetrahedralMeshRenderer
         // TODO: Enable and improve sorting when other methods are working
         if (0) {
             sort_cells(this.ordering, this.data.cells, this.data.coordinates,
-                    this.uniforms.u_view_direction.value);
+                       this.uniforms.u_view_direction.value);
             this.attributes.c_ordering.needsUpdate = true;
         }
     }
@@ -493,7 +497,7 @@ class TetrahedralMeshRenderer
     {
         this.uniforms.u_time.value = time;
         for (let i=0; i<4; ++i) {
-            this.uniforms.u_oscillators[i] = Math.sin((i+1) * Math.PI * this.time);
+            this.uniforms.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
         }
     }
 
@@ -624,19 +628,19 @@ class TetrahedralMeshRenderer
         // Process all passed channels
         for (let channel_name in channels)
         {
-            console.log("*** updating " + channel_name);
+            debug("*** updating " + channel_name);
 
             // Get channel description
             let channel = channels[channel_name];
             if (channel === undefined) {
-                console.log(`Channel ${channel_name} is missing description.`);
+                debug(`Channel ${channel_name} is missing description.`);
                 continue;
             }
 
             // Get encoding for this channel
             let enc = encoding[channel_name];
             if (enc === undefined) {
-                console.log(`No encoding found for channel ${channel_name}.`);
+                debug(`No encoding found for channel ${channel_name}.`);
                 continue;
             }
 
@@ -645,14 +649,14 @@ class TetrahedralMeshRenderer
             if (data) {
                 new_value = data[enc.field];
                 if (new_value === undefined) {
-                    console.log(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
+                    debug(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
                     continue;
                 }
             }
 
             // Default association in channel, can override in encoding
             let association = enc.association || channel.association;
-            console.log("*** assiciation " + association);
+            debug("*** assiciation " + association);
             let uniform = null;
             switch (association)
             {
@@ -660,13 +664,13 @@ class TetrahedralMeshRenderer
                 {
                 let uniform = this.uniforms["u_" + channel_name];
                 if (!uniform.value) {
-                    console.log("Allocating uniform object for " + channel_name);
+                    debug("Allocating uniform object for " + channel_name);
                     uniform.value = allocate_value(channel.item_size);
-                    console.log(uniform.value);
+                    debug(uniform.value);
                 }
                 if (new_value) {
-                    console.log("Updating uniform value for " + channel_name);
-                    console.log(new_value);
+                    debug("Updating uniform value for " + channel_name);
+                    debug(new_value);
                     uniform.value = new_value;  // TODO: Copy? Set into existing object?
                 }
                 break;
@@ -675,15 +679,15 @@ class TetrahedralMeshRenderer
                 {
                 let uniform = this.uniforms["t_" + channel_name];
                 if (!uniform.value) {
-                    console.log("Allocating vertex texture for " + channel_name);
-                    console.log(new_value);
+                    debug("Allocating vertex texture for " + channel_name);
+                    debug(new_value);
                     uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
                         this.uniforms.u_vertex_texture_shape.value);
                 }
                 if (new_value) {
-                    console.log("Uploading to vertex texture for " + channel_name);
-                    console.log(new_value);
+                    debug("Uploading to vertex texture for " + channel_name);
+                    debug(new_value);
                     update_array_texture(uniform.value, new_value);
                 }
                 break;
@@ -696,15 +700,15 @@ class TetrahedralMeshRenderer
                 // to quickly switch between methods e.g. during camera rotation.
                 let uniform = this.uniforms["t_" + channel_name];
                 if (!uniform.value) {
-                    console.log("Allocating cell texture for " + channel_name);
-                    console.log(new_value);
+                    debug("Allocating cell texture for " + channel_name);
+                    debug(new_value);
                     uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
                         this.uniforms.u_cell_texture_shape.value);
                 }
                 if (new_value) {
-                    console.log("Uploading to cell texture for " + channel_name);
-                    console.log(new_value);
+                    debug("Uploading to cell texture for " + channel_name);
+                    debug(new_value);
                     update_array_texture(uniform.value, new_value);
                 }
 
@@ -737,25 +741,25 @@ class TetrahedralMeshRenderer
                     let dim = new_value.length / channel.item_size;
                     let uniform = this.uniforms["t_" + channel_name];
                     if (!uniform.value) {
-                        console.log("Allocating lut texture for " + channel_name);
-                        console.log(uniform.value, new_value);
+                        debug("Allocating lut texture for " + channel_name);
+                        debug(uniform.value, new_value);
                         uniform.value = allocate_array_texture(
                             channel.dtype, channel.item_size, [dim, 1]);
                     } else if (uniform.value.image.width != dim) {
-                        console.log("Reallocating lut texture for " + channel_name);
-                        console.log(uniform.value, new_value);
+                        debug("Reallocating lut texture for " + channel_name);
+                        debug(uniform.value, new_value);
                         // TODO: Should we deallocate the gl texture via uniform.value somehow?
                         uniform.value = allocate_array_texture(
                             channel.dtype, channel.item_size, [dim, 1]);
                     }
-                    console.log("Updating lut texture for " + channel_name);
-                    console.log(uniform.value, new_value);
+                    debug("Updating lut texture for " + channel_name);
+                    debug(uniform.value, new_value);
                     update_array_texture(uniform.value, new_value);
                 }
                 break;
                 }
             default:
-                console.log("unknown association " + association);
+                debug("unknown association " + association);
             }
 
             // Update associated data range TODO: Option to skip auto-update
@@ -763,8 +767,8 @@ class TetrahedralMeshRenderer
                 let range_name = "u_" + channel_name + "_range";
                 if (this.uniforms.hasOwnProperty(range_name)) {
                     this.uniforms[range_name].value.set(...compute_range(new_value));
-                    console.log("Updating data range for " + channel_name);
-                    console.log(range_name, this.uniforms[range_name].value);
+                    debug("Updating data range for " + channel_name);
+                    debug(range_name, this.uniforms[range_name].value);
                 }
             }
         }

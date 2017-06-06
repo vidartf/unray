@@ -112,6 +112,21 @@ class Figure(widgets.Widget):
 
     animate = CBool(False).tag(sync=True)
 
-    data = Dict(value_trait=Instance(Data).tag(sync=True, **widget_serialization), default_value={})
-    plots = Dict(value_trait=Instance(Plot).tag(sync=True, **widget_serialization), default_value={})
+    data = Dict(Instance(Data), default_value={}, allow_none=False).tag(sync=True, **widget_serialization)
+    plots = Dict(Instance(Plot), default_value={}, allow_none=False).tag(sync=True, **widget_serialization)
 
+    def update_data(self, **kwargs):
+        d = dict(self.data)
+        for key, value in kwargs.items():
+            if not isinstance(value, Data):
+                value = Data(name=key, array=value)
+            d[key] = value
+        self.data = d
+
+    def update_plots(self, **kwargs):
+        d = dict(self.plots)
+        for key, value in kwargs.items():
+            if not isinstance(value, Plot):
+                raise ValueError("Expected Plot objects.")
+            d[key] = value
+        self.plots = d

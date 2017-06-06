@@ -60,20 +60,28 @@ def render(coordinates, cells,
     # Optionally add density
     if density is not None:
         data["density"] = Data(name="density", array=density)
-        if density_lut is None:
-            pass # density_lut = default_density_lut # FIXME use
         if density_range is None:
             density_range = [np.min(density), np.max(density)]
         encoding["density"] = {"field": "density", "range": density_range}
 
+        # Set lut if not provided
+        if density_lut is None:
+            density_lut = default_density_lut
+        data["density_lut"] = Data(name="density_lut", array=density_lut)
+        encoding["density_lut"] = {"field": "density_lut"}
+
     # Optionally add emission
     if emission is not None:
         data["emission"] = Data(name="emission", array=emission)
-        if emission_lut is None:
-            pass # emission_lut = default_emission_lut # FIXME use
         if emission_range is None:
             emission_range = [np.min(emission), np.max(emission)]
         encoding["emission"] = {"field": "emission", "range": emission_range}
+
+        # Set lut if not provided
+        if emission_lut is None:
+            emission_lut = default_emission_lut
+        data["emission_lut"] = Data(name="emission_lut", array=emission_lut)
+        encoding["emission_lut"] = {"field": "emission_lut"}
 
     # Setup plot
     plotname = "plot_%s" % method
