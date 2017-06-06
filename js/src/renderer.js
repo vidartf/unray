@@ -39,6 +39,11 @@ const default_encoding = {
 
 
 // FIXME: Figure out backside culling!
+// this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCW);
+// this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCCW);
+// this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCW);
+// this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCCW);
+
 // TODO: Define channels for all methods.
 // TODO: Configure blend equations for all methods
 // TODO: Let defines follow from channels, encoding, and possibly data.

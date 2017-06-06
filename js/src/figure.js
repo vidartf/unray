@@ -8,6 +8,34 @@ var utils = require('./utils.js');
 let renderer = require("./renderer.js")
 
 
+// Compute bounding box and sphere of a set of points in a flat array
+function compute_bounds(coords)
+{
+    let center = new THREE.Vector3(0, 0, 0);
+    let min = new THREE.Vector3(coords[0], coords[1], coords[2]);
+    let max = new THREE.Vector3(coords[0], coords[1], coords[2]);
+    let radius = 0;
+    for (let i = 0; i < coords.length; ++i)
+    {
+        for (let j = 0; j < 3; ++j)
+        {
+            let xj = coords[3*i + j];
+            center[j] += xj;
+            min[j] = Math.min(min[j], xj);
+            max[j] = Math.max(max[j], xj);
+        }
+    }
+    for (let i = 0; i < coords.length; ++i) {
+        let dist2 = 0;
+        for (let j = 0; j < 3; ++j) {
+            dist2 += (coords[3*i + j] - center[j]) * (coords[3*i + j] - center[j]);
+        }
+        radius = Math.max(radius, Math.sqrt(dist2));
+    }
+    return {min, max, center, radius};
+}
+
+
 class FigureModel extends widgets.DOMWidgetModel
 {
     defaults()
@@ -88,54 +116,30 @@ class FigureView extends widgets.DOMWidgetView
         this.el.className = "jupyter-widget jupyter-unray";
         this.el.appendChild(this.canvas);
 
-        // Setup renderer
+        // Setup three.js renderer
 		this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
             precision: "highp",
             alpha: true,
-            premultipliedAlpha: true, // TODO: Figure out what this affects
             antialias: false,
             stencil: false,
             preserveDrawingBuffer: true,
             depth: true,
             logarithmicDepthBuffer: false,
         });
-        this.renderer.setClearColor(0x000000);
+        this.renderer.setClearColor(new THREE.Color(1, 0, 0), 1);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width * downscale, height * downscale);
-        // this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCW);
-        // this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCCW);
-        // this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCW);
-        // this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCCW);
-
-        // Setup scene
-        this.scene = new THREE.Scene();
 
 
-        // FIXME: Compute bounding sphere of model
-        this.bounding_center = new THREE.Vector3(0, 0, 0);
-        this.bounding_radius = 1.0;
-
-
-        // Setup camera
-        // TODO: Use pythreejs camera and controller
-        // TODO: Setup camera to include coordinates bounding box in view
-        let near = 0;
-        let far = 2000.0;  // FIXME: Set from radius (just needs to be large enough)
-
-        let w = Math.max(2.0 * this.bounding_radius, this.aspect_ratio * 2.0 * this.bounding_radius);
-        let h = w / this.aspect_ratio;
-
-		this.camera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, near, far);
-		this.camera.position.x = 4 * this.bounding_radius;
-		this.camera.position.y = 0;
-		this.camera.position.z = 0;
-        this.camera.lookAt(this.bounding_center);
-
+        /////////////////////////////////////////////////////////////////
         // Setup cloud model
         this.tetrenderer = new renderer.TetrahedralMeshRenderer();
 
         // FIXME: Initialize with actual data
+        console.log("///////////////// WANT DATA HERE:");
+        console.log(this.model.get("data"));
+        console.log("/////////////////");
 
         // Mock data
         let num_tetrahedrons = 1;
@@ -160,16 +164,51 @@ class FigureView extends widgets.DOMWidgetView
         // Initialize renderer once dimensions are known
         this.tetrenderer.init(num_tetrahedrons, num_vertices);
 
-        // // TODO: Better handling of multiple configurations with data sharing
-        let method = "xray";
+        // TODO: Better handling of multiple configurations with data sharing
+        let method = "surface";
         let encoding = undefined;
         this.tetrenderer.configure(method, encoding);
 
-        // // Upload data to textures
+        // Upload data to textures
         this.tetrenderer.upload(data, method);
+        /////////////////////////////////////////////////////////////////
 
-        this.tetrenderer.update_perspective(this.camera); // TODO: On camera change
-		this.scene.add(this.tetrenderer.meshes.get(method)); // FIXME: Add mesh to scene
+
+        /////////////////////////////////////////////////////////////////
+        // Compute bounding sphere of model
+        // (TODO: Maybe let tetrenderer do this?)
+        this.bounds = compute_bounds(data.coordinates);
+        /////////////////////////////////////////////////////////////////
+
+
+        /////////////////////////////////////////////////////////////////
+        // Setup camera
+        // TODO: Use pythreejs camera and controller
+        // TODO: Setup camera to include coordinates bounding box in view
+        let near = 0;
+        let far = 2000.0;  // FIXME: Set from radius (just needs to be large enough)
+        let w = Math.max(2.0 * this.bounds.radius, this.aspect_ratio * 2.0 * this.bounds.radius);
+        let h = w / this.aspect_ratio;
+		this.camera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, near, far);
+		this.camera.position.x = 4 * this.bounds.radius;
+		this.camera.position.y = 0;
+		this.camera.position.z = 0;
+        this.camera.lookAt(this.bounds.center);
+        /////////////////////////////////////////////////////////////////
+
+        /////////////////////////////////////////////////////////////////
+        // TODO: Update perspective on camera change
+        this.tetrenderer.update_perspective(this.camera);
+        /////////////////////////////////////////////////////////////////
+
+
+        /////////////////////////////////////////////////////////////////
+        // Setup empty scene
+        this.scene = new THREE.Scene();
+        // FIXME: Swap mesh in scene when changing method etc.
+		this.scene.add(this.tetrenderer.meshes.get(method));
+        /////////////////////////////////////////////////////////////////
+
 
         // Wire listeners
         this.listenTo(this.model, "change:animate", this.on_animate_changed);
@@ -193,7 +232,7 @@ class FigureView extends widgets.DOMWidgetView
 
     on_data_changed()
     {
-        console.log("on_data_changed ", arguments);
+        console.log("====================== on_data_changed ", arguments);
 
         //let data = this.model.get("data"); //[name];
         //this.renderer.on_data_changed(name, data.array);
@@ -204,7 +243,7 @@ class FigureView extends widgets.DOMWidgetView
     on_plots_changed()
     {
         // FIXME: Trigger on already connected plot changed
-        console.log("on_plots_changed ", arguments);
+        console.log("====================== on_plots_changed ", arguments);
 
         this.schedule_animation();
     }
@@ -281,12 +320,12 @@ class FigureView extends widgets.DOMWidgetView
         let theta = 2.0 * Math.PI * ((passed_time * freq1) % 1.0);
         let phi = 2.0 * Math.PI * ((passed_time * freq2) % 1.0);
 
-        let radius = 4 * this.bounding_radius;
+        let radius = 4 * this.bounds.radius;
 
         this.camera.position.x = radius * Math.cos(phi) * Math.cos(theta);
 		this.camera.position.y = radius * Math.sin(phi);
         this.camera.position.z = radius * Math.cos(phi) * Math.sin(theta);
-        this.camera.lookAt(this.bounding_center);
+        this.camera.lookAt(this.bounds.center);
 
         // Manually trigger camera change for now
         this.on_camera_changed();
