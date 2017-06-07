@@ -244,9 +244,9 @@ void main()
 
     // Debugging
     if (gl_FrontFacing) {
-        C.rgb = vec3(1.0);
+        C.r = 1.0;
     } else {
-        C.rgb = vec3(0.2);
+        C.r = 0.0;
     }
 
     // Record result. Note that this will fail to compile

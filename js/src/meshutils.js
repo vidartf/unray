@@ -96,8 +96,8 @@ function reorient_tetrahedron_cells(cells, vertices)
             // c.set(i, 2, K[3]);
             // c.set(i, 3, tmp);
 
-            c[4*i + 2] = K[3];
-            c[4*i + 3] = K[2];
+            // c[4*i + 2] = K[3];
+            // c[4*i + 3] = K[2];
         }
     }
 }
