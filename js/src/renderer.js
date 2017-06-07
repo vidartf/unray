@@ -65,8 +65,8 @@ const method_properties = {
 
         // FIXME: Pick side to see which sides the tetrahedron show and adjust strip etc
         // side: THREE.FrontSide,
-        // side: THREE.BackSide,
-        side: THREE.DoubleSide,
+        side: THREE.BackSide,
+        // side: THREE.DoubleSide,
 
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,

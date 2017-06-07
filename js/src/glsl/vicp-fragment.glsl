@@ -244,9 +244,9 @@ void main()
 
     // Debugging
     if (gl_FrontFacing) {
-        C.r = 1.0;
-    } else {
         C.r = 0.0;
+    } else {
+        C.r = 1.0;
     }
 
     // Record result. Note that this will fail to compile

@@ -95,11 +95,11 @@ class FigureView extends widgets.DOMWidgetView
             canvas: this.canvas,
             precision: "highp",
             alpha: true,
-            antialias: false,
+            antialias: true,
             stencil: false,
             preserveDrawingBuffer: true,
             depth: true,
-            logarithmicDepthBuffer: false,
+            logarithmicDepthBuffer: true,
         });
         this.renderer.setClearColor(new THREE.Color(0, 0, 0), 1);
         this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -303,7 +303,7 @@ class FigureView extends widgets.DOMWidgetView
         this.camera.right = w/2;
         this.camera.top = h/2;
         this.camera.bottom = -h/2;
-        this.camera.near = 0;
+        this.camera.near = 0.25 * radius;
         this.camera.far = 2 * radius;
 
         this.camera.position.set(
