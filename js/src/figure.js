@@ -4,46 +4,9 @@ var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 var THREE = require('three');
 
-var utils = require('./utils.js');
+var version = require('./version.js');
+let meshutils = require("./meshutils.js")
 let renderer = require("./renderer.js")
-
-
-// Compute bounding box and sphere of a set of points in a flat array
-function compute_bounds(coords)
-{
-    let center = new Float32Array([0, 0, 0]);
-    let min = new Float32Array([coords[0], coords[1], coords[2]]);
-    let max = new Float32Array([coords[0], coords[1], coords[2]]);
-    let radius = 0;
-    let nv = coords.length / 3;
-    console.log("coords", coords);
-    console.log("coords length", coords.length);
-    console.log("nv", nv);
-
-    for (let i = 0; i < coords.length; i += 3) {
-        for (let j = 0; j < 3; ++j) {
-            let xj = coords[i + j];
-            center[j] += xj;
-            min[j] = Math.min(min[j], xj);
-            max[j] = Math.max(max[j], xj);
-        }
-    }
-    center[0] /= nv;
-    center[1] /= nv;
-    center[2] /= nv;
-
-    for (let i = 0; i < coords.length; i += 3) {
-        let dist2 = 0;
-        for (let j = 0; j < 3; ++j) {
-            let xj = coords[i + j];
-            let dx = xj - center[j];
-            dist2 += dx * dx;
-        }
-        radius = Math.max(radius, Math.sqrt(dist2));
-    }
-
-    return {min, max, center, radius};
-}
 
 
 class FigureModel extends widgets.DOMWidgetModel
@@ -68,7 +31,7 @@ class FigureModel extends widgets.DOMWidgetModel
             // Collection of plot configurations
             plots : {},
         };
-        return _.extend(super.defaults(), utils.module_defaults, model_defaults);
+        return _.extend(super.defaults(), version.module_defaults, model_defaults);
     }
 
     initialize()
@@ -190,7 +153,7 @@ class FigureView extends widgets.DOMWidgetView
         /////////////////////////////////////////////////////////////////
         // Compute bounding sphere of model
         // (TODO: Maybe let tetrenderer do this?)
-        this.bounds = compute_bounds(raw_data.coordinates);
+        this.bounds = meshutils.compute_bounds(raw_data.coordinates);
         /////////////////////////////////////////////////////////////////
 
 

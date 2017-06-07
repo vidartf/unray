@@ -3,7 +3,8 @@
 var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 
-var utils = require('./utils.js');
+var version = require('./version.js');
+var serialization = require('./serialization.js');
 
 
 class DataModel extends widgets.WidgetModel
@@ -16,7 +17,7 @@ class DataModel extends widgets.WidgetModel
             name : "unnamed",
             array : null,
         };
-        return _.extend(super.defaults(), utils.module_defaults, model_defaults);
+        return _.extend(super.defaults(), version.module_defaults, model_defaults);
     }
 
     initialize()
@@ -42,7 +43,7 @@ class DataModel extends widgets.WidgetModel
     }
 };
 DataModel.serializers = _.extend({
-    array: utils.array_serialization,
+    array: serialization.array_serialization,
 }, widgets.WidgetModel.serializers);
 
 

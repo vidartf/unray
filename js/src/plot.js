@@ -4,7 +4,8 @@ var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 var THREE = require('three');
 
-var utils = require('./utils.js');
+var version = require('./version.js');
+// var serialization = require('./serialization.js');
 
 
 class PlotModel extends widgets.WidgetModel
@@ -19,7 +20,7 @@ class PlotModel extends widgets.WidgetModel
             method : "blank",
             encoding : {},
         };
-        return _.extend(super.defaults(), utils.module_defaults, model_defaults);
+        return _.extend(super.defaults(), version.module_defaults, model_defaults);
     }
 
     initialize()
@@ -29,7 +30,7 @@ class PlotModel extends widgets.WidgetModel
 };
 /*
 PlotModel.serializers = _.extend({
-    //array: utils.array_serialization,
+    //array: serialization.array_serialization,
 }, widgets.WidgetModel.serializers);
 */
 

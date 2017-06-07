@@ -3,7 +3,7 @@
 var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 
-var utils = require('./utils.js');
+var version = require('./version.js');
 
 
 class DataDisplayModel extends widgets.DOMWidgetModel
@@ -15,7 +15,7 @@ class DataDisplayModel extends widgets.DOMWidgetModel
             _view_name : 'DataDisplayView',
             data : null,
         };
-        return _.extend(super.defaults(), utils.module_defaults, model_defaults);
+        return _.extend(super.defaults(), version.module_defaults, model_defaults);
     }
 };
 DataDisplayModel.serializers = _.extend({

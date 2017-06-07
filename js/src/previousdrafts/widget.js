@@ -3,7 +3,8 @@ var _ = require('underscore');
 var ndarray = require('ndarray');
 
 // Local imports
-var utils = require('../utils.js');
+var version = require('../version.js');
+var serialization = require('../serialization.js');
 var unray = require('./unray.js');
 
 
@@ -37,7 +38,7 @@ class UnrayModel extends widgets.DOMWidgetModel {
             view_direction : ndarray(new Float32Array(), [3]),
         };
 
-        return _.extend({}, super.defaults(), utils.module_defaults, model_defaults);
+        return _.extend({}, super.defaults(), version.module_defaults, model_defaults);
     }
 
     initialize() {
@@ -68,15 +69,15 @@ class UnrayModel extends widgets.DOMWidgetModel {
     }
 };
 UnrayModel.serializers = _.extend({
-            cells: utils.array_serialization,
-            ordering: utils.array_serialization,
-            coordinates: utils.array_serialization,
-            density: utils.array_serialization,
-            emission: utils.array_serialization,
-            density_lut: utils.array_serialization,
-            emission_lut: utils.array_serialization,
-            mvp: utils.array_serialization,
-            view_direction: utils.array_serialization,
+            cells: serialization.array_serialization,
+            ordering: serialization.array_serialization,
+            coordinates: serialization.array_serialization,
+            density: serialization.array_serialization,
+            emission: serialization.array_serialization,
+            density_lut: serialization.array_serialization,
+            emission_lut: serialization.array_serialization,
+            mvp: serialization.array_serialization,
+            view_direction: serialization.array_serialization,
         }, widgets.DOMWidgetModel.serializers);
 
 
