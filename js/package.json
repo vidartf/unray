@@ -30,9 +30,13 @@
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
+    "isndarray": "^1.0.0",
     "jupyter-js-widgets": "^3.0.0-alpha.6",
-    "underscore": "^1.8.3",
     "ndarray": "^1.0.18",
-    "three": "^0.85.2"
+    "ndarray-determinant": "^1.0.0",
+    "ndarray-ops": "^1.2.2",
+    "ndarray-pack": "^1.2.1",
+    "three": "^0.85.2",
+    "underscore": "^1.8.3"
   }
 }

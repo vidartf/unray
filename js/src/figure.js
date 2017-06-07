@@ -128,6 +128,11 @@ class FigureView extends widgets.DOMWidgetView
         }
         let num_vertices = data.coordinates.get("array").shape[0];
         //let num_tetrahedrons = raw_data.coordinates.length / 3;
+
+        // Reorient tetrahedral cells
+        meshutils.reorient_tetrahedron_cells(
+            data.cells.get("array").data,
+            data.coordinates.get("array").data)
         /////////////////////////////////////////////////////////////////
 
 

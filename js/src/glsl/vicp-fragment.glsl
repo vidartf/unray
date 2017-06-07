@@ -242,6 +242,13 @@ void main()
     vec3 C = a * L;
 #endif
 
+    // Debugging
+    if (gl_FrontFacing) {
+        C.rgb = vec3(1.0);
+    } else {
+        C.rgb = vec3(0.2);
+    }
+
     // Record result. Note that this will fail to compile
     // if C and a are not defined correctly above, providing a
     // small but significant safeguard towards errors in the
