@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "prepublish": "webpack; date",
-    "watch": "onchange 'src/*.js' 'src/glsl/*.glsl' -v -- npm run prepublish",
+    "watch": "onchange 'package.json' 'src/*.js' 'src/glsl/*.glsl' -v -- npm run prepublish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
@@ -30,6 +30,7 @@
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
+    "gl-matrix": "^2.3.2",
     "isndarray": "^1.0.0",
     "jupyter-js-widgets": "^3.0.0-alpha.6",
     "ndarray": "^1.0.18",

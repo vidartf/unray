@@ -185,14 +185,14 @@ void main()
 
 #ifdef ENABLE_VERTEX_INDICES
     // FIXME: Not quite sure how to use the vertex_indices local to local mapping yet
-
+    unused;
     // Locally reordered global vertex indices
     ivec4 vertex_indices;
     for (int i = 0; i < 4; ++i) {
         vertex_indices[i] = get_at(cell, local_vertices[i]);
     }
-    // Should this use the vertex_indices mapping?
-    int global_vertex_id = get_at(vertex_indices, local_vertex_id);
+    // The current vertex is always local_vertices[0]
+    int global_vertex_id = vertex_indices[0];
 #else
     int global_vertex_id = get_at(cell, local_vertex_id);
 #endif

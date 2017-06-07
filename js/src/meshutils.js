@@ -2,9 +2,11 @@
 // TODO: Could possibly imlpement these utils cleaner
 // and more efficiently using scijs packages:
 // ndarray, ndarray-scratch, ndarray-ops, ndarray-sort
+// https://github.com/scijs/ndarray-grid-connectivity
 let ndarray = require('ndarray');
 // let pack = require('ndarray-pack');
 let det = require('ndarray-determinant');
+let glm = require('gl-matrix');
 
 
 // Compute bounding box and sphere of a set of 3D points in a flat array
@@ -51,7 +53,7 @@ function compute_midpoints(cells, vertices)
 
 // Reorient tetrahedron cells such that det(J) is positive
 // by swapping the last two indices in each cell if necessary
-function reorient_tetrahedron_cells(cells, vertices)
+function old_reorient_tetrahedron_cells(cells, vertices)
 {
     // If given ndarrays:
     // let c = cells.data;
@@ -91,13 +93,83 @@ function reorient_tetrahedron_cells(cells, vertices)
             x3[0] - x0[0], x3[1] - x0[1], x3[2] - x0[2],
             ]);
 
-        if (det(J) < 0) {
+
+        // This is equivalent to requiring that dot(x3-x0, cross(x1-x0,x2-x0)) > 0
+
+        let detJ = det(J);
+        console.log("detJ:", detJ)
+
+        if (detJ > 0) {
             // let tmp = K[2];
             // c.set(i, 2, K[3]);
             // c.set(i, 3, tmp);
 
-            // c[4*i + 2] = K[3];
-            // c[4*i + 3] = K[2];
+            c[4*i + 2] = K[3];
+            c[4*i + 3] = K[2];
+        }
+    }
+}
+
+
+// Reorient tetrahedron cells such that det(J) is positive
+// by swapping the last two indices in each cell if necessary
+function reorient_tetrahedron_cells(cells, vertices)
+{
+    // If given ndarrays:
+    // let c = cells.data;
+    // let v = vertices.data;
+    // let num_cells = cells.shape[0];
+
+    // If given flat arrays
+    let c = cells;
+    let v = vertices;
+    let num_cells = cells.length / 4;
+    let num_vertices = vertices.length / 3;
+
+    let x0 = glm.vec3.create();
+    let x1 = glm.vec3.create();
+    let x2 = glm.vec3.create();
+    let x3 = glm.vec3.create();
+
+    let e1 = glm.vec3.create();
+    let e2 = glm.vec3.create();
+    let e3 = glm.vec3.create();
+
+    let cr = glm.vec3.create();
+
+    console.log("Reorienting cells", num_cells, num_vertices);
+
+    for (let i = 0; i < num_cells; ++i)
+    {
+        // If c, v are ndarrays:
+        // let K = c.pick(i, null);
+        // let x0 = v.pick(3*K[0], null);
+        // let x1 = v.pick(3*K[1], null);
+        // let x2 = v.pick(3*K[2], null);
+        // let x3 = v.pick(3*K[3], null);
+
+        let K = [ c[4*i + 0], c[4*i + 1], c[4*i + 2], c[4*i + 3] ];
+        let off = [3*K[0], 3*K[1], 3*K[2], 3*K[3]];
+
+        glm.vec3.copy(x0, [ v[off[0] + 0], v[off[0] + 1], v[off[0] + 2] ]);
+        glm.vec3.copy(x1, [ v[off[1] + 0], v[off[1] + 1], v[off[1] + 2] ]);
+        glm.vec3.copy(x2, [ v[off[2] + 0], v[off[2] + 1], v[off[2] + 2] ]);
+        glm.vec3.copy(x3, [ v[off[3] + 0], v[off[3] + 1], v[off[3] + 2] ]);
+
+        glm.vec3.subtract(e1, x1, x0);
+        glm.vec3.subtract(e2, x2, x0);
+        glm.vec3.subtract(e3, x3, x0);
+
+        glm.vec3.cross(cr, e1, e2);
+        let r = glm.vec3.dot(e3, cr);
+
+        if (r < 0) {
+            // let tmp = K[2];
+            // c.set(i, 2, K[3]);
+            // c.set(i, 3, tmp);
+
+            c[4*i + 2] = K[3];
+            c[4*i + 3] = K[2];
         }
     }
 }

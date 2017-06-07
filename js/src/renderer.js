@@ -382,6 +382,7 @@ class TetrahedralMeshRenderer
         // TODO: Check that strip ordering matches 
         this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 1, 2, 3, 0, 1]), 1);
 
+        // TODO: Remove this? Contained in local_vertices_buffer, first item.
         // Replacement for gl_VertexID which requires webgl2
         this.local_vertex_id_buffer =  new THREE.BufferAttribute(new Float32Array([0,1,2,3]), 1);
 
@@ -391,10 +392,15 @@ class TetrahedralMeshRenderer
         // TODO: Arrange these such that normal computations become simpler,
         //   i.e. n0 = normal opposing v0 = v1->v2 x v1->v3 = pointing away from v0
         this.local_vertices_buffer = new THREE.BufferAttribute(new Float32Array([
-            0,   1, 2, 3,
+            0,   2, 1, 3,
             1,   2, 3, 0,
-            2,   3, 0, 1,
-            3,   0, 1, 2
+            2,   0, 3, 1,
+            3,   0, 1, 2,
+            // Simple rotation of 0..3:
+            // 0,   1, 2, 3,
+            // 1,   2, 3, 0,
+            // 2,   3, 0, 1,
+            // 3,   0, 1, 2
         ]), 4);
     }
 
