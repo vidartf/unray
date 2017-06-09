@@ -54,7 +54,10 @@ uniform float u_time;
 uniform vec4 u_oscillators;
 
 // Custom camera uniforms
+#ifdef ENABLE_PERSPECTIVE_PROJECTION
+#else
 uniform vec3 u_view_direction;
+#endif
 
 // Input data uniforms
 uniform vec3 u_constant_color;
@@ -76,16 +79,21 @@ uniform sampler2D t_emission_lut;
 
 // Varyings
 varying vec3 v_model_position;
-varying vec3 v_view_direction;  // webgl2 required for flat keyword
 #ifdef ENABLE_DEPTH
+#ifdef ENABLE_PERSPECTIVE_PROJECTION
+varying mat4 v_planes;                   // webgl2 required for flat keyword
+#else
 varying vec4 v_ray_lengths;
 #endif
+#endif
+
 #ifdef ENABLE_DENSITY
 varying float v_density;
 #endif
 #ifdef ENABLE_EMISSION
 varying float v_emission;
 #endif
+
 #ifdef ENABLE_DENSITY_BACK
 varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 #endif
@@ -97,7 +105,6 @@ void main()
 {
     // We need the view direction below
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
-    //vec3 view_direction = normalize(v_view_direction);
     vec3 view_direction = normalize(v_model_position - cameraPosition);
 #else
     vec3 view_direction = u_view_direction;
@@ -105,7 +112,30 @@ void main()
 
 
 #ifdef ENABLE_DEPTH
-    float depth = smallest_positive(v_ray_lengths);  // FIXME: This is zero!
+#ifdef ENABLE_PERSPECTIVE_PROJECTION
+    const float infinity = 1e38;
+    float smallest = infinity;
+    int zeros = 0;
+    for (int i = 0; i < 4; ++i) {
+        vec3 n = v_planes[i].xyz;
+        float p = v_planes[i].w;
+        float scale = 1.0 / dot(n, view_direction);
+        float facet_dist = (p - dot(n, v_model_position)) * scale;
+        if (facet_dist < 0.0) {
+            continue;
+        } else if (facet_dist > 0.0) {
+            smallest = min(smallest, facet_dist);
+        } else {
+            zeros++;
+        }
+    }
+    float depth = 0.0;
+    if (zeros <= 1) {
+        depth = smallest;
+    }
+#else
+    float depth = smallest_positive(v_ray_lengths);
+#endif
 #endif
 
 

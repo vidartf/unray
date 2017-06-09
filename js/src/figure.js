@@ -185,7 +185,12 @@ class FigureView extends widgets.DOMWidgetView
         /////////////////////////////////////////////////////////////////
         // Setup camera
         // TODO: Use pythreejs camera and controller if we stick to webgl1 and three.js
-		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 100);
+        this.use_perspective_camera = true; // TODO: Make this an option
+        if (this.use_perspective_camera) {
+            this.camera = new THREE.PerspectiveCamera(60.0, this.aspect_ratio, 0.1, 100);
+        } else {
+    		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+        }
         this.camera.matrixAutoUpdate = true;
 
         let time = 0.0;
@@ -309,24 +314,33 @@ class FigureView extends widgets.DOMWidgetView
     }
 
     update_camera(passed_time) {
-        let zoomfactor = 1.5;
-        let radius = zoomfactor * this.bounds.radius;
-        let center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
-
         // Animate camera (just some values hardcoded for debugging)
         let freq1 = .3;
         let freq2 = .1;
         let theta = 2.0 * Math.PI * freq1 * passed_time;
         let phi = 2.0 * Math.PI * freq2 * passed_time;
 
-        let w = Math.max(2 * radius, this.aspect_ratio * 2 * radius);
-        let h = w / this.aspect_ratio;
-        this.camera.left = -w/2;
-        this.camera.right = w/2;
-        this.camera.top = h/2;
-        this.camera.bottom = -h/2;
+        // Radius of sphere that camera moves on
+        let radius = 1.5 * this.bounds.radius;
+
+        if (this.use_perspective_camera) {
+            //let fov = fixme;
+            //radius *= fixme;
+            //this.camera.fov = fixme;
+        } else {
+            let w = Math.max(2 * radius, this.aspect_ratio * 2 * radius);
+            let h = w / this.aspect_ratio;
+            this.camera.left = -w/2;
+            this.camera.right = w/2;
+            this.camera.top = h/2;
+            this.camera.bottom = -h/2;
+        }
+
         this.camera.near = 0.25 * radius;
         this.camera.far = 2 * radius;
+
+        // Center of model
+        let center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
 
         this.camera.position.set(
             center.x + radius * Math.cos(phi) * Math.cos(theta),

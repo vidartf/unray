@@ -139,26 +139,36 @@ attribute float c_ordering;                      // webgl2 required for int attr
 attribute vec4 c_cells;                          // webgl2 required for ivec4 attributes
 #endif
 
+
 // Varyings
+// Note: Not position of the model but vertex coordinate in model space
+// TODO: Does this need perspective correction for proper interpolation?
 varying vec3 v_model_position;
-varying vec3 v_view_direction;  // webgl2 required for flat keyword
+
+
 #ifdef ENABLE_DEPTH
+#ifdef ENABLE_PERSPECTIVE_PROJECTION
+varying mat4 v_planes;                   // webgl2 required for flat keyword
+#else
 varying vec4 v_ray_lengths;
 #endif
+#endif
+
+
+// TODO: Can pack density and density_gradient in one vec4 since they're interpolated anyway
 #ifdef ENABLE_DENSITY
 varying float v_density;
 #endif
+#ifdef ENABLE_DENSITY_BACK
+varying vec3 v_density_gradient;         // webgl2 required for flat keyword
+#endif
+
 #ifdef ENABLE_EMISSION
 varying float v_emission;
 #endif
-
-#ifdef ENABLE_DENSITY_BACK
-varying vec3 v_density_gradient;  // webgl2 required for flat keyword
-#endif
 #ifdef ENABLE_EMISSION_BACK
-varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
+varying vec3 v_emission_gradient;        // webgl2 required for flat keyword
 #endif
-
 
 void main()
 {
@@ -253,14 +263,39 @@ void main()
 #endif
 
 
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-    v_view_direction = normalize(v_model_position - cameraPosition);
-#else
-    v_view_direction = u_view_direction;
-#endif
-
 
 #ifdef ENABLE_DEPTH
+#ifdef ENABLE_PERSPECTIVE_PROJECTION
+    // Note: This can be done in a separate preprocessing step,
+    // computing v_planes once for each cell and storing it as
+    // a cell texture or instanced buffer attribute.
+    // With webgl2 it could be done using vertex transform feedbacks.
+
+    // Ccw oriented faces
+    ivec3 faces[4];
+    faces[0] = ivec3(1, 2, 3);
+    faces[1] = ivec3(0, 3, 2);
+    faces[2] = ivec3(0, 1, 3);
+    faces[3] = ivec3(0, 2, 1);
+
+    for (int i = 0; i < 4; ++i) {
+        // Get vertex coordinates ordered relative to vertex i
+        vec3 x0 = coordinates[i];
+        vec3 x1 = get_at(coordinates, faces[i][0]);
+        vec3 x2 = get_at(coordinates, faces[i][1]);
+        vec3 x3 = get_at(coordinates, faces[i][2]);
+
+        // Compute the normal vector of the tetrahedon face opposing vertex i
+        vec3 edge_a = x2 - x1;
+        vec3 edge_b = x3 - x1;
+        vec3 n = normalize(cross(edge_a, edge_b));
+
+        // Store normal vector and plane equation coefficient for this face
+        v_planes[i] = vec4(n, dot(n, x1));
+    }
+#else
+    vec3 view_direction = u_view_direction;
+
     // The vertex attribute local_vertices[1..3] is carefully
     // chosen to be ccw winded seen from outside the tetrahedron
     // such that n computed below will point away from local_vertices[0]
@@ -284,7 +319,7 @@ void main()
 
     // Compute the distance from this vertex along the
     // view direction to the plane of the opposing face
-    float ray_length = orthogonal_dist / dot(n, v_view_direction);
+    float ray_length = orthogonal_dist / dot(n, view_direction);
 
     // Output ray length of the current vertex as a component of
     // a vec4 with zeros at the other local vertex ids, giving
@@ -295,6 +330,7 @@ void main()
     // TODO: Figure out if we can do perspective correct
     // interpolation of ray lengths somehow, this approach
     // is only correct for orthographic projection
+#endif
 #endif
 
 

@@ -3,13 +3,6 @@
 var _ = require('underscore');
 var THREE = require('three');
 
-// TODO: Get blank threejs renderer on screen
-
-// TODO: Write minimal shaders
-
-// TODO: Get tetrahedron on screen
-
-// TODO: Extend shader functionality
 
 //var debug = _.bind(console.log, console);
 var debug = function() {}
@@ -51,21 +44,18 @@ function override_defaults(defaults, params) {
 }
 
 
-// FIXME: Figure out backside culling!
-// this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCW);
-// this.renderer.setFaceCulling(THREE.CullFaceBack, THREE.FrontFaceDirectionCCW);
-// this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCW);
-// this.renderer.setFaceCulling(THREE.CullFaceFront, THREE.FrontFaceDirectionCCW);
-
 // TODO: Define channels for all methods.
-// TODO: Configure blend equations for all methods
-// TODO: Let defines follow from channels, encoding, and possibly data.
+// TODO: Let defines follow from method channels and encoding instead of hardcoding per method
+
 
 // Note: defines are used as "ifdef FOO" not "if FOO" so the value is irrelevant
 const default_defines = {
     // Always need cell ordering array with
     // webgl1 because gl_InstanceID is not available
     ENABLE_CELL_ORDERING: 1,
+
+    // TODO: Make this a toggle
+    ENABLE_PERSPECTIVE_PROJECTION: 1,
 };
 
 const method_properties = {
@@ -86,7 +76,18 @@ const method_properties = {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
         }),
+        // select_defines: function(encoding) {
+        //     let defines = {};
 
+        //     defines.ENABLE_SURFACE_MODEL = 1;
+        //     defines.ENABLE_EMISSION = 1;
+
+        //     // Always need cell ordering array with
+        //     // webgl1 because gl_InstanceID is not available
+        //     defines.ENABLE_CELL_ORDERING = 1;
+
+        //     return defines;
+        // },
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
