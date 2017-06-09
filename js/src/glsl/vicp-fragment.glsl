@@ -61,6 +61,7 @@ uniform vec3 u_view_direction;
 
 // Input data uniforms
 uniform vec3 u_constant_color;
+uniform vec2 u_isorange;
 uniform float u_particle_area;
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
@@ -113,29 +114,16 @@ void main()
 
 #ifdef ENABLE_DEPTH
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
-    const float infinity = 1e38;
-    float smallest = infinity;
-    int zeros = 0;
+    vec4 ray_lengths;
     for (int i = 0; i < 4; ++i) {
         vec3 n = v_planes[i].xyz;
         float p = v_planes[i].w;
-        float scale = 1.0 / dot(n, view_direction);
-        float facet_dist = (p - dot(n, v_model_position)) * scale;
-        if (facet_dist < 0.0) {
-            continue;
-        } else if (facet_dist > 0.0) {
-            smallest = min(smallest, facet_dist);
-        } else {
-            zeros++;
-        }
-    }
-    float depth = 0.0;
-    if (zeros <= 1) {
-        depth = smallest;
+        ray_lengths[i] = (p - dot(n, v_model_position)) / dot(n, view_direction);
     }
 #else
-    float depth = smallest_positive(v_ray_lengths);
+    vec4 ray_lengths = v_ray_lengths;
 #endif
+    float depth = smallest_positive(ray_lengths);
 #endif
 
 
@@ -177,6 +165,10 @@ void main()
 
     // TODO: Step through each model with some data and check. See CHECKME below.
 
+    // TODO: Could map functions to different color channels:
+    //       hue, saturation, luminance, noise texture intensity
+
+
 #ifdef ENABLE_DEBUG_MODEL
     vec3 C = vec3(1.0, 0.5, 0.5);
     float a = 1.0;
@@ -184,9 +176,11 @@ void main()
 
 
 #ifdef ENABLE_SURFACE_MODEL
-    // TODO: Could add some light model for the surface shading here
+    // TODO: Could add some light model for the surface shading here?
+    // vec3 surface_normal = normalize(v_density_gradient);
+    // vec3 surface_normal = normalize(v_emission_gradient);
+
     #if defined(ENABLE_EMISSION)
-    // TODO: Could map density to saturation, luminance, or maybe noise texture intensity
     vec3 C = mapped_emission;  // CHECKME
     #elif defined(ENABLE_DENSITY)
     vec3 C = mapped_density * u_constant_color;  // CHECKME
@@ -195,6 +189,55 @@ void main()
     #endif
 
     // Always opaque
+    float a = 1.0;
+#endif
+
+
+    // I'm sure this can be done more elegantly but the endgoal
+    // is texture lookups to support arbitrary numbers of isovalues
+#ifdef ENABLE_ISOSURFACE_MODEL
+    // TODO: Could add some light model for the surface shading here?
+
+    vec2 isorange = u_isorange;
+
+    #if defined(ENABLE_DENSITY)
+    compile_error();  // Isosurface only implemented for emission for now
+    #elif defined(ENABLE_EMISSION_BACK)
+    float front = v_emission;
+    float back = emission_back;
+    #elif defined(ENABLE_EMISSION)
+    float front = v_emission;
+    float back = v_emission;
+    #else
+    compile_error();  // Isosurface needs emission
+    #endif
+
+    // vec3 surface_normal = normalize(v_emission_gradient);
+
+    bool front_in_range = isorange.x <= front && front <= isorange.y;
+    bool back_in_range = isorange.x <= back && back <= isorange.y;
+
+    // If values are not in isorange, discard this fragment
+    if (!(front_in_range || back_in_range)) {
+        discard;
+    }
+
+    // Select isorange value closest to camera
+    float value;
+    if (front_in_range) {
+        value = front;
+    } else if (front > back) {
+        value = isorange.y;
+    } else {
+        value = isorange.x;
+    }
+
+    // Map value through color lut
+    // TODO: Using emission lut here for now, what to do here is question of how to configure encoding parameters
+    float scaled_value = (value - u_emission_range.x) * u_emission_range.w;
+    vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz;        
+
+    // Opaque since isosurface is contained in [back, front]
     float a = 1.0;
 #endif
 

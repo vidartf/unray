@@ -81,6 +81,9 @@ def render(coordinates, cells,
         data["emission_lut"] = Data(name="emission_lut", array=emission_lut)
         encoding["emission_lut"] = {"field": "emission_lut"}
 
+    if method == "isosurface":
+        encoding["isorange"] = {"value": [0.2, 0.8]}
+
     # Setup plot
     plotname = "plot_%s" % method
     plot = Plot(name=plotname, method=method, encoding=encoding)

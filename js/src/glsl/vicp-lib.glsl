@@ -43,9 +43,13 @@ float smallest_positive(vec4 x) {
     float depth = 0.0;
     bool first = true;
     for (int i = 0; i < 4; ++i) {
-        if (x[i] > 0.0 && (first || x[i] < depth)) {
-            depth = x[i];
-            first = false;
+        if (x[i] > 0.0) {
+            if (first) {
+                depth = x[i];
+                first = false;
+            } else {
+                depth = min(depth, x[i]);
+            }
         }
     }
     return depth;

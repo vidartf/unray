@@ -64,6 +64,8 @@ const method_properties = {
     surface: {
         sorted: false,
         transparent: false,
+        depth_test: true,
+        depth_write: true,
 
         // Any background is fine
         background: undefined,
@@ -93,9 +95,67 @@ const method_properties = {
         channels: default_channels,
         default_encoding: default_encoding,
     },
-    max2: {
+    isosurface: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        blend_src: THREE.SrcAlphaFactor,
+        blend_dst: THREE.OneMinusSrcAlphaFactor,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_ISOSURFACE_MODEL: 1,
+            ENABLE_EMISSION: 1,
+        }),
+
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },
+    isosurface2: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        blend_src: THREE.SrcAlphaFactor,
+        blend_dst: THREE.OneMinusSrcAlphaFactor,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_ISOSURFACE_MODEL: 1,
+            ENABLE_EMISSION: 1,
+            ENABLE_EMISSION_BACK: 1,
+        }),
+
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },    max2: {
         sorted: false,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Must start with a black background
         background: new THREE.Color(0, 0, 0),
@@ -122,6 +182,8 @@ const method_properties = {
     max: {
         sorted: false,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Must start with a black background
         background: new THREE.Color(0, 0, 0),
@@ -150,6 +212,8 @@ const method_properties = {
     min2: {
         sorted: false,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Must start with a white background
         background: new THREE.Color(1, 1, 1),
@@ -176,6 +240,8 @@ const method_properties = {
     min: {
         sorted: false,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Must start with a white background
         background: new THREE.Color(1, 1, 1),
@@ -204,6 +270,8 @@ const method_properties = {
     xray: {
         sorted: false,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Must start with a white background
         background: new THREE.Color(1, 1, 1),
@@ -230,6 +298,8 @@ const method_properties = {
     xray2: {
         sorted: false,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Must start with a white background
         background: new THREE.Color(1, 1, 1),
@@ -256,6 +326,8 @@ const method_properties = {
     sum: {
         sorted: false,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Must start with a black background
         background: new THREE.Color(0, 0, 0),
@@ -281,6 +353,8 @@ const method_properties = {
     volume: {
         sorted: true,
         transparent: true,
+        depth_test: false,
+        depth_write: false,
 
         // Any background is fine
         background: undefined,
@@ -558,6 +632,7 @@ class TetrahedralMeshRenderer
             u_view_direction: { value: new THREE.Vector3(0, 0, 1) },
             // Input constants
             u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
+            u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
             u_particle_area: { value: 1.0 },
             // Input data ranges, 4 values: [min, max, max-min, 1.0/(max-min) or 1]
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
@@ -696,9 +771,7 @@ class TetrahedralMeshRenderer
     {
         let mp = method_properties[method];
 
-        // TODO: depthTest also makes sense for transparent methods
-        // if there's something else opaque in the scene like axes
-        let depth_test = !mp.transparent;
+        // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
 
         // Configure shader
         let material = new THREE.ShaderMaterial({
@@ -710,8 +783,8 @@ class TetrahedralMeshRenderer
             fragmentShader: mp.fragment_shader,
             side: mp.side,
             transparent: mp.transparent,
-            depthTest: depth_test,
-            depthWrite: !mp.transparent,
+            depthTest: mp.depth_test,
+            depthWrite: mp.depth_write,
         });
 
         // Configure blending
@@ -866,7 +939,12 @@ class TetrahedralMeshRenderer
             }
 
             // Get new data value
-            let new_value = data[enc.field];
+            let new_value = undefined;
+            if (enc.field) {
+                new_value = data[enc.field];
+            } else if (enc.value) {
+                new_value = enc.value;
+            }
             if (new_value === undefined) {
                 console.error(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
                 continue;
@@ -881,7 +959,14 @@ class TetrahedralMeshRenderer
             {
             case "uniform":
                 uniform = this.uniforms["u_" + channel_name];
-                uniform.value = new_value;  // TODO: Copy? Set into existing object?
+                if (uniform.value.isVector2 || uniform.value.isVector3 || uniform.value.isVector4) {
+                    uniform.value.set(...new_value);
+                } else if (typeof uniform.value === "number") {
+                    uniform.value = new_value;
+                } else {
+                    console.warn("Unexpected uniform type " + (typeof uniform.value) + " for channel " + channel_name);
+                    uniform.value = new_value;
+                }
                 break;
             case "vertex":
                 uniform = this.uniforms["t_" + channel_name];
