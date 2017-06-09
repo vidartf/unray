@@ -3,10 +3,13 @@
 var widgets = require('jupyter-js-widgets');
 var _ = require('underscore');
 var THREE = require('three');
+window.THREE = THREE;
+// require('../node_modules/three/examples/js/controls/TrackballControls');
+require('../node_modules/three/examples/js/controls/OrbitControls');
 
 var version = require('./version.js');
-let meshutils = require("./meshutils.js")
-let renderer = require("./renderer.js")
+let meshutils = require("./meshutils.js");
+let renderer = require("./renderer.js");
 
 
 //var debug = _.bind(console.log, console);
@@ -178,23 +181,15 @@ class FigureView extends widgets.DOMWidgetView
         // Compute bounding sphere of model
         // (TODO: Maybe let tetrenderer do this?)
         this.bounds = meshutils.compute_bounds(raw_data.coordinates);
+        this.model_center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
+        // this.model_center = new THREE.Vector3(this.bounds.bbcenter[0], this.bounds.bbcenter[1], this.bounds.bbcenter[2]);
         console.log("Computed bounds:", this.bounds);
         /////////////////////////////////////////////////////////////////
 
 
         /////////////////////////////////////////////////////////////////
         // Setup camera
-        // TODO: Use pythreejs camera and controller if we stick to webgl1 and three.js
-        this.use_perspective_camera = true; // TODO: Make this an option
-        if (this.use_perspective_camera) {
-            this.camera = new THREE.PerspectiveCamera(60.0, this.aspect_ratio, 0.1, 100);
-        } else {
-    		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
-        }
-        this.camera.matrixAutoUpdate = true;
-
-        let time = 0.0;
-        this.update_camera(time);  // NB! Depends on this.bounds being set.
+        this.init_camera();  // NB! Depends on this.bounds being set.
         /////////////////////////////////////////////////////////////////
 
 
@@ -208,6 +203,12 @@ class FigureView extends widgets.DOMWidgetView
         /////////////////////////////////////////////////////////////////
 
 
+        // this.controls = new THREE.TrackballControls(this.camera, this.canvas);
+        this.controls = new THREE.OrbitControls(this.camera, this.canvas);
+        this.controls.addEventListener("change", () => {
+            that.on_camera_changed();
+            that.redraw()
+        });
 
         // Wire listeners
         this.listenTo(this.model, "change:animate", this.on_animate_changed);
@@ -249,9 +250,66 @@ class FigureView extends widgets.DOMWidgetView
         this.schedule_animation();
     }
 
-    // TODO: Wire camera change to trigger this function, currently called in stepping
     on_camera_changed() {
+        // Recompute camera near/far planes to include model
+        let dist = this.camera.position.distanceTo(this.model_center);
+        this.camera.near = Math.max(dist * 0.8 - this.bounds.radius * 1.2, 0.001 * this.bounds.radius);
+        this.camera.far = dist * 1.2 + this.bounds.radius * 1.2;
+        // console.log("Using near, far:", this.camera.near, this.camera.far);
+
+        // Recompute projection matrix
+        this.camera.updateProjectionMatrix();
+
+        // Update renderer uniforms etc, possibly resort cells
         this.tetrenderer.update_perspective(this.camera);
+    }
+
+    init_camera() {
+        // TODO: Use pythreejs camera and controller if we stick to webgl1 and three.js
+        this.use_perspective_camera = true; // TODO: Make this an option
+        if (this.use_perspective_camera) {
+            this.camera = new THREE.PerspectiveCamera(60.0, this.aspect_ratio, 0.1, 100);
+        } else {
+    		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+        }
+        // this.camera.matrixAutoUpdate = true;
+        this.step_camera(0.0);
+    }
+
+    step_camera(passed_time) {
+        // Radius of sphere that camera moves on
+        let radius = 1.5 * this.bounds.radius;
+
+        if (this.use_perspective_camera) {
+            // TODO: Use fov calculation to set proper distance
+            //this.camera.fov
+            radius *= 2;
+        } else {
+            let w = Math.max(2 * radius, this.aspect_ratio * 2 * radius);
+            let h = w / this.aspect_ratio;
+            this.camera.left = -w/2;
+            this.camera.right = w/2;
+            this.camera.top = h/2;
+            this.camera.bottom = -h/2;
+        }
+
+        // Look at center of model
+        this.camera.lookAt(this.model_center.clone());
+
+        // Crude animation: move on sphere around model
+        let freq1 = .3;
+        let freq2 = .1;
+        let theta = 2.0 * Math.PI * freq1 * passed_time;
+        let phi = 2.0 * Math.PI * freq2 * passed_time;
+        let offset = new THREE.Vector3(
+            radius * Math.cos(phi) * Math.cos(theta),
+		    radius * Math.sin(phi),
+            radius * Math.cos(phi) * Math.sin(theta)
+        );
+        this.camera.position.addVectors(this.model_center, offset);
+
+        // Manually trigger camera change for now
+        this.on_camera_changed();
     }
 
     update()
@@ -292,7 +350,7 @@ class FigureView extends widgets.DOMWidgetView
             this.step_time(passed_time, time_step);
         }
 
-        this.redraw_count = this.redraw_count ? this.redraw_count + 1: 1;
+        // this.redraw_count = this.redraw_count ? this.redraw_count + 1: 1;
         this.redraw();
 
         this.prev_time = time;
@@ -307,52 +365,10 @@ class FigureView extends widgets.DOMWidgetView
         debug("step_time: ", passed_time, time_step);
 
         // TODO: Later want camera to be controlled via connected pythreejs widget
-        this.update_camera(passed_time);
+        this.step_camera(passed_time);
 
         // Update time in tetrenderer
         this.tetrenderer.update_time(passed_time);
-    }
-
-    update_camera(passed_time) {
-        // Animate camera (just some values hardcoded for debugging)
-        let freq1 = .3;
-        let freq2 = .1;
-        let theta = 2.0 * Math.PI * freq1 * passed_time;
-        let phi = 2.0 * Math.PI * freq2 * passed_time;
-
-        // Radius of sphere that camera moves on
-        let radius = 1.5 * this.bounds.radius;
-
-        if (this.use_perspective_camera) {
-            //let fov = fixme;
-            //radius *= fixme;
-            //this.camera.fov = fixme;
-        } else {
-            let w = Math.max(2 * radius, this.aspect_ratio * 2 * radius);
-            let h = w / this.aspect_ratio;
-            this.camera.left = -w/2;
-            this.camera.right = w/2;
-            this.camera.top = h/2;
-            this.camera.bottom = -h/2;
-        }
-
-        this.camera.near = 0.25 * radius;
-        this.camera.far = 2 * radius;
-
-        // Center of model
-        let center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
-
-        this.camera.position.set(
-            center.x + radius * Math.cos(phi) * Math.cos(theta),
-		    center.y + radius * Math.sin(phi),
-            center.z + radius * Math.cos(phi) * Math.sin(theta)
-        );
-
-        this.camera.lookAt(center);
-        this.camera.updateProjectionMatrix();
-
-        // Manually trigger camera change for now
-        this.on_camera_changed();
     }
 
     redraw()
@@ -362,15 +378,16 @@ class FigureView extends widgets.DOMWidgetView
         //this.tetrenderer.update_encoding(encoding);
         //this.tetrenderer.update_data(data);
 
-        debug("Calling render");
-        debug(this.scene);
-        debug(this.camera);
-        debug(this.camera.toJSON());
-        debug(this.camera.projectionMatrix);
+        // debug("Calling render");
+        // debug(this.scene);
+        // debug(this.camera);
+        // debug(this.camera.toJSON());
+        // debug(this.camera.projectionMatrix);
 
         this.renderer.setClearColor(this.bgcolor, 1);
         this.renderer.render(this.scene, this.camera);
-        debug("Done rendering.");
+
+        // debug("Done rendering.");
     }
 };
 

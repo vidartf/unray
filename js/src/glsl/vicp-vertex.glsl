@@ -45,6 +45,10 @@ uniform vec3 cameraPosition;
 #define ENABLE_DEPTH 1
 #endif
 
+#ifdef ENABLE_SURFACE_DEPTH_MODEL
+#define ENABLE_DEPTH 1
+#endif
+
 #ifdef ENABLE_CELL_ORDERING
 #define ENABLE_CELL_UV 1
 #endif
@@ -147,6 +151,7 @@ varying vec3 v_model_position;
 
 
 #ifdef ENABLE_DEPTH
+varying float v_max_edge_length;         // webgl2 required for flat keyword
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
 varying mat4 v_planes;                   // webgl2 required for flat keyword
 #else
@@ -265,7 +270,18 @@ void main()
 
 
 #ifdef ENABLE_DEPTH
+    // Compute longest edge on cell
+    // TODO: Can be speed up considerably
+    // TODO: v_max_edge_length can be precomputed
+    float max_edge_length = 0.0;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            max_edge_length = max(max_edge_length, distance(coordinates[i], coordinates[j]));
+        }
+    }
+    v_max_edge_length = max_edge_length;
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
+    // TODO: v_planes can be precomputed
     // Note: This can be done in a separate preprocessing step,
     // computing v_planes once for each cell and storing it as
     // a cell texture or instanced buffer attribute.
@@ -340,6 +356,11 @@ void main()
     // Map model coordinate to clip space
     gl_Position = MVP * vec4(v_model_position, 1.0);
 
+    // TODO: Is this necessary or us perspective correct interpolation default in webgl?
+    // Adjust coordinate for perspective correct interpolation
+// #ifdef ENABLE_PERSPECTIVE_PROJECTION
+//     v_model_position /= gl_Position.w;
+// #endif
 
     // Debugging: Ignore camera to check v_model_position
     // gl_Position = vec4(v_model_position, 1.0);

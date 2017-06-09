@@ -95,6 +95,28 @@ const method_properties = {
         channels: default_channels,
         default_encoding: default_encoding,
     },
+    surface_depth: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_SURFACE_DEPTH_MODEL: 1,
+        }),
+
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },
     isosurface: {
         sorted: false,
         transparent: false,

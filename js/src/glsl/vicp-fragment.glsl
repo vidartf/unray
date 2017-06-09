@@ -30,6 +30,10 @@ uniform vec3 cameraPosition;
 #define ENABLE_DEPTH 1
 #endif
 
+#ifdef ENABLE_SURFACE_DEPTH_MODEL
+#define ENABLE_DEPTH 1
+#endif
+
 #ifdef ENABLE_EMISSION_BACK
 #define ENABLE_EMISSION 1
 #define ENABLE_DEPTH 1
@@ -80,7 +84,9 @@ uniform sampler2D t_emission_lut;
 
 // Varyings
 varying vec3 v_model_position;
+
 #ifdef ENABLE_DEPTH
+varying float v_max_edge_length;         // webgl2 required for flat keyword
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
 varying mat4 v_planes;                   // webgl2 required for flat keyword
 #else
@@ -104,9 +110,15 @@ varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 
 void main()
 {
+// #ifdef ENABLE_PERSPECTIVE_PROJECTION
+//     vec3 position = v_model_position / gl_FragCoord.w;
+// #else
+    vec3 position = v_model_position;
+// #endif
+
     // We need the view direction below
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
-    vec3 view_direction = normalize(v_model_position - cameraPosition);
+    vec3 view_direction = normalize(position - cameraPosition);
 #else
     vec3 view_direction = u_view_direction;
 #endif
@@ -118,12 +130,22 @@ void main()
     for (int i = 0; i < 4; ++i) {
         vec3 n = v_planes[i].xyz;
         float p = v_planes[i].w;
-        ray_lengths[i] = (p - dot(n, v_model_position)) / dot(n, view_direction);
+        ray_lengths[i] = (p - dot(n, position)) / dot(n, view_direction);
+
+        // Check if exit point is inside tetrahedron
+        // vec3 exit_point = position + ray_lengths[i] * view_direction;
+        // for (int j = 0; j < 4; ++j) {
+        //     vec3 nj = v_planes[j].xyz;
+        //     float pj = v_planes[j].w;
+        //     if (pj - dot(nj, position) <= 1e-3) {
+        //         ray_lengths[i] = 0.0;
+        //     }
+        // }
     }
 #else
     vec4 ray_lengths = v_ray_lengths;
 #endif
-    float depth = smallest_positive(ray_lengths);
+    float depth = smallest_positive(ray_lengths, v_max_edge_length);
 #endif
 
 
@@ -177,6 +199,7 @@ void main()
 
 #ifdef ENABLE_SURFACE_MODEL
     // TODO: Could add some light model for the surface shading here?
+
     // vec3 surface_normal = normalize(v_density_gradient);
     // vec3 surface_normal = normalize(v_emission_gradient);
 
@@ -187,6 +210,15 @@ void main()
     #else
     vec3 C = u_constant_color;  // CHECKME
     #endif
+
+    // Always opaque
+    float a = 1.0;
+#endif
+
+
+#ifdef ENABLE_SURFACE_DEPTH_MODEL
+    // Scaling depth to [0,1], deepest is black, shallow is white
+    vec3 C = vec3(1.0 - depth/v_max_edge_length);
 
     // Always opaque
     float a = 1.0;
