@@ -92,7 +92,7 @@ class Plot(widgets.Widget):
     _model_module_version = Unicode(module_version).tag(sync=True)
 
     name = Unicode("unnamed").tag(sync=True)
-    method = Unicode("blank").tag(sync=True)
+    method = Unicode("surface").tag(sync=True)
     encoding = Dict(value_trait=Dict(), default_value={}).tag(sync=True)
 
 
@@ -114,6 +114,8 @@ class Figure(widgets.Widget):
 
     data = Dict(Instance(Data), default_value={}, allow_none=False).tag(sync=True, **widget_serialization)
     plots = Dict(Instance(Plot), default_value={}, allow_none=False).tag(sync=True, **widget_serialization)
+
+    plotname = Unicode().tag(sync=True)
 
     def update_data(self, **kwargs):
         d = dict(self.data)

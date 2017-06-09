@@ -17,7 +17,7 @@ class PlotModel extends widgets.WidgetModel
             _view_name : 'PlotView',
 
             name : "unnamed",
-            method : "blank",
+            method : "surface",
             encoding : {},
         };
         return _.extend(super.defaults(), version.module_defaults, model_defaults);
@@ -43,8 +43,8 @@ class PlotView extends widgets.WidgetView
         console.log("PlotView initialize")
 
         // TODO: Setup empty datastructures
-        this.method = "blank";
-        this.encoding = {};
+        // this.method = "blank";
+        // this.encoding = {};
     }
 
     render()
@@ -55,9 +55,10 @@ class PlotView extends widgets.WidgetView
     update(options)
     {
         //super.update(...arguments);
-        this.method = this.model.get("method");
-        this.encoding = this.model.get("encoding");
-        console.log("PlotView update ", this.method, this.encoding, this.parent);
+
+        // this.method = this.model.get("method");
+        // this.encoding = this.model.get("encoding");
+        // console.log("PlotView update ", this.method, this.encoding, this.parent);
 
         // TODO: Preparations for redraw that don't need to happen twice if two redraws happen before the next update
 
@@ -77,15 +78,15 @@ class PlotView extends widgets.WidgetView
         console.log("PlotView process")
 
         // TODO: Render current state
-        switch (this.method)
-        {
-        case "blank":
-            break;
-        case "surface":
-            break;
-        default:
-            console.error("Plot method not implemented", this.method);
-        }
+        // switch (this.method)
+        // {
+        // case "blank":
+        //     break;
+        // case "surface":
+        //     break;
+        // default:
+        //     console.error("Plot method not implemented", this.method);
+        // }
     }
 
 };

@@ -9,6 +9,10 @@ let meshutils = require("./meshutils.js")
 let renderer = require("./renderer.js")
 
 
+//var debug = _.bind(console.log, console);
+var debug = function() {}
+
+
 class FigureModel extends widgets.DOMWidgetModel
 {
     defaults()
@@ -30,6 +34,9 @@ class FigureModel extends widgets.DOMWidgetModel
 
             // Collection of plot configurations
             plots : {},
+
+            // Currently selected plot
+            plotname : undefined,
         };
         return _.extend(super.defaults(), version.module_defaults, model_defaults);
     }
@@ -37,7 +44,7 @@ class FigureModel extends widgets.DOMWidgetModel
     initialize()
     {
         super.initialize(...arguments);
-        console.log("FigureModel initialize ", this.get("data"));
+        debug("FigureModel initialize ", this.get("data"));
     }
 };
 FigureModel.serializers = _.extend({
@@ -70,7 +77,7 @@ class FigureView extends widgets.DOMWidgetView
     */
 
     render() {
-        console.log("FigureView render");
+        debug("FigureView render");
         let that = this;
 
         let width = this.model.get("width");
@@ -101,7 +108,7 @@ class FigureView extends widgets.DOMWidgetView
             depth: true,
             logarithmicDepthBuffer: true,
         });
-        this.renderer.setClearColor(new THREE.Color(0, 0, 0), 1);
+
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width * downscale, height * downscale);
 
@@ -144,14 +151,26 @@ class FigureView extends widgets.DOMWidgetView
         this.tetrenderer.init(num_tetrahedrons, num_vertices);
 
         // TODO: Better handling of multiple configurations with data sharing
+        let plots = this.model.get("plots");
+        let plotname = this.model.get("plotname");
+        let plot = plots[plotname];
         let method = "surface";
         let encoding = undefined;
-        this.tetrenderer.configure(method, encoding);
+        if (plot) {
+            method = plot.get("method");
+            encoding = plot.get("encoding");
+        }
+        console.log("Using method", method);
+        console.log("Using encoding", encoding);
 
-        console.log("raw data: ", raw_data);
+        this.tetrenderer.configure(plotname, method, encoding, raw_data);
+
+        // Select method-specific background color
+        let default_bgcolor = new THREE.Color(1, 1, 1);
+        this.bgcolor = this.tetrenderer.select_bgcolor(method, encoding, default_bgcolor);
 
         // Upload data to textures
-        this.tetrenderer.upload(raw_data, method);
+        this.tetrenderer.upload(raw_data, method, encoding);
         /////////////////////////////////////////////////////////////////
 
 
@@ -159,6 +178,7 @@ class FigureView extends widgets.DOMWidgetView
         // Compute bounding sphere of model
         // (TODO: Maybe let tetrenderer do this?)
         this.bounds = meshutils.compute_bounds(raw_data.coordinates);
+        console.log("Computed bounds:", this.bounds);
         /////////////////////////////////////////////////////////////////
 
 
@@ -176,8 +196,10 @@ class FigureView extends widgets.DOMWidgetView
         /////////////////////////////////////////////////////////////////
         // Setup empty scene
         this.scene = new THREE.Scene();
+
         // FIXME: Swap mesh in scene when changing method etc.
-		this.scene.add(this.tetrenderer.meshes.get(method));
+		this.scene.add(this.tetrenderer.meshes.get(plotname));
+
         /////////////////////////////////////////////////////////////////
 
 
@@ -194,10 +216,10 @@ class FigureView extends widgets.DOMWidgetView
 
     on_animate_changed()
     {
-        console.log("on_animate_changed ", arguments);
+        debug("on_animate_changed ", arguments);
 
         // let data = this.model.get("data"); //[name];
-        // console.log(data);
+        // debug(data);
         //this.renderer.on_data_changed(name, data.array);
 
         this.schedule_animation();
@@ -205,8 +227,8 @@ class FigureView extends widgets.DOMWidgetView
 
     on_data_changed(model, data)
     {
-        console.log("====================== on_data_changed ", arguments);
-        console.log(model.uuid, data.uuid);
+        debug("====================== on_data_changed ", arguments);
+        debug(model.uuid, data.uuid);
 
         // let data = this.model.get("data")[name];
         // this.renderer.on_data_changed(name, data.array);
@@ -217,7 +239,7 @@ class FigureView extends widgets.DOMWidgetView
     on_plots_changed()
     {
         // FIXME: Trigger on already connected plot changed
-        console.log("====================== on_plots_changed ", arguments);
+        debug("====================== on_plots_changed ", arguments);
 
         this.schedule_animation();
     }
@@ -233,7 +255,7 @@ class FigureView extends widgets.DOMWidgetView
 
         // TODO: New data or plot connected
 
-        console.log("FigureView update", Object.keys(this.model.get("data")), arguments);
+        // debug("FigureView update", Object.keys(this.model.get("data")), arguments);
     }
 
     schedule_animation()
@@ -277,7 +299,7 @@ class FigureView extends widgets.DOMWidgetView
 
     step_time(passed_time, time_step)
     {
-        console.log("step_time: ", passed_time, time_step);
+        debug("step_time: ", passed_time, time_step);
 
         // TODO: Later want camera to be controlled via connected pythreejs widget
         this.update_camera(passed_time);
@@ -322,19 +344,19 @@ class FigureView extends widgets.DOMWidgetView
     redraw()
     {
         // TODO: React to data changes:
-        //this.tetrenderer.update_ranges();
         //this.tetrenderer.update_method(method); // TODO: Better model for methods and data sharing
         //this.tetrenderer.update_encoding(encoding);
         //this.tetrenderer.update_data(data);
 
-        console.log("Calling render");
-        console.log(this.scene);
-        console.log(this.camera);
-        console.log(this.camera.toJSON());
-        console.log(this.camera.projectionMatrix);
+        debug("Calling render");
+        debug(this.scene);
+        debug(this.camera);
+        debug(this.camera.toJSON());
+        debug(this.camera.projectionMatrix);
 
+        this.renderer.setClearColor(this.bgcolor, 1);
         this.renderer.render(this.scene, this.camera);
-        console.log("Done rendering.");
+        debug("Done rendering.");
     }
 };
 

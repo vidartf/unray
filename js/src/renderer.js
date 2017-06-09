@@ -31,14 +31,24 @@ const default_channels = {
 };
 
 
+// TODO: Let default encodings differ per method
 const default_encoding = {
     cells:        { field: "cells" },
     coordinates:  { field: "coordinates" },
-    density:      { field: "density" },
-    emission:     { field: "emission" },
+    density:      { field: "density", range: "auto" },
+    emission:     { field: "emission", range: "auto" },
     density_lut:  { field: "density_lut" },
     emission_lut: { field: "emission_lut" },
 };
+
+
+function override_defaults(defaults, params) {
+    let p = _.clone(defaults);
+    for (let key in params) {
+        _.extend(p[key], params[key]);
+    }
+    return p;
+}
 
 
 // FIXME: Figure out backside culling!
@@ -59,14 +69,18 @@ const default_defines = {
 };
 
 const method_properties = {
+    blank: {
+    },
     surface: {
         sorted: false,
         transparent: false,
 
-        // FIXME: Pick side to see which sides the tetrahedron show and adjust strip etc
-        // side: THREE.FrontSide,
-        side: THREE.BackSide,
-        // side: THREE.DoubleSide,
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
 
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
@@ -78,9 +92,38 @@ const method_properties = {
         channels: default_channels,
         default_encoding: default_encoding,
     },
+    max2: {
+        sorted: false,
+        transparent: true,
+
+        // Must start with a black background
+        background: new THREE.Color(0, 0, 0),
+
+        // Rendering front side only and taking max in shader
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.MaxEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_MAX_MODEL: 1,
+            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+            ENABLE_EMISSION_BACK: 1,
+        }),
+
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },
     max: {
         sorted: false,
         transparent: true,
+
+        // Must start with a black background
+        background: new THREE.Color(0, 0, 0),
 
         // Rendering both sides automatically includes the
         // backside boundary of the mesh at cost of doubling
@@ -95,6 +138,33 @@ const method_properties = {
         defines: _.extend({}, default_defines, {
             ENABLE_MAX_MODEL: 1,
             ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+            // ENABLE_EMISSION_BACK: 1,
+        }),
+
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },
+    min2: {
+        sorted: false,
+        transparent: true,
+
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
+
+        // Rendering front side only and taking min in shader
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.MinEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_MIN_MODEL: 1,
+            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+            ENABLE_EMISSION_BACK: 1,
         }),
 
         vertex_shader: shader_sources.vertex,
@@ -105,6 +175,9 @@ const method_properties = {
     min: {
         sorted: false,
         transparent: true,
+
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
 
         // Rendering both sides automatically includes the
         // backside boundary of the mesh at cost of doubling
@@ -119,6 +192,7 @@ const method_properties = {
         defines: _.extend({}, default_defines, {
             ENABLE_MIN_MODEL: 1,
             ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+            // ENABLE_EMISSION_BACK: 1,
         }),
 
         vertex_shader: shader_sources.vertex,
@@ -130,16 +204,46 @@ const method_properties = {
         sorted: false,
         transparent: true,
 
-        side: THREE.FrontSide,  // FIXME: Use side chosen after working on surface
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
+
+        side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation, // TODO: SubtractEquation?
-        blend_src: THREE.SrcAlphaFactor,  // FIXME: Consider if this is correct
-        blend_dst: THREE.OneMinusDstAlphaFactor,  // FIXME: Consider if this is correct
+        blend_equation: THREE.AddEquation,
+        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.SrcAlphaFactor,
 
         defines: _.extend({}, default_defines, {
             ENABLE_XRAY_MODEL: 1,
-            ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here?
+            ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
+            // ENABLE_DENSITY_BACK: 1,
+        }),
+
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },
+    xray2: {
+        sorted: false,
+        transparent: true,
+
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
+
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.SrcAlphaFactor,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_XRAY_MODEL: 1,
+            ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
             ENABLE_DENSITY_BACK: 1,
         }),
 
@@ -152,11 +256,14 @@ const method_properties = {
         sorted: false,
         transparent: true,
 
-        side: THREE.FrontSide,  // FIXME: Use side chosen after working on surface
+        // Must start with a black background
+        background: new THREE.Color(0, 0, 0),
+
+        side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
         blend_equation: THREE.AddEquation,
-        blend_src: THREE.OneFactor,  // TODO: Check what THREE.SrcAlphaSaturateFactor does
+        blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
 
         defines: _.extend({}, default_defines, {
@@ -174,12 +281,15 @@ const method_properties = {
         sorted: true,
         transparent: true,
 
-        side: THREE.FrontSide,  // FIXME: Use side chosen after working on surface
+        // Any background is fine
+        background: undefined,
+
+        side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
         blend_equation: THREE.AddEquation,
-        blend_src: THREE.SrcAlphaFactor, // TODO: Configure
-        blend_dst: THREE.OneMinusDstAlphaFactor,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneMinusSrcAlphaFactor,
 
         defines: _.extend({}, default_defines, {
             ENABLE_VOLUME_MODEL: 1,
@@ -197,22 +307,6 @@ const method_properties = {
 };
 
 
-function join_defines(defines)
-{
-    let lines = [];
-    for (let name of defines) {
-        let value = defines[name];
-        if (value === undefined) {
-            lines.push(`#define ${name}`);
-        } else {
-            lines.push(`#define ${name} ${value}`);
-        }
-    }
-    lines.push("");
-    return lines.join("\n")
-}
-
-
 function compute_range(array)
 {
     let min = array[0];
@@ -221,6 +315,12 @@ function compute_range(array)
         min = Math.min(min, v);
         max = Math.max(max, v);
     }
+    return [min, max];
+}
+
+
+function extended_range(min, max)
+{
     let range = max - min;
     let scale = range > 0.0 ? 1.0 / range : 1.0;
     return [min, max, range, scale];
@@ -307,6 +407,37 @@ function allocate_array_texture(dtype, item_size, texture_shape)
 }
 
 
+function allocate_lut_texture(dtype, item_size, texture_shape)
+{
+    let size = texture_shape[0] * texture_shape[1] * item_size;
+
+    // Textures using Int32Array and Uint32Array require webgl2,
+    // so currently just ignoring the dtype during prototyping.
+    // Some redesign may be in order once the prototype is working,
+    // or maybe porting to webgl2.
+    // let arraytype = dtype2arraytype[dtype];
+    // let padded_data = new arraytype(size);
+    // let type = dtype2threetype[dtype];
+
+    let padded_data = new Float32Array(size);
+    let type = dtype2threetype["float32"];
+
+    let format = dtype2threeformat[item_size];
+
+    debug(`Creating texture for dtype ${dtype} and item size ${item_size} with type ${type} and format ${format}.`);
+
+    let texture = new THREE.DataTexture(padded_data,
+        texture_shape[0], texture_shape[1],
+        format, type,
+        undefined,
+        THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping,
+        // TODO: Could make linear/nearest filtering of lut an encoding parameter
+        THREE.LinearFilter, THREE.LinearFilter);
+
+    return texture;
+}
+
+
 function update_array_texture(texture, data)
 {
     try {
@@ -378,29 +509,40 @@ class TetrahedralMeshRenderer
 
     _init_shared_topology()
     {
-        // Setup triangle strip to draw each tetrahedron instance
-        // TODO: Check that strip ordering matches 
-        this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 1, 2, 3, 0, 1]), 1);
+        // This is the reference tetrahedron,
+        // assumed a few places via face numbering etc.
+        // let reference_coordinates = [
+        //     0, 0, 0,
+        //     1, 0, 0,
+        //     0, 1, 0,
+        //     0, 0, 1
+        // ];
 
-        // TODO: Remove this? Contained in local_vertices_buffer, first item.
-        // Replacement for gl_VertexID which requires webgl2
-        this.local_vertex_id_buffer =  new THREE.BufferAttribute(new Float32Array([0,1,2,3]), 1);
+        // Setup triangle strip to draw each tetrahedron instance,
+        // make sure that the faces winded ccw seen from the outside.
+        this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 2, 1, 3, 0, 2]), 1);
+
+        // cw winded version
+        // this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 1, 2, 3, 0, 1]), 1);
 
         // Note: Seems like we need at least one vertex attribute
         // (i.e. per instance vertex) to please some webgl drivers
-        // Setup local tetrahedron vertex indices in a pattern relative to each vertex
-        // TODO: Arrange these such that normal computations become simpler,
-        //   i.e. n0 = normal opposing v0 = v1->v2 x v1->v3 = pointing away from v0
+
+        // TODO: Remove this? Contained in local_vertices_buffer, first item.
+        // Replacement for gl_VertexID which requires webgl2
+        // this.local_vertex_id_buffer =  new THREE.BufferAttribute(new Float32Array([0,1,2,3]), 1);
+
+        // Setup local tetrahedron vertex indices in a pattern relative to each vertex.
+        // For each vertex 0...3, listing the vertices of the opposing face
+        // in ccw winding seen from outside the tetrahedron.
+        // This simplifies the computation of the opposing normal in the vertex shader,
+        // i.e. n0 = normal of the face (v1, v2, v3) opposing v0, pointing away from v0,
+        // n0 = normalized((v2-v1) x (v3-v1)) = normal pointing away from v0
         this.local_vertices_buffer = new THREE.BufferAttribute(new Float32Array([
-            0,   2, 1, 3,
-            1,   2, 3, 0,
-            2,   0, 3, 1,
-            3,   0, 1, 2,
-            // Simple rotation of 0..3:
-            // 0,   1, 2, 3,
-            // 1,   2, 3, 0,
-            // 2,   3, 0, 1,
-            // 3,   0, 1, 2
+            0,   1, 2, 3,
+            1,   0, 3, 2,
+            2,   0, 1, 3,
+            3,   0, 2, 1,
         ]), 4);
     }
 
@@ -415,7 +557,7 @@ class TetrahedralMeshRenderer
             u_view_direction: { value: new THREE.Vector3(0, 0, 1) },
             // Input constants
             u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
-            u_particle_area: { value: 0.2 },
+            u_particle_area: { value: 1.0 },
             // Input data ranges, 4 values: [min, max, max-min, 1.0/(max-min) or 1]
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
@@ -446,7 +588,6 @@ class TetrahedralMeshRenderer
     _init_meshes()
     {
         this.meshes = new Map();
-        this.encodings = new Map();
     }
 
     init(num_tetrahedrons, num_vertices)
@@ -463,12 +604,10 @@ class TetrahedralMeshRenderer
         [...this.uniforms.u_vertex_texture_shape.value] = compute_texture_shape(this.num_vertices);
     }
 
-    // Update data ranges, also done automatically during update_data
-    update_ranges(data)
+    select_bgcolor(method, encoding, default_bgcolor)
     {
-        this.uniforms.u_density_range.value.set(...compute_range(data.density));
-        this.uniforms.u_emission_range.value.set(...compute_range(data.emission));
-        debug("Updated data ranges: ", this.uniforms.u_density_range.value, this.uniforms.u_emission_range.value);
+        let mp = method_properties[method];
+        return mp.background || default_bgcolor;
     }
 
     allocate_ordering()
@@ -507,21 +646,15 @@ class TetrahedralMeshRenderer
         }
     }
 
-    // Upload data, assuming method has been configured
-    upload(data, method)
+    create_geometry(method, encoding)
     {
-        let mp = method_properties[method];
-        let encoding = this.encodings.get(method);
-        this._allocate_and_update(data, encoding, mp.channels, mp.sorted, false, true);
-    }
+        let sorted = method_properties[method].sorted;
 
-    _create_geometry(sorted)
-    {
         let geometry = new THREE.InstancedBufferGeometry();
         geometry.maxInstancedCount = this.num_tetrahedrons;
         geometry.setIndex(this.element_buffer);
         geometry.addAttribute("a_local_vertices", this.local_vertices_buffer);
-        geometry.addAttribute("a_vertex_id", this.local_vertex_id_buffer);
+        // geometry.addAttribute("a_vertex_id", this.local_vertex_id_buffer);
 
         // Setup cells of geometry (using textures or attributes)
 
@@ -541,19 +674,31 @@ class TetrahedralMeshRenderer
         //}
 
         // TODO: Try this later. Currently not using c_cells, always using c_ordering and t_cells.
-        // if (!sorted) {
-        //     if (this.attributes.c_cells === null) {
-        //         console.error(`Haven't allocated cells yet!`);
-        //         // Don't need ordering, use cells instanced instead
-        //         // TODO: Add eventual other attributes with cell association here
-        //         geometry.addAttribute("c_cells", this.attributes.c_cells);
-        //     }
-        // }
+        if (!sorted) {
+            // let cell_data_channels = ["cells"];
+            let cell_data_channels = [];
+            for (let channel_name of cell_data_channels) {
+                let attrib = this.attributes["c_" + channel_name];
+                if (attrib === undefined) {
+                    console.error(`Unknown attribute channel ${channel_name}.`);
+                } else if (attrib === null) {
+                    console.error(`Haven't allocated data for ${channel_name} yet! Geometry will be missing this data.`);
+                } else {
+                    geometry.addAttribute("c_" + channel_name, attrib);
+                }
+            }
+        }
         return geometry;
     }
 
-    _create_material(mp)
+    create_material(method, encoding)
     {
+        let mp = method_properties[method];
+
+        // TODO: depthTest also makes sense for transparent methods
+        // if there's something else opaque in the scene like axes
+        let depth_test = !mp.transparent;
+
         // Configure shader
         let material = new THREE.ShaderMaterial({
             // Note: Assuming passing some unused uniforms here will work fine
@@ -564,8 +709,7 @@ class TetrahedralMeshRenderer
             fragmentShader: mp.fragment_shader,
             side: mp.side,
             transparent: mp.transparent,
-            // TODO: depthTest also makes sense for transparent methods if there's something else opaque in the scene like axes
-            depthTest: !mp.transparent,
+            depthTest: depth_test,
             depthWrite: !mp.transparent,
         });
 
@@ -577,9 +721,12 @@ class TetrahedralMeshRenderer
             material.blendDst = mp.blend_dst;
         }
 
-        // Apply method #defines to shaders
         // TODO: May also add defines based on encoding if necessary
-        // TODO: Dependency graph for defines? Not worth spending to much time on.
+        // if encoding specifies density or emission, add defines:
+        //     ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
+        //     ENABLE_DENSITY_BACK: 1,
+
+        // Apply method #defines to shaders
         material.defines = mp.defines;
 
         //material.extensions = {};
@@ -587,137 +734,77 @@ class TetrahedralMeshRenderer
         return material;
     }
 
-    // TODO: not sure what happens if this is called twice right now, even with different methods.
-    configure(method, encoding)
-    {
-        // Get description of rendering configuration in currently chosen method
-        let mp = method_properties[method];
-
-        // Use default encoding if none is provided
-        encoding = encoding || mp.default_encoding;
-
-        // Allocate various textures and buffers
-        this._allocate_and_update(null, encoding, mp.channels, mp.sorted, true, false);
-
-        // Configure instanced geometry, each tetrahedron is an instance
-        let geometry = this._create_geometry(mp.sorted);
-
-        // Configure material (shader)
-        let material = this._create_material(mp);
-
-        // How to use wireframe
-        //this.use_wireframe = true;
-        // if (this.use_wireframe) {
-        //     material.wireframe = true;
-        //     material.wireframeLinewidth = 3;
-        // }
-
-        // Finally we have a Mesh to render for this method
-        let mesh = new THREE.Mesh(geometry, material);
-        mesh.setDrawMode(THREE.TriangleStripDrawMode);
-
-        // Not really sure if one mesh per method is a good sharing model,
-        // the encoding also affects the above setup
-        // but at least this will allow quick switching
-        // between methods if nothing else
-        this.meshes.set(method, mesh);
-
-        // Store encoding for future uploads
-        this.encodings.set(method, encoding);
-    }
-
-    _allocate_and_update(data, encoding, channels, sorted, allocate, update)
+    allocate(method, encoding)
     {
         // The current implementation assumes:
         // - Each channel has only one possible association
 
-        // Process all passed channels
-        for (let channel_name in channels)
-        {
-            debug("*** updating " + channel_name);
+        let mp = method_properties[method];
 
+        // Copy and override defaults with provided values
+        encoding = override_defaults(mp.default_encoding, encoding);
+
+        // Process all passed channel
+        for (let channel_name in mp.channels)
+        {
             // Get channel description
-            let channel = channels[channel_name];
-            if (channel === undefined) {
-                debug(`Channel ${channel_name} is missing description.`);
-                continue;
-            }
+            let channel = mp.channels[channel_name];
 
             // Get encoding for this channel
             let enc = encoding[channel_name];
-            if (enc === undefined) {
-                debug(`No encoding found for channel ${channel_name}.`);
+
+            // debug("*** allocating for channel", channel_name, channel, enc);
+
+            // Some sanity checks
+            if (channel === undefined) {
+                console.error(`Channel ${channel_name} is missing description.`);
                 continue;
             }
-
-            // Get new data value
-            let new_value = null;
-            if (data) {
-                new_value = data[enc.field];
-                if (new_value === undefined) {
-                    debug(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
-                    continue;
-                }
+            if (enc === undefined) {
+                console.error(`No encoding found for channel ${channel_name}.`);
+                continue;
             }
 
             // Default association in channel, can override in encoding
             let association = enc.association || channel.association;
-            debug("*** assiciation " + association);
             let uniform = null;
             switch (association)
             {
             case "uniform":
-                {
-                let uniform = this.uniforms["u_" + channel_name];
+                uniform = this.uniforms["u_" + channel_name];
                 if (!uniform.value) {
-                    debug("Allocating uniform object for " + channel_name);
+                    // TODO: Allocating uniform shared between methods using
+                    // channel data which may conceptually differe between method,
+                    // not the best possible design
                     uniform.value = allocate_value(channel.item_size);
-                    debug(uniform.value);
-                }
-                if (new_value) {
-                    debug("Updating uniform value for " + channel_name);
-                    debug(new_value);
-                    uniform.value = new_value;  // TODO: Copy? Set into existing object?
                 }
                 break;
-                }
             case "vertex":
-                {
-                let uniform = this.uniforms["t_" + channel_name];
+                uniform = this.uniforms["t_" + channel_name];
                 if (!uniform.value) {
-                    debug("Allocating vertex texture for " + channel_name);
-                    debug(new_value);
                     uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
                         this.uniforms.u_vertex_texture_shape.value);
-                }
-                if (new_value) {
-                    debug("Uploading to vertex texture for " + channel_name);
-                    debug(new_value);
-                    update_array_texture(uniform.value, new_value);
+                    console.log(`Allocated vertex texture for ${channel_name}.`, uniform.value);
                 }
                 break;
-                }
             case "cell":
-                {
-                // TODO: Currently always placing cell data as textures,
-                // update this for cell data as instance attributes when needed.
                 // Maybe we want to allocate or allow allocation for both the sorted and unsorted case,
                 // to quickly switch between methods e.g. during camera rotation.
-                let uniform = this.uniforms["t_" + channel_name];
+                uniform = this.uniforms["t_" + channel_name];
                 if (!uniform.value) {
-                    debug("Allocating cell texture for " + channel_name);
-                    debug(new_value);
                     uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
                         this.uniforms.u_cell_texture_shape.value);
                 }
-                if (new_value) {
-                    debug("Uploading to cell texture for " + channel_name);
-                    debug(new_value);
-                    update_array_texture(uniform.value, new_value);
-                }
 
+                // TODO: Currently always placing cell data as textures,
+                // update this for cell data as instance attributes when needed.
+                // Shaders should in principle be ready for this by undefining ENABLE_CELL_ORDERING
+
+                // FIXME: Design issue: creating the geometry depends on the
+                // InstancedBufferAttribute being allocated already which
+                // depends on the data which hasn't necessarily been set yet
                 // var upload_as_instanced_buffer = false;
                 // if (upload_as_instanced_buffer && new_value) {
                 //     let attrib = this.attributes["c_" + channel_name];
@@ -729,10 +816,6 @@ class TetrahedralMeshRenderer
                 //             attrib.setDynamic(true);
                 //         }
                 //         this.attributes["c_" + channel_name] = attrib;
-
-                //         // FIXME: Hack! The data flow here is not very nice.
-                //         let method = "surface";
-                //         this.meshes.get(method).geometry.addAttribute("c_" + channel_name, attrib);
                 //     } else {
                 //         // Update contents of instanced buffer attribute
                 //         attrib.array.set(new_value);
@@ -740,44 +823,148 @@ class TetrahedralMeshRenderer
                 //     }
                 // }
                 break;
-                }
             case "lut":
-                {
-                if (new_value) {
-                    let dim = new_value.length / channel.item_size;
-                    let uniform = this.uniforms["t_" + channel_name];
-                    if (!uniform.value) {
-                        debug("Allocating lut texture for " + channel_name);
-                        debug(uniform.value, new_value);
-                        uniform.value = allocate_array_texture(
-                            channel.dtype, channel.item_size, [dim, 1]);
-                    } else if (uniform.value.image.width != dim) {
-                        debug("Reallocating lut texture for " + channel_name);
-                        debug(uniform.value, new_value);
-                        // TODO: Should we deallocate the gl texture via uniform.value somehow?
-                        uniform.value = allocate_array_texture(
-                            channel.dtype, channel.item_size, [dim, 1]);
-                    }
-                    debug("Updating lut texture for " + channel_name);
-                    debug(uniform.value, new_value);
-                    update_array_texture(uniform.value, new_value);
-                }
+                // debug("Not allocating lut yet.")
                 break;
-                }
             default:
-                debug("unknown association " + association);
+                console.error(`Unknown association ${association}.`);
+            }
+        }
+    }
+
+    // Upload data, assuming method has been configured
+    upload(data, method, encoding)
+    {
+        // The current implementation assumes:
+        // - Each channel has only one possible association
+
+        let mp = method_properties[method];
+
+        // Copy and override defaults with provided values
+        encoding = override_defaults(mp.default_encoding, encoding);
+
+        // Process all channels
+        for (let channel_name in mp.channels)
+        {
+            // Get channel description
+            let channel = mp.channels[channel_name];
+
+            // Get encoding for this channel
+            let enc = encoding[channel_name];
+
+            // debug("*** allocating for channel", channel_name, channel, enc);
+
+            // Sanity checks
+            if (channel === undefined) {
+                console.error(`Channel ${channel_name} is missing description.`);
+                continue;
+            }
+            if (enc === undefined) {
+                console.error(`No encoding found for channel ${channel_name}.`);
+                continue;
             }
 
-            // Update associated data range TODO: Option to skip auto-update
-            if (new_value) {
-                let range_name = "u_" + channel_name + "_range";
-                if (this.uniforms.hasOwnProperty(range_name)) {
-                    this.uniforms[range_name].value.set(...compute_range(new_value));
-                    debug("Updating data range for " + channel_name);
-                    debug(range_name, this.uniforms[range_name].value);
+            // Get new data value
+            let new_value = data[enc.field];
+            if (new_value === undefined) {
+                console.error(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
+                continue;
+            }
+
+            // Default association in channel, can override in encoding
+            // (TODO: The idea here was to be able to select vertex/cell
+            // association for fields, figure out a better design for that)
+            let association = enc.association || channel.association;
+            let uniform = null;
+            switch (association)
+            {
+            case "uniform":
+                uniform = this.uniforms["u_" + channel_name];
+                uniform.value = new_value;  // TODO: Copy? Set into existing object?
+                break;
+            case "vertex":
+                uniform = this.uniforms["t_" + channel_name];
+                console.log(`Updating ${channel_name} with vertex data.`, uniform.value, new_value);
+                update_array_texture(uniform.value, new_value);
+                break;
+            case "cell":
+                // if (mp.sorted) {
+                uniform = this.uniforms["t_" + channel_name];
+                update_array_texture(uniform.value, new_value);
+                // } else {
+                //     update instance buffer  // FIXME: See allocate()
+                // }
+                break;
+            case "lut":
+                var dim = new_value.length / channel.item_size;
+                uniform = this.uniforms["t_" + channel_name];
+                if (!uniform.value) {
+                    uniform.value = allocate_lut_texture(
+                        channel.dtype, channel.item_size, [dim, 1]);
+                } else if (uniform.value.image.width != dim) {
+                    // TODO: Should we deallocate the gl texture via uniform.value somehow?
+                    uniform.value = allocate_lut_texture(
+                        channel.dtype, channel.item_size, [dim, 1]);
+                }
+                debug("Updating lut texture for " + channel_name);
+                debug(uniform.value, new_value);
+                update_array_texture(uniform.value, new_value);
+                break;
+            default:
+                console.error("unknown association " + association);
+            }
+
+            // Update associated data range
+            if (enc.range !== undefined) {
+                console.log("Range computation", channel_name, enc.range, new_value)
+                let newrange = null;
+                if (enc.range === "auto") {
+                    newrange = compute_range(new_value);
+                } else  {
+                    newrange = enc.range;
+                }
+                if (newrange !== null) {
+                    newrange = extended_range(...newrange);
+                    let range_name = "u_" + channel_name + "_range";
+                    if (this.uniforms.hasOwnProperty(range_name)) {
+                        this.uniforms[range_name].value.set(...newrange);
+                        console.log(`Updating data range for ${channel_name} to ${newrange}.`);
+                    }
                 }
             }
         }
+    }
+
+    configure(plotname, method, encoding)
+    {
+        // Allocate various textures and buffers
+        this.allocate(method, encoding);
+
+        // Configure instanced geometry, each tetrahedron is an instance
+        let geometry = this.create_geometry(method, encoding);
+
+        // Configure material (shader)
+        let material = this.create_material(method, encoding);
+
+        // How to use wireframe
+        //this.use_wireframe = true;
+        // if (this.use_wireframe) {
+        //     material.wireframe = true;
+        //     material.wireframeLinewidth = 3;
+        // }
+
+        // Finally we have a Mesh to render for this method
+        let mesh = new THREE.Mesh(geometry, material);
+        mesh.setDrawMode(THREE.TriangleStripDrawMode);
+        this.meshes.set(plotname, mesh);
+
+
+        // Not really sure if one mesh per method is a good sharing model,
+        // the encoding also affects the above setup
+        // but at least this will allow quick switching
+        // between methods if nothing else
+        // let plotconfig = this.plotconfigs.get(plotname);
+        // this.plotconfigs.set(plotname, {method, encoding, mesh});
     }
 };
 

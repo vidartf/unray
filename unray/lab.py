@@ -15,13 +15,11 @@ def render(coordinates, cells,
            density=None, emission=None,
            density_range=None, emission_range=None,
            density_lut=None, emission_lut=None,
-           method="blank",
+           method="surface",
            width=800, height=600, downscale=1.0):
     """Visualize a function over a unstructured tetrahedral mesh using volume rendering.
 
     Methods include: (work in progress, these are currently mostly ideas!)
-
-      - blank: blank screen, used for debugging
 
       - surface: opaque surface of geometry
 
@@ -96,4 +94,5 @@ def render(coordinates, cells,
         fig.downscale = downscale
         fig.data = data
         fig.plots = plots
+        fig.plotname = plotname
     return fig

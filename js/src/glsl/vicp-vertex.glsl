@@ -41,6 +41,10 @@ uniform vec3 cameraPosition;
 // so if something needs to be toggled separately in those there
 // needs to be separate define names.
 
+#ifdef ENABLE_XRAY_MODEL
+#define ENABLE_DEPTH 1
+#endif
+
 #ifdef ENABLE_CELL_ORDERING
 #define ENABLE_CELL_UV 1
 #endif
@@ -63,6 +67,10 @@ uniform vec3 cameraPosition;
 #define ENABLE_VIEW_DIRECTION 1
 #endif
 
+#ifdef ENABLE_DEPTH
+#define ENABLE_COORDINATES 1
+#endif
+
 #ifdef ENABLE_DENSITY
 #define ENABLE_VERTEX_UV 1
 #endif
@@ -81,15 +89,15 @@ uniform vec3 cameraPosition;
 
 
 // Time uniforms
-uniform float u_time;
-uniform vec4 u_oscillators;
+// uniform float u_time;
+// uniform vec4 u_oscillators;
 
 // Custom camera uniforms
 uniform vec3 u_view_direction;
 
 // Input data uniforms
-uniform vec3 u_constant_color;
-uniform float u_particle_area;
+// uniform vec3 u_constant_color;
+// uniform float u_particle_area;
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
@@ -103,20 +111,6 @@ uniform ivec2 u_cell_texture_shape;
 #endif
 #ifdef ENABLE_VERTEX_UV
 uniform ivec2 u_vertex_texture_shape;
-#endif
-
-// Vertex attributes (local vertices 0-4 on tetrahedron)
-attribute float a_vertex_id;       // webgl doesn't support gl_VertexID
-attribute vec4 a_local_vertices;  // webgl doesn't support ivec4
-
-// Cell attributes
-#ifdef ENABLE_CELL_ORDERING
-attribute float c_ordering;  // webgl doesn't support int attributes
-#else
-// TODO: Could still use c_cells as an instance attribute
-//       to avoid texture lookups here
-//       if c_ordering is set to the identity mapping i->i
-attribute vec4 c_cells;  // webgl doesn't support ivec4 attributes
 #endif
 
 // Cell textures
@@ -135,9 +129,19 @@ uniform sampler2D t_emission;
 uniform sampler2D t_emission_lut;
 #endif
 
+// Vertex attributes (local vertices 0-4 on tetrahedron)
+attribute vec4 a_local_vertices;                 // webgl2 required for ivec4 attributes and gl_VertexID
+
+// Cell attributes
+#ifdef ENABLE_CELL_ORDERING
+attribute float c_ordering;                      // webgl2 required for int attributes and gl_InstanceID
+#else
+attribute vec4 c_cells;                          // webgl2 required for ivec4 attributes
+#endif
+
 // Varyings
 varying vec3 v_model_position;
-varying vec3 v_view_direction; // flat
+varying vec3 v_view_direction;  // webgl2 required for flat keyword
 #ifdef ENABLE_DEPTH
 varying vec4 v_ray_lengths;
 #endif
@@ -149,82 +153,81 @@ varying float v_emission;
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
-varying vec3 v_density_gradient; // flat
+varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 #endif
 #ifdef ENABLE_EMISSION_BACK
-varying vec3 v_emission_gradient; // flat
+varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 #endif
+
 
 void main()
 {
-    mat4 MVP = projectionMatrix * modelViewMatrix;
-
-    int local_vertex_id = int(a_vertex_id); // replacement for gl_VertexID
-
-#ifdef ENABLE_CELL_ORDERING
-    int cell_index = int(c_ordering);
-#else
-    // In webGL2, if no cell ordering is necessary,
-    // this allows dropping the c_ordering array:
-    //int cell_index = gl_InstanceID;
-#endif
-
-#ifdef ENABLE_CELL_UV
-    vec2 cell_uv = index_to_uv(cell_index, u_cell_texture_shape);
-#endif
-
-#ifdef ENABLE_CELL_ORDERING
-    // FIXME: Do some kind of float to int conversion for cell
-    ivec4 cell = ivec4(texture2D(t_cells, cell_uv));
-#else
-    ivec4 cell = ivec4(c_cells);
-#endif
-
     // Local to local mapping 0-3 -> 0-3
     ivec4 local_vertices = ivec4(a_local_vertices);
 
-#ifdef ENABLE_VERTEX_INDICES
-    // FIXME: Not quite sure how to use the vertex_indices local to local mapping yet
-    unused;
-    // Locally reordered global vertex indices
-    ivec4 vertex_indices;
-    for (int i = 0; i < 4; ++i) {
-        vertex_indices[i] = get_at(cell, local_vertices[i]);
-    }
-    // The current vertex is always local_vertices[0]
-    int global_vertex_id = vertex_indices[0];
-#else
-    int global_vertex_id = get_at(cell, local_vertex_id);
+    // Replacement for gl_VertexID, the local vertex
+    // 0...3 on the current tetrahedron instance
+    int local_vertex_id = local_vertices[0];
+
+
+#ifdef ENABLE_CELL_UV
+    // Index of the current tetrahedron instance
+    // to be used for cell data lookup.
+    int cell_index = int(c_ordering);
+
+    // In webGL2, _if_ no cell ordering is necessary, the
+    // c_ordering array can be dropped in place of this:
+    // int cell_index = gl_InstanceID;
+
+    // Map cell index to texture location
+    vec2 cell_uv = index_to_uv(cell_index, u_cell_texture_shape);
 #endif
 
+
+#ifdef ENABLE_CELL_ORDERING
+    // Using computed texture location to lookup cell
+    ivec4 cell = ivec4(texture2D(t_cells, cell_uv));
+#else
+    // Using cell from per-instance buffer
+    ivec4 cell = ivec4(c_cells);
+#endif
+
+
 #ifdef ENABLE_VERTEX_UV
+    // Map all vertex indices to texture locations for vertex data lookup
     vec2 vertex_uv[4];
     for (int i = 0; i < 4; ++i) {
         vertex_uv[i] = index_to_uv(cell[i], u_vertex_texture_shape);
     }
+    // Get vertex texture location for the current vertex
     vec2 this_vertex_uv = get_at(vertex_uv, local_vertex_id);
+#else
+    // Global index of the current vertex
+    int global_vertex_id = get_at(cell, local_vertex_id);
+    // Get vertex texture location for the current vertex
+    vec2 this_vertex_uv = index_to_uv(global_vertex_id, u_vertex_texture_shape);
 #endif
 
+
 #ifdef ENABLE_COORDINATES
+    // Get coordinates of all tetrahedron vertices
     vec3 coordinates[4];
     for (int i = 0; i < 4; ++i) {
         coordinates[i] = texture2D(t_coordinates, vertex_uv[i]).xyz;
     }
+    // Extract the coordinate of the current vertex
     v_model_position = get_at(coordinates, local_vertex_id);
 #else
+    // Get just the coordinate of the current vertex
     v_model_position = texture2D(t_coordinates, this_vertex_uv).xyz;
 #endif
 
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-    v_view_direction = normalize(v_model_position - cameraPosition);
-#else
-    v_view_direction = u_view_direction;
-#endif
 
 #ifdef ENABLE_JACOBIAN_INVERSE
     mat3 XD = compute_edge_diff_matrix(coordinates);
     mat3 XDinv = inverse(XD);
 #endif
+
 
 #ifdef ENABLE_DENSITY_BACK
     vec4 density;
@@ -237,6 +240,7 @@ void main()
     v_density = texture2D(t_density, this_vertex_uv).a;
 #endif
 
+
 #ifdef ENABLE_EMISSION_BACK
     vec4 emission;
     for (int i = 0; i < 4; ++i) {
@@ -248,26 +252,58 @@ void main()
     v_emission = texture2D(t_emission, this_vertex_uv).a;
 #endif
 
+
+#ifdef ENABLE_PERSPECTIVE_PROJECTION
+    v_view_direction = normalize(v_model_position - cameraPosition);
+#else
+    v_view_direction = u_view_direction;
+#endif
+
+
 #ifdef ENABLE_DEPTH
-    // FIXME: pick a_local_vertices properly and update this to be outwards pointing
-    // Compute the normal vector of the tetrahedon face opposing this vertex
+    // The vertex attribute local_vertices[1..3] is carefully
+    // chosen to be ccw winded seen from outside the tetrahedron
+    // such that n computed below will point away from local_vertices[0]
+
+    // Get vertex coordinates ordered relative to the current vertex
     vec3 x0 = get_at(coordinates, local_vertices[0]);
     vec3 x1 = get_at(coordinates, local_vertices[1]);
     vec3 x2 = get_at(coordinates, local_vertices[2]);
     vec3 x3 = get_at(coordinates, local_vertices[3]);
 
+    // Compute the normal vector of the tetrahedon face opposing this vertex
     vec3 edge_a = x2 - x1;
     vec3 edge_b = x3 - x1;
     vec3 n = normalize(cross(edge_a, edge_b));
 
-    // Compute the distance from this vertex along the view direction to the plane of the opposing face
-    // Note: orthogonal_length is a constant property of the opposing face of this cell
-    float orthogonal_length = dot(n, x1 - x0);
-    v_ray_lengths = with_nonzero_at(local_vertex_id, orthogonal_length / dot(n, v_view_direction));
+    // Compute the distance from the current vertex
+    // to its orthogonal projection on the opposing face
+    // Note: this is a constant property of the opposing
+    // face of this cell, might be possible to exploit that somehow.
+    float orthogonal_dist = dot(n, x1 - x0);
+
+    // Compute the distance from this vertex along the
+    // view direction to the plane of the opposing face
+    float ray_length = orthogonal_dist / dot(n, v_view_direction);
+
+    // Output ray length of the current vertex as a component of
+    // a vec4 with zeros at the other local vertex ids, giving
+    // access to all ray lengths interpolated across the rasterized
+    // triangle in the fragment shader.
+    v_ray_lengths = with_nonzero_at(local_vertex_id, ray_length);
+
+    // TODO: Figure out if we can do perspective correct
+    // interpolation of ray lengths somehow, this approach
+    // is only correct for orthographic projection
 #endif
+
+
+    // TODO: Get this as a uniform
+    mat4 MVP = projectionMatrix * modelViewMatrix;
 
     // Map model coordinate to clip space
     gl_Position = MVP * vec4(v_model_position, 1.0);
+
 
     // Debugging: Ignore camera to check v_model_position
     // gl_Position = vec4(v_model_position, 1.0);

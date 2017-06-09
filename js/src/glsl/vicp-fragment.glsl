@@ -26,6 +26,10 @@ uniform vec3 cameraPosition;
 // so if something needs to be toggled separately in those there
 // needs to be separate define names.
 
+#ifdef ENABLE_XRAY_MODEL
+#define ENABLE_DEPTH 1
+#endif
+
 #ifdef ENABLE_EMISSION_BACK
 #define ENABLE_EMISSION 1
 #define ENABLE_DEPTH 1
@@ -72,7 +76,7 @@ uniform sampler2D t_emission_lut;
 
 // Varyings
 varying vec3 v_model_position;
-varying vec3 v_view_direction; // flat
+varying vec3 v_view_direction;  // webgl2 required for flat keyword
 #ifdef ENABLE_DEPTH
 varying vec4 v_ray_lengths;
 #endif
@@ -83,10 +87,10 @@ varying float v_density;
 varying float v_emission;
 #endif
 #ifdef ENABLE_DENSITY_BACK
-varying vec3 v_density_gradient; // FIXME: flat
+varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 #endif
 #ifdef ENABLE_EMISSION_BACK
-varying vec3 v_emission_gradient; // flat
+varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 #endif
 
 void main()
@@ -101,7 +105,7 @@ void main()
 
 
 #ifdef ENABLE_DEPTH
-    float depth = smallest_positive(v_ray_lengths);
+    float depth = smallest_positive(v_ray_lengths);  // FIXME: This is zero!
 #endif
 
 
@@ -109,14 +113,17 @@ void main()
     // optimized by expecting
     //    range.w == 1.0 / (range.x - range.y) or 1 if range.x == range.y
 
+    // FIXME: Clamp scaled_density and scaled_emission to [0,1],
+    // or just allow the texture sampler to deal with that?
+
 #ifdef ENABLE_DENSITY
-    float mapped_density = (v_density - u_density_range.x) * u_density_range.w;
-    float evaluated_density = texture2D(t_density_lut, vec2(mapped_density, 0.5)).a;
+    float scaled_density = (v_density - u_density_range.x) * u_density_range.w;
+    float mapped_density = texture2D(t_density_lut, vec2(scaled_density, 0.5)).a;
 #endif
 
 #ifdef ENABLE_EMISSION
-    float mapped_emission = (v_emission - u_emission_range.x) * u_emission_range.w;
-    vec3 evaluated_emission = texture2D(t_emission_lut, vec2(mapped_emission, 0.5)).xyz;
+    float scaled_emission = (v_emission - u_emission_range.x) * u_emission_range.w;
+    vec3 mapped_emission = texture2D(t_emission_lut, vec2(scaled_emission, 0.5)).xyz;
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
@@ -124,14 +131,14 @@ void main()
     //    dot(v_density_gradient, view_direction)
     // is also constant and can be made a flat varying
     float density_back = v_density + depth * dot(v_density_gradient, view_direction);
-    float mapped_density_back = (density_back - u_density_range.x) * u_density_range.w;
-    float evaluated_density_back = texture2D(t_density_lut, vec2(mapped_density_back, 0.5)).a;
+    float scaled_density_back = (density_back - u_density_range.x) * u_density_range.w;
+    float mapped_density_back = texture2D(t_density_lut, vec2(scaled_density_back, 0.5)).a;
 #endif
 
 #ifdef ENABLE_EMISSION_BACK
     float emission_back = v_emission + depth * dot(v_emission_gradient, view_direction);
-    float mapped_emission_back = (emission_back - u_emission_range.x) * u_emission_range.w;
-    vec3 evaluated_emission_back = texture2D(t_emission_lut, vec2(mapped_emission_back, 0.5)).xyz;
+    float scaled_emission_back = (emission_back - u_emission_range.x) * u_emission_range.w;
+    vec3 mapped_emission_back = texture2D(t_emission_lut, vec2(scaled_emission_back, 0.5)).xyz;
 #endif
 
 
@@ -150,12 +157,13 @@ void main()
     // TODO: Could add some light model for the surface shading here
     #if defined(ENABLE_EMISSION)
     // TODO: Could map density to saturation, luminance, or maybe noise texture intensity
-    vec3 C = evaluated_emission;  // CHECKME
+    vec3 C = mapped_emission;  // CHECKME
     #elif defined(ENABLE_DENSITY)
-    vec3 C = evaluated_density * u_constant_color;  // CHECKME
+    vec3 C = mapped_density * u_constant_color;  // CHECKME
     #else
     vec3 C = u_constant_color;  // CHECKME
     #endif
+
     // Always opaque
     float a = 1.0;
 #endif
@@ -165,52 +173,98 @@ void main()
     // TODO: Could we do something interesting with the gradient below the surface.
     // The gradient is unbounded, needs some mapping to [0,1].
     // Can use de/dv (below) or v_emission_gradient (or same for density)
-    // float emission_view_derivative = (emission - emission_back) / depth;
+    float emission_view_derivative = (emission - emission_back) / depth;
+    float gamma = emission_view_derivative / (emission_view_derivative + 1.0);
+
+    vec3 C = u_constant_color * gamma;
+
+    // Always opaque
+    float a = 1.0;
 #endif
 
 
 #ifdef ENABLE_XRAY_MODEL
     #if defined(ENABLE_EMISSION)
     compile_error();  // Xray model does not accept emission, only density
+    #elif defined(ENABLE_INTEGRATED_DENSITY)
+    // TODO: Preintegrated texture of integrated density from front to back value
     #elif defined(ENABLE_DENSITY_BACK)
-    // This is the currently selected version:
-    float rho = mix(evaluated_density, evaluated_density_back, 0.5);
+    // This is exact assuming rho linear along a ray segment
+    float rho = mix(mapped_density, mapped_density_back, 0.5);
     #elif defined(ENABLE_DENSITY)
-    float rho = evaluated_density;
+    // This is exact for rho constant along a ray segment
+    float rho = mapped_density;
     #else
     compile_error();  // Xray model needs density and density only
     #endif
-    float a = exp(-depth * u_particle_area * rho);  // CHECKME
-    // Always constant color
-    vec3 C = u_constant_color * a; // CHECKME
 
+    // DEBUGGING: Add some oscillation to density
+    float area = u_particle_area;
+    // area *= (2.0 + u_oscillators[1]) / (3.0);
+
+    // Compute transparency (NB! this is 1-opacity)
+    float a = exp(-depth * area * rho);  // CHECKME
+
+    // All color comes from the background
+    vec3 C = vec3(0.0);  // CHECKME
+
+    // TODO: Test smallest_positive more
+    // C.rgb = v_ray_lengths.xyz;  // These are nonzero
+
+    // C.r = 0.0; // smallest_positive(vec4(0.0, 0.0, 0.0, 0.0));
+    // C.g = 1.0; // smallest_positive(vec4(1.0, 1.0, 1.0, 1.0));
+    // C.b = 1.0; // smallest_positive(vec4(-1.0, 0.0, 1.0, 0.0));
+
+    // C.r = smallest_positive(vec4(-1.0, 1.0, 0.0, 0.0));
+    // a = 0.0;
 #endif
 
 
 #ifdef ENABLE_MAX_MODEL
     // TODO: This can also be done without the LUT,
-    // using mapped_foo instead of evaluated_foo
+    // using scaled_foo instead of mapped_foo
 
     // Define color
-    #if defined(ENABLE_EMISSION_BACK)
-    vec3 C = max(evaluated_emission, evaluated_emission_back);  // CHECKME
+    #if defined(ENABLE_EMISSION) && defined(ENABLE_DENSITY)
+    compile_error();  // Only emission OR density allowed.
+    #elif defined(ENABLE_EMISSION_BACK)
+    vec3 C = max(mapped_emission, mapped_emission_back);  // CHECKME
     #elif defined(ENABLE_EMISSION)
-    vec3 C = evaluated_emission;  // CHECKME
+    vec3 C = mapped_emission;  // CHECKME
     #elif defined(ENABLE_DENSITY_BACK)
-    vec3 C = u_constant_color * max(evaluated_density, evaluated_density_back);  // CHECKME
+    vec3 C = u_constant_color * max(mapped_density, mapped_density_back);  // CHECKME
     #elif defined(ENABLE_DENSITY)
-    vec3 C = u_constant_color * evaluated_density;  // CHECKME
+    vec3 C = u_constant_color * mapped_density;  // CHECKME
     #else
     compile_error();  // Max model needs emission or density
     #endif
 
-    // TODO: Consider opacity computation and blend mode together.
+    // Opacity is unused for this mode
     float a = 1.0;
 #endif
 
 
 #ifdef ENABLE_MIN_MODEL
-// TODO
+    // TODO: This can also be done without the LUT,
+    // using scaled_foo instead of mapped_foo
+
+    // Define color
+    #if defined(ENABLE_EMISSION) && defined(ENABLE_DENSITY)
+    compile_error();  // Only emission OR density allowed.
+    #elif defined(ENABLE_EMISSION_BACK)
+    vec3 C = min(mapped_emission, mapped_emission_back);  // CHECKME
+    #elif defined(ENABLE_EMISSION)
+    vec3 C = mapped_emission;  // CHECKME
+    #elif defined(ENABLE_DENSITY_BACK)
+    vec3 C = u_constant_color * min(mapped_density, mapped_density_back);  // CHECKME
+    #elif defined(ENABLE_DENSITY)
+    vec3 C = u_constant_color * mapped_density;  // CHECKME
+    #else
+    compile_error();  // Max model needs emission or density
+    #endif
+
+    // Opacity is unused for this mode
+    float a = 1.0;
 #endif
 
 
@@ -220,18 +274,18 @@ void main()
 
     #if defined(ENABLE_DENSITY_BACK)
     // TODO: Currently only using average density, more accurate options exist.
-    float rho = mix(evaluated_density, evaluated_density_back, 0.5); // CHECKME
+    float rho = mix(mapped_density, mapped_density_back, 0.5); // CHECKME
     #elif defined(ENABLE_DENSITY)
-    float rho = evaluated_density; // CHECKME
+    float rho = mapped_density; // CHECKME
     #else
     compile_error();  // Volume model requires density
     #endif
 
     #if defined(ENABLE_EMISSION_BACK)
     // TODO: Currently only using average color, more accurate options exist.
-    vec3 L = mix(evaluated_emission, evaluated_emission_back, 0.5); // CHECKME
+    vec3 L = mix(mapped_emission, mapped_emission_back, 0.5); // CHECKME
     #elif defined(ENABLE_EMISSION)
-    vec3 L = evaluated_emission; // CHECKME
+    vec3 L = mapped_emission; // CHECKME
     #else
     compile_error();  // Volume model requires emission
     #endif
@@ -243,11 +297,11 @@ void main()
 #endif
 
     // Debugging
-    if (gl_FrontFacing) {
-        C.r = 0.0;
-    } else {
-        C.r = 1.0;
-    }
+    // if (gl_FrontFacing) {
+    //     C.r = 0.0;
+    // } else {
+    //     C.r = 1.0;
+    // }
 
     // Record result. Note that this will fail to compile
     // if C and a are not defined correctly above, providing a
