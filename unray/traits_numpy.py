@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import numpy as np
-from traitlets import Instance, TraitError, TraitType, Undefined
+from traitlets import TraitError
 
 # Format:
 # {'dtype': string, 'shape': tuple, 'array': memoryview}

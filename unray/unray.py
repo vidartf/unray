@@ -18,17 +18,6 @@ default_emission_lut = np.outer(
     )
 
 
-@widgets.register('unray.Topology')
-class Topology(widgets.Widget):
-    """"""
-    _view_name = Unicode('TopologyView').tag(sync=True)
-    _model_name = Unicode('TopologyModel').tag(sync=True)
-    _view_module = Unicode('jupyter-unray').tag(sync=True)
-    _model_module = Unicode('jupyter-unray').tag(sync=True)
-    _view_module_version = Unicode('^0.1.0').tag(sync=True)
-    _model_module_version = Unicode('^0.1.0').tag(sync=True)
-
-
 @widgets.register('unray.Unray')
 class Unray(widgets.DOMWidget):
     """"""
