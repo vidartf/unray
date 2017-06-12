@@ -19,8 +19,8 @@
     "threejs"
   ],
   "scripts": {
-    "prepublish": "webpack; date",
-    "watch": "onchange 'package.json' 'src/*.js' 'src/glsl/*.glsl' -v -- npm run prepublish",
+    "build": "webpack",
+    "watch": "onchange 'package.json' 'src/*.js' 'src/glsl/*.glsl' -v -- npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
