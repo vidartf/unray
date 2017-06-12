@@ -13,7 +13,6 @@ class DataModel extends widgets.WidgetModel
     {
         let model_defaults = {
             _model_name : 'DataModel',
-            _view_name : 'DataView',
             name : "unnamed",
             array : null,
         };
@@ -47,23 +46,6 @@ DataModel.serializers = _.extend({
 }, widgets.WidgetModel.serializers);
 
 
-class DataView extends widgets.WidgetView
-{
-    initialize()
-    {
-        super.initialize(...arguments);
-    }
-
-    render()
-    {
-    }
-
-    update(options)
-    {
-    }
-};
-
-
 module.exports = {
-    DataModel, DataView
+    DataModel
 };

@@ -18,11 +18,8 @@ module_version = '^0.1.0'
 @widgets.register('unray.Data')
 class Data(widgets.Widget):
     """"""
-    _view_name = Unicode('DataView').tag(sync=True)
     _model_name = Unicode('DataModel').tag(sync=True)
-    _view_module = Unicode(module_name).tag(sync=True)
     _model_module = Unicode(module_name).tag(sync=True)
-    _view_module_version = Unicode(module_version).tag(sync=True)
     _model_module_version = Unicode(module_version).tag(sync=True)
 
     # Default unvalidated traitlet
@@ -69,7 +66,7 @@ class Data(widgets.Widget):
 
 
 @widgets.register('unray.DataDisplay')
-class DataDisplay(widgets.Widget):
+class DataDisplay(widgets.DOMWidget):
     """"""
     _view_name = Unicode('DataDisplayView').tag(sync=True)
     _model_name = Unicode('DataDisplayModel').tag(sync=True)
@@ -82,7 +79,7 @@ class DataDisplay(widgets.Widget):
 
 
 @widgets.register('unray.Plot')
-class Plot(widgets.Widget):
+class Plot(widgets.DOMWidget):
     """"""
     _view_name = Unicode('PlotView').tag(sync=True)
     _model_name = Unicode('PlotModel').tag(sync=True)
@@ -97,7 +94,7 @@ class Plot(widgets.Widget):
 
 
 @widgets.register('unray.Figure')
-class Figure(widgets.Widget):
+class Figure(widgets.DOMWidget):
     """"""
     _view_name = Unicode('FigureView').tag(sync=True)
     _model_name = Unicode('FigureModel').tag(sync=True)

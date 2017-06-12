@@ -8,7 +8,7 @@ var version = require('./version.js');
 // var serialization = require('./serialization.js');
 
 
-class PlotModel extends widgets.WidgetModel
+class PlotModel extends widgets.DOMWidgetModel
 {
     defaults()
     {
@@ -31,11 +31,11 @@ class PlotModel extends widgets.WidgetModel
 /*
 PlotModel.serializers = _.extend({
     //array: serialization.array_serialization,
-}, widgets.WidgetModel.serializers);
+}, widgets.DOMWidgetModel.serializers);
 */
 
 
-class PlotView extends widgets.WidgetView
+class PlotView extends widgets.DOMWidgetView
 {
     initialize()
     {
@@ -49,7 +49,7 @@ class PlotView extends widgets.WidgetView
 
     render()
     {
-        console.log("PlotView render (shouldn't happen? this is not a DOMWidgetView)")
+        console.log("PlotView render")
     }
 
     update(options)
@@ -70,7 +70,7 @@ class PlotView extends widgets.WidgetView
     {
         console.log("PlotView process")
 
-        // TODO: Perform precomputations, i.e. 
+        // TODO: Perform precomputations, i.e.
     }
 
     redraw()
