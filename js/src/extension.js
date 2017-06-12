@@ -8,7 +8,7 @@ if (window.require) {
         map: {
             "*" : {
                 "jupyter-unray": "nbextensions/jupyter-unray/index",
-                "jupyter-js-widgets": "nbextensions/jupyter-js-widgets/extension"
+                "@jupyter-widgets/base": "nbextensions/jupyter-widgets/extension"
             }
         }
     });

@@ -4,7 +4,7 @@ let package = require('../package.json');
 let module_name = package.name;
 
 // TODO: Follow ipyvolume strategy on versionining?
-// same strategy as: ipywidgets/jupyter-js-widgets/src/widget_core.ts, except we use ~
+// same strategy as: ipywidgets/@jupyter-widgets/base/src/widget_core.ts, except we use ~
 // so that N.M.x is allowed (we don't care about x, but we assume 0.2.x is not compatible with 0.3.x
 //let semver_range = '~' + package.version;
 let semver_range = package.version;

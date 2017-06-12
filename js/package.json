@@ -30,9 +30,9 @@
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
+    "@jupyter-widgets/base": "^0.2.0",
     "gl-matrix": "^2.3.2",
     "isndarray": "^1.0.0",
-    "jupyter-js-widgets": "^3.0.0-alpha.6",
     "ndarray": "^1.0.18",
     "ndarray-determinant": "^1.0.0",
     "ndarray-ops": "^1.2.2",
