@@ -15,6 +15,7 @@ def render(coordinates, cells,
            density=None, emission=None,
            density_range=None, emission_range=None,
            density_lut=None, emission_lut=None,
+           ordering=None, cell_indicators=None,
            method="surface",
            width=800, height=600, downscale=1.0):
     """Visualize a function over a unstructured tetrahedral mesh using volume rendering.
@@ -23,9 +24,15 @@ def render(coordinates, cells,
 
       - surface: opaque surface of geometry
 
+      - surface_depth: opaque surface of geometry, shaded by depth of tetrahedron below surface
+
+      - isosurface: opaque surface of a specific isovalue
+
       - max: maximum intensity projection
 
       - min: minimum intensity projection
+
+      - xray: absorption model similar to xray
 
       - sum: emissive cloud without absorption
 
@@ -40,20 +47,31 @@ def render(coordinates, cells,
     :param emission: numpy array of emission intensity in each vertex with shape [num_vertices]
     :param emission_range: (min, max) value of emission
 
+    :param ordering: numpy array of cell indices with shape [num_cells]
+    :param cell_indicators: numpy array of cell_indicator flags with shape [num_cells]
+
     :param width: width of rendering surface
     :param height: height of rendering surface
     :param downscale: downscale the rendering for better performance, for instance when set to 2, a 512x512 canvas will show a 256x256 rendering upscaled, but it will render twice as fast.
 
     :return: a widget to display in a notebook
-    """    # Always add mesh to data
+    """
     data = {}
+    encoding = {}
+
+    # Always add mesh to data and encoding
     data["coordinates"] = Data(name="coordinates", array=coordinates)
     data["cells"] = Data(name="cells", array=cells)
-
-    # Always add mesh to encoding
-    encoding = {}
     encoding["coordinates"] = {"field": "coordinates"}
     encoding["cells"] = {"field": "cells"}
+
+    # Optionally add cell ordering and indicators
+    if ordering is not None:
+        data["ordering"] = Data(name="ordering", array=ordering)
+        encoding["ordering"] = {"field": "cells"}
+    if cell_indicators is not None:
+        data["cell_indicators"] = Data(name="cell_indicators", array=cell_indicators)
+        encoding["cell_indicators"] = {"field": "cell_indicators"}
 
     # Optionally add density
     if density is not None:

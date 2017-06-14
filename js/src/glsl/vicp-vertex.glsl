@@ -99,6 +99,7 @@ uniform vec3 cameraPosition;
 // Custom camera uniforms
 uniform vec3 u_view_direction;
 
+
 // Input data uniforms
 // uniform vec3 u_constant_color;
 // uniform float u_particle_area;
@@ -109,6 +110,7 @@ uniform vec4 u_density_range;
 uniform vec4 u_emission_range;
 #endif
 
+
 // Texture property uniforms
 #ifdef ENABLE_CELL_UV
 uniform ivec2 u_cell_texture_shape;
@@ -117,9 +119,13 @@ uniform ivec2 u_cell_texture_shape;
 uniform ivec2 u_vertex_texture_shape;
 #endif
 
+
 // Cell textures
 #ifdef ENABLE_CELL_ORDERING
 uniform sampler2D t_cells;
+#endif
+#ifdef ENABLE_CELL_INDICATORS
+uniform sampler2D t_cell_indicators;
 #endif
 
 // Vertex textures
@@ -133,8 +139,10 @@ uniform sampler2D t_emission;
 uniform sampler2D t_emission_lut;
 #endif
 
+
 // Vertex attributes (local vertices 0-4 on tetrahedron)
 attribute vec4 a_local_vertices;                 // webgl2 required for ivec4 attributes and gl_VertexID
+
 
 // Cell attributes
 #ifdef ENABLE_CELL_ORDERING
@@ -142,13 +150,18 @@ attribute float c_ordering;                      // webgl2 required for int attr
 #else
 attribute vec4 c_cells;                          // webgl2 required for ivec4 attributes
 #endif
+#ifdef ENABLE_CELL_INDICATORS
+attribute float c_cell_indicators;               // webgl2 required for int attributes
+#endif
 
 
 // Varyings
 // Note: Not position of the model but vertex coordinate in model space
-// TODO: Does this need perspective correction for proper interpolation?
 varying vec3 v_model_position;
 
+#ifdef ENABLE_CELL_INDICATORS
+varying float v_cell_indicators;           // want int or bool, webgl2 required for flat keyword
+#endif
 
 #ifdef ENABLE_DEPTH
 varying float v_max_edge_length;         // webgl2 required for flat keyword
@@ -205,6 +218,17 @@ void main()
 #else
     // Using cell from per-instance buffer
     ivec4 cell = ivec4(c_cells);
+#endif
+
+
+#ifdef ENABLE_CELL_INDICATORS
+#ifdef ENABLE_CELL_ORDERING
+    // Using computed texture location to lookup cell
+    v_cell_indicators = texture2D(t_cell_indicators, cell_uv).a;
+#else
+    // Using cell from per-instance buffer
+    v_cell_indicators = c_cell_indicators;
+#endif
 #endif
 
 

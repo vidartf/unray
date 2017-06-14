@@ -57,11 +57,13 @@ uniform vec3 cameraPosition;
 uniform float u_time;
 uniform vec4 u_oscillators;
 
+
 // Custom camera uniforms
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
 #else
 uniform vec3 u_view_direction;
 #endif
+
 
 // Input data uniforms
 uniform vec3 u_constant_color;
@@ -74,6 +76,7 @@ uniform vec4 u_density_range;
 uniform vec4 u_emission_range;
 #endif
 
+
 // LUT textures
 #ifdef ENABLE_DENSITY
 uniform sampler2D t_density_lut;
@@ -82,8 +85,13 @@ uniform sampler2D t_density_lut;
 uniform sampler2D t_emission_lut;
 #endif
 
+
 // Varyings
 varying vec3 v_model_position;
+
+#ifdef ENABLE_CELL_INDICATORS
+varying float v_cell_indicators;                // want int or float, webgl2 required for flat keyword
+#endif
 
 #ifdef ENABLE_DEPTH
 varying float v_max_edge_length;         // webgl2 required for flat keyword
@@ -108,8 +116,17 @@ varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 #endif
 
+
 void main()
 {
+#ifdef ENABLE_CELL_INDICATORS
+    int cell_indicators = int(v_cell_indicators);
+    if (cell_indicators > 0) {  // CHECKME
+        discard;
+    }
+#endif
+
+
 // #ifdef ENABLE_PERSPECTIVE_PROJECTION
 //     vec3 position = v_model_position / gl_FragCoord.w;
 // #else

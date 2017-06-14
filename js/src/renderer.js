@@ -15,23 +15,27 @@ const shader_sources = {
 
 
 const default_channels = {
-    cells:        { association: "cell",   dtype: "int32",   item_size: 4, dynamic: false },
-    coordinates:  { association: "vertex", dtype: "float32", item_size: 3, dynamic: false },
-    density:      { association: "vertex", dtype: "float32", item_size: 1, dynamic: true },
-    emission:     { association: "vertex", dtype: "float32", item_size: 1, dynamic: true },
-    density_lut:  { association: "lut",    dtype: "float32", item_size: 1, dynamic: true },
-    emission_lut: { association: "lut",    dtype: "float32", item_size: 3, dynamic: true },
+    cells:           { association: "cell",            dtype: "int32",   item_size: 4, dynamic: false },
+    coordinates:     { association: "vertex",          dtype: "float32", item_size: 3, dynamic: false },
+    // ordering:       { association: "cell",            dtype: "int32",   item_size: 1, dynamic: true },
+    cell_indicators: { association: "cell",            dtype: "int32",   item_size: 1, dynamic: false },
+    density:         { association: "vertex",          dtype: "float32", item_size: 1, dynamic: true },
+    emission:        { association: "vertex",          dtype: "float32", item_size: 1, dynamic: true },
+    density_lut:     { association: "lut",             dtype: "float32", item_size: 1, dynamic: false },
+    emission_lut:    { association: "lut",             dtype: "float32", item_size: 3, dynamic: false },
 };
 
 
 // TODO: Let default encodings differ per method
 const default_encoding = {
-    cells:        { field: "cells" },
-    coordinates:  { field: "coordinates" },
-    density:      { field: "density", range: "auto" },
-    emission:     { field: "emission", range: "auto" },
-    density_lut:  { field: "density_lut" },
-    emission_lut: { field: "emission_lut" },
+    cells:           { field: "cells" },
+    coordinates:     { field: "coordinates" },
+    // ordering:       { field: "ordering" },
+    cell_indicators: { field: "cell_indicators" },
+    density:         { field: "density", range: "auto" },
+    emission:        { field: "emission", range: "auto" },
+    density_lut:     { field: "density_lut" },
+    emission_lut:    { field: "emission_lut" },
 };
 
 
@@ -58,8 +62,33 @@ const default_defines = {
     ENABLE_PERSPECTIVE_PROJECTION: 1,
 };
 
+
 const method_properties = {
     blank: {
+    },
+    cells: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+
+        defines: _.extend({}, default_defines, {
+            ENABLE_SURFACE_MODEL: 1,
+            ENABLE_EMISSION: 1,
+            // TODO: decide on meaning of indicator values
+            ENABLE_CELL_INDICATORS: 1, // TODO: Set this if the encoding channel has data
+        }),
+        vertex_shader: shader_sources.vertex,
+        fragment_shader: shader_sources.fragment,
+        channels: default_channels,
+        default_encoding: default_encoding,
     },
     surface: {
         sorted: false,
@@ -459,14 +488,22 @@ function compute_texture_shape(size)
 const dtype2threetype = {
     float32: THREE.FloatType,
     uint32: THREE.UnsignedIntType,
-    int32: THREE.IntType
+    uint16: THREE.UnsignedIntType,
+    uint8: THREE.UnsignedIntType,
+    int32: THREE.IntType,
+    int16: THREE.IntType,
+    int8: THREE.IntType,
 };
 
 
 const dtype2arraytype = {
     float32: Float32Array,
     uint32: Uint32Array,
-    int32: Int32Array
+    uint16: Uint16Array,
+    uint8: Uint8Array,
+    int32: Int32Array,
+    int16: Int16Array,
+    int8: Int8Array,
 };
 
 
@@ -490,7 +527,7 @@ function allocate_array_texture(dtype, item_size, texture_shape)
     // let type = dtype2threetype[dtype];
 
     let padded_data = new Float32Array(size);
-    let type = dtype2threetype["float32"];
+    let type = dtype2threetype["float32"];  // NB! See comment above
 
     let format = dtype2threeformat[item_size];
 
@@ -517,7 +554,7 @@ function allocate_lut_texture(dtype, item_size, texture_shape)
     // let type = dtype2threetype[dtype];
 
     let padded_data = new Float32Array(size);
-    let type = dtype2threetype["float32"];
+    let type = dtype2threetype["float32"];  // NB! See comment above
 
     let format = dtype2threeformat[item_size];
 
@@ -664,6 +701,7 @@ class TetrahedralMeshRenderer
             u_vertex_texture_shape: { value: [0, 0] },
             // Cell textures
             t_cells: { value: null },
+            t_cell_indicators: { value: null },
             // Vertex textures (at least in the current implementation)
             t_coordinates: { value: null },
             t_density: { value: null },

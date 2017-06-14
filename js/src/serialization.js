@@ -15,7 +15,11 @@ let typesToArray = {
 let JSONToArray = function(obj, manager) {
     // obj is {shape: list, dtype: string, buffer: DataView}
     // return an ndarray object
-    return ndarray(new typesToArray[obj.dtype](obj.buffer.buffer), obj.shape);
+    let arraytype = typesToArray[obj.dtype];
+    if (arraytype === undefined) {
+        console.error("Invalid dtype", obj.dtype);
+    }
+    return ndarray(new arraytype(obj.buffer.buffer), obj.shape);
 }
 let arrayToJSON = function(obj, manager) {
     // serialize to {shape: list, dtype: string, buffer: buffer}
