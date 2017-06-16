@@ -15,7 +15,8 @@ def render(coordinates, cells,
            density=None, emission=None,
            density_range=None, emission_range=None,
            density_lut=None, emission_lut=None,
-           ordering=None, cell_indicators=None,
+           ordering=None,
+           cell_indicators=None, cell_indicator_value=1,
            method="surface",
            width=800, height=600, downscale=1.0):
     """Visualize a function over a unstructured tetrahedral mesh using volume rendering.
@@ -59,22 +60,37 @@ def render(coordinates, cells,
     data = {}
     encoding = {}
 
+    # TODO: Use Data widget that knows its dtype so that array conversion can be automatic during serialization
+
     # Always add mesh to data and encoding
+    if coordinates is None:
+        raise ValueError("Coordinates are required.")
+    coordinates = np.ascontiguousarray(coordinates, dtype="float32")
     data["coordinates"] = Data(name="coordinates", array=coordinates)
-    data["cells"] = Data(name="cells", array=cells)
     encoding["coordinates"] = {"field": "coordinates"}
+
+    if cells is None:
+        raise ValueError("Cells are required.")
+    cells = np.ascontiguousarray(cells, dtype="int32")
+    data["cells"] = Data(name="cells", array=cells)
     encoding["cells"] = {"field": "cells"}
 
-    # Optionally add cell ordering and indicators
+    # Optionally add cell ordering
     if ordering is not None:
+        ordering = np.ascontiguousarray(ordering, dtype="int32")
         data["ordering"] = Data(name="ordering", array=ordering)
         encoding["ordering"] = {"field": "cells"}
+
+    # Optionally add cell indicators
     if cell_indicators is not None:
+        cell_indicators = np.ascontiguousarray(cell_indicators, dtype="int32")
         data["cell_indicators"] = Data(name="cell_indicators", array=cell_indicators)
         encoding["cell_indicators"] = {"field": "cell_indicators"}
+        encoding["cell_indicator_value"] = {"value": cell_indicator_value}
 
     # Optionally add density
     if density is not None:
+        density = np.ascontiguousarray(density, dtype="float32")
         data["density"] = Data(name="density", array=density)
         if density_range is None:
             density_range = [np.min(density), np.max(density)]
@@ -83,11 +99,13 @@ def render(coordinates, cells,
         # Set lut if not provided
         if density_lut is None:
             density_lut = default_density_lut
+        density_lut = np.ascontiguousarray(density_lut, dtype="float32")
         data["density_lut"] = Data(name="density_lut", array=density_lut)
         encoding["density_lut"] = {"field": "density_lut"}
 
     # Optionally add emission
     if emission is not None:
+        emission = np.ascontiguousarray(emission, dtype="float32")
         data["emission"] = Data(name="emission", array=emission)
         if emission_range is None:
             emission_range = [np.min(emission), np.max(emission)]
@@ -96,11 +114,20 @@ def render(coordinates, cells,
         # Set lut if not provided
         if emission_lut is None:
             emission_lut = default_emission_lut
+        emission_lut = np.ascontiguousarray(emission_lut, dtype="float32")
         data["emission_lut"] = Data(name="emission_lut", array=emission_lut)
         encoding["emission_lut"] = {"field": "emission_lut"}
 
+    # Configure some default parameters
     if method == "isosurface":
-        encoding["isorange"] = {"value": [0.2, 0.8]}
+        # TODO: Parameterize isovalues in flexible ways:
+        # encoding["isovalues"] = {"range": [min, max], "scale": "dense" }
+        # encoding["isovalues"] = {"range": [min, max], "resolution": 10, "scale": "linear"}
+        # encoding["isovalues"] = {"range": [min, max], "resolution": 10, "scale": "log"}
+        # encoding["isovalues"] = {"value": [v0, v1, v2, ...]}
+        isorange = [0.6 * emission_range[0] + 0.4 * emission_range[1],
+                    0.4 * emission_range[0] + 0.6 * emission_range[1]]
+        encoding["isorange"] = {"value": isorange}
 
     # Setup plot
     plotname = "plot_%s" % method

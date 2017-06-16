@@ -160,7 +160,7 @@ attribute float c_cell_indicators;               // webgl2 required for int attr
 varying vec3 v_model_position;
 
 #ifdef ENABLE_CELL_INDICATORS
-varying float v_cell_indicators;           // want int or bool, webgl2 required for flat keyword
+varying float v_cell_indicator;           // want int or bool, webgl2 required for flat keyword
 #endif
 
 #ifdef ENABLE_DEPTH
@@ -224,10 +224,10 @@ void main()
 #ifdef ENABLE_CELL_INDICATORS
 #ifdef ENABLE_CELL_ORDERING
     // Using computed texture location to lookup cell
-    v_cell_indicators = texture2D(t_cell_indicators, cell_uv).a;
+    v_cell_indicator = texture2D(t_cell_indicators, cell_uv).a;
 #else
     // Using cell from per-instance buffer
-    v_cell_indicators = c_cell_indicators;
+    v_cell_indicator = c_cell_indicators;
 #endif
 #endif
 

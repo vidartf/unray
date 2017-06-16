@@ -14,18 +14,23 @@ const shader_sources = {
 }
 
 
+// TODO: Improve and document channel specifications
 const default_channels = {
-    cells:           { association: "cell",            dtype: "int32",   item_size: 4, dynamic: false },
-    coordinates:     { association: "vertex",          dtype: "float32", item_size: 3, dynamic: false },
-    // ordering:       { association: "cell",            dtype: "int32",   item_size: 1, dynamic: true },
-    cell_indicators: { association: "cell",            dtype: "int32",   item_size: 1, dynamic: false },
-    density:         { association: "vertex",          dtype: "float32", item_size: 1, dynamic: true },
-    emission:        { association: "vertex",          dtype: "float32", item_size: 1, dynamic: true },
-    density_lut:     { association: "lut",             dtype: "float32", item_size: 1, dynamic: false },
-    emission_lut:    { association: "lut",             dtype: "float32", item_size: 3, dynamic: false },
+    cells:           { association: "cell",            dtype: "int32",   item_size: 4 },
+    coordinates:     { association: "vertex",          dtype: "float32", item_size: 3 },
+    // ordering:       { association: "cell",            dtype: "int32",   item_size: 1 },
+    cell_indicators: { association: "cell",            dtype: "int32",   item_size: 1 },
+    density:         { association: "vertex",          dtype: "float32", item_size: 1 },
+    emission:        { association: "vertex",          dtype: "float32", item_size: 1 },
+    density_lut:     { association: "lut",             dtype: "float32", item_size: 1 },
+    emission_lut:    { association: "lut",             dtype: "float32", item_size: 3 },
+    cell_indicator_value: { association: "constant",  dtype: "int32",   item_size: 1 }, // int
+    constant_color:       { association: "constant",  dtype: "float32", item_size: 3 }, // color
+    isorange:             { association: "constant",  dtype: "float32", item_size: 2 }, // vec2
+    particle_area:        { association: "constant",  dtype: "float32", item_size: 1 }, // float
 };
 
-
+// TODO: Improve and document encoding specifications, look at vega for ideas
 // TODO: Let default encodings differ per method
 const default_encoding = {
     cells:           { field: "cells" },
@@ -36,6 +41,10 @@ const default_encoding = {
     emission:        { field: "emission", range: "auto" },
     density_lut:     { field: "density_lut" },
     emission_lut:    { field: "emission_lut" },
+    cell_indicator_value: { value: 1 },
+    constant_color:       { value: new THREE.Color(0.8, 0.8, 0.8) },
+    isorange:             { value: new THREE.Vector2(0.2, 0.8) },
+    particle_area:        { value: 1.0 },
 };
 
 
@@ -459,13 +468,17 @@ function allocate_value(item_size)
     switch (item_size)
     {
     case 1:
-        return 0.0;
+        return 0;
     case 2:
         return THREE.Vector2();
     case 3:
         return THREE.Vector3();
     case 4:
         return THREE.Vector4();
+    case 9:
+        return THREE.Matrix3();
+    case 16:
+        return THREE.Matrix4();
     }
     throw `Invalid item size ${item_size}.`;
 }
@@ -684,31 +697,37 @@ class TetrahedralMeshRenderer
     {
         // Fill uniforms dict with dummy values
         this.uniforms = {
-            // Time and oscillators
+            // Time and oscillators (updated in update_time())
             u_time: { value: 0.0 },
             u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0) },
-            // Camera uniforms (threejs provides cameraPosition)
+            // Camera uniforms (updated in update_perspective(), threejs provides cameraPosition)
             u_view_direction: { value: new THREE.Vector3(0, 0, 1) },
-            // Input constants
-            u_constant_color: { value: new THREE.Color(1.0, 1.0, 1.0) },
-            u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
+            // Input constants (u_foo is updated in upload() based on
+            // encoding.foo.value, but only if foo is present in channels,
+            // with default value set in the default encoding)
+            u_cell_indicator_value: { value: 1 },
+            u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
+            u_isorange: { value: new THREE.Vector2(0.2, 0.8) },
             u_particle_area: { value: 1.0 },
-            // Input data ranges, 4 values: [min, max, max-min, 1.0/(max-min) or 1]
+            // Input data ranges (u_foo_range is updated in upload() based on encoding.foo.range attribute)
+            // The 4 values are: [min, max, max-min, 1.0/(max-min) or 1]
             u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
             u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
-            // Texture dimensions
+            // Texture dimensions (set in init() based on given mesh size)
             u_cell_texture_shape: { value: [0, 0] },
             u_vertex_texture_shape: { value: [0, 0] },
-            // Cell textures
+            // Cell textures (updated in upload() based on encoding)
             t_cells: { value: null },
             t_cell_indicators: { value: null },
-            // Vertex textures (at least in the current implementation)
+            // Vertex textures (updated in upload() based on encoding)
             t_coordinates: { value: null },
             t_density: { value: null },
             t_emission: { value: null },
-            // LUT textures
+            // LUT textures (updated in upload() based on encoding)
             t_density_lut: { value: null },
             t_emission_lut: { value: null },
+            //t_indicator_lut: { value: null },
+            //t_isosurface_lut: { value: null },
         };
     }
 
@@ -904,7 +923,7 @@ class TetrahedralMeshRenderer
             let uniform = null;
             switch (association)
             {
-            case "uniform":
+            case "constant":
                 uniform = this.uniforms["u_" + channel_name];
                 if (!uniform.value) {
                     // TODO: Allocating uniform shared between methods using
@@ -919,7 +938,7 @@ class TetrahedralMeshRenderer
                     uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
                         this.uniforms.u_vertex_texture_shape.value);
-                    console.log(`Allocated vertex texture for ${channel_name}.`, uniform.value);
+                    debug(`Allocated vertex texture for ${channel_name}.`, uniform.value);
                 }
                 break;
             case "cell":
@@ -946,9 +965,7 @@ class TetrahedralMeshRenderer
                 //         // Allocate instanced buffer attribute
                 //         // TODO: Should we copy the new_value here?
                 //         attrib = new THREE.InstancedBufferAttribute(new_value, channel.item_size, 1);
-                //         if (channel.dynamic) {
-                //             attrib.setDynamic(true);
-                //         }
+                //         //attrib.setDynamic(true);
                 //         this.attributes["c_" + channel_name] = attrib;
                 //     } else {
                 //         // Update contents of instanced buffer attribute
@@ -998,13 +1015,8 @@ class TetrahedralMeshRenderer
                 continue;
             }
 
-            // Get new data value
-            let new_value = undefined;
-            if (enc.field) {
-                new_value = data[enc.field];
-            } else if (enc.value) {
-                new_value = enc.value;
-            }
+            // Get new data value either from data or from encoding
+            let new_value = enc.field ? data[enc.field]: enc.value;
             if (new_value === undefined) {
                 console.error(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
                 continue;
@@ -1017,12 +1029,30 @@ class TetrahedralMeshRenderer
             let uniform = null;
             switch (association)
             {
-            case "uniform":
+            case "constant":
+                // TODO: Revisit specification of uniform value types in encoding/channels/data
                 uniform = this.uniforms["u_" + channel_name];
-                if (uniform.value.isVector2 || uniform.value.isVector3 || uniform.value.isVector4) {
-                    uniform.value.set(...new_value);
-                } else if (typeof uniform.value === "number") {
+                if (typeof uniform.value === "number") {
                     uniform.value = new_value;
+                } else if (uniform.value.isVector2) {  // TODO: Clean up this verbosity, did this to get rid of some errors quickly
+                    uniform.value.set(new_value[0], new_value[1]);
+                } else if (uniform.value.isVector3) {
+                    uniform.value.set(new_value[0], new_value[1], new_value[2]);
+                } else if (uniform.value.isVector4) {
+                    uniform.value.set(new_value[0], new_value[1], new_value[2], new_value[3]);
+                } else if (uniform.value.isVector2 || uniform.value.isVector3 || uniform.value.isVector4) {
+                    uniform.value.set(...new_value);
+                } else if (uniform.value.isMatrix3 || uniform.value.isMatrix4) {
+                    uniform.value.set(...new_value);
+                } else if (uniform.value.isColor) {
+                    // TODO: Consider better color handling
+                    if (new_value.isColor || typeof new_value === "string") {
+                        uniform.value.set(new_value);
+                    } else {
+                        // Assuming rgb triplet
+                        uniform.value.setRGB(new_value[0], new_value[1], new_value[2]);
+                    }
+                    // uniform.value.setHSL(...new_value);  // hsl triplet
                 } else {
                     console.warn("Unexpected uniform type " + (typeof uniform.value) + " for channel " + channel_name);
                     uniform.value = new_value;
@@ -1030,7 +1060,7 @@ class TetrahedralMeshRenderer
                 break;
             case "vertex":
                 uniform = this.uniforms["t_" + channel_name];
-                console.log(`Updating ${channel_name} with vertex data.`, uniform.value, new_value);
+                debug(`Updating ${channel_name} with vertex data.`, uniform.value, new_value);
                 update_array_texture(uniform.value, new_value);
                 break;
             case "cell":
@@ -1062,7 +1092,7 @@ class TetrahedralMeshRenderer
 
             // Update associated data range
             if (enc.range !== undefined) {
-                console.log("Range computation", channel_name, enc.range, new_value)
+                debug("Range computation", channel_name, enc.range, new_value)
                 let newrange = null;
                 if (enc.range === "auto") {
                     newrange = compute_range(new_value);
@@ -1074,7 +1104,7 @@ class TetrahedralMeshRenderer
                     let range_name = "u_" + channel_name + "_range";
                     if (this.uniforms.hasOwnProperty(range_name)) {
                         this.uniforms[range_name].value.set(...newrange);
-                        console.log(`Updating data range for ${channel_name} to ${newrange}.`);
+                        debug(`Updating data range for ${channel_name} to ${newrange}.`);
                     }
                 }
             }

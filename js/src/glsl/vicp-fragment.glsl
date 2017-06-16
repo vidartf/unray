@@ -69,6 +69,9 @@ uniform vec3 u_view_direction;
 uniform vec3 u_constant_color;
 uniform vec2 u_isorange;
 uniform float u_particle_area;
+#ifdef ENABLE_CELL_INDICATORS
+uniform int u_cell_indicator_value;
+#endif
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
@@ -90,7 +93,7 @@ uniform sampler2D t_emission_lut;
 varying vec3 v_model_position;
 
 #ifdef ENABLE_CELL_INDICATORS
-varying float v_cell_indicators;                // want int or float, webgl2 required for flat keyword
+varying float v_cell_indicator;                // want int or float, webgl2 required for flat keyword
 #endif
 
 #ifdef ENABLE_DEPTH
@@ -120,8 +123,12 @@ varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 void main()
 {
 #ifdef ENABLE_CELL_INDICATORS
-    int cell_indicators = int(v_cell_indicators);
-    if (cell_indicators > 0) {  // CHECKME
+    // Round to get the exact integer because fragment shader
+    // doesn't interpolate constant integer valued floats accurately
+    int cell_indicator = int(v_cell_indicator + 0.5);
+    // TODO: Use texture lookup with nearest interpolation to get
+    // color and discard-or-not (a=0|1) for a range of indicator values
+    if (cell_indicator != u_cell_indicator_value) {
         discard;
     }
 #endif
@@ -132,6 +139,7 @@ void main()
 // #else
     vec3 position = v_model_position;
 // #endif
+
 
     // We need the view direction below
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
@@ -425,15 +433,16 @@ void main()
     //     C.r = 1.0;
     // }
 
+    // DEBUGGING:
+    // a = 1.0;
+    // C = vec3(1.0);
+    // C = u_constant_color;
+    // C = vec3(0.0, 0.0, 1.0);
+
+
     // Record result. Note that this will fail to compile
     // if C and a are not defined correctly above, providing a
     // small but significant safeguard towards errors in the
     // ifdef landscape above.
     gl_FragColor = vec4(C, a);
-
-    // DEBUGGING:
-    // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-    // gl_FragColor = vec4(u_constant_color, 1.0);
-    // gl_FragColor = vec4(u_constant_color, a);
-    // gl_FragColor = vec4(0.0, 0.0, 1.0, a);
 }
