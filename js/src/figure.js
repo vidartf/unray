@@ -163,8 +163,8 @@ class FigureView extends widgets.DOMWidgetView
             method = plot.get("method");
             encoding = plot.get("encoding");
         }
-        console.log("Using method", method);
-        console.log("Using encoding", encoding);
+        debug("Using method", method);
+        debug("Using encoding", encoding);
 
         this.tetrenderer.configure(plotname, method, encoding, raw_data);
 
@@ -183,7 +183,7 @@ class FigureView extends widgets.DOMWidgetView
         this.bounds = meshutils.compute_bounds(raw_data.coordinates);
         this.model_center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
         // this.model_center = new THREE.Vector3(this.bounds.bbcenter[0], this.bounds.bbcenter[1], this.bounds.bbcenter[2]);
-        console.log("Computed bounds:", this.bounds);
+        debug("Computed bounds:", this.bounds);
         /////////////////////////////////////////////////////////////////
 
 
@@ -255,7 +255,7 @@ class FigureView extends widgets.DOMWidgetView
         let dist = this.camera.position.distanceTo(this.model_center);
         this.camera.near = Math.max(dist * 0.8 - this.bounds.radius * 1.2, 0.001 * this.bounds.radius);
         this.camera.far = dist * 1.2 + this.bounds.radius * 1.2;
-        // console.log("Using near, far:", this.camera.near, this.camera.far);
+        debug("Using near, far:", this.camera.near, this.camera.far);
 
         // Recompute projection matrix
         this.camera.updateProjectionMatrix();

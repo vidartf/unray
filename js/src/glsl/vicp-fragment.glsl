@@ -57,22 +57,28 @@ uniform vec3 cameraPosition;
 uniform float u_time;
 uniform vec4 u_oscillators;
 
+
 // Custom camera uniforms
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
 #else
 uniform vec3 u_view_direction;
 #endif
 
+
 // Input data uniforms
 uniform vec3 u_constant_color;
 uniform vec2 u_isorange;
 uniform float u_particle_area;
+// #ifdef ENABLE_CELL_INDICATORS
+// uniform int u_cell_indicator_value;
+// #endif
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
 #ifdef ENABLE_EMISSION
 uniform vec4 u_emission_range;
 #endif
+
 
 // LUT textures
 #ifdef ENABLE_DENSITY
@@ -82,8 +88,13 @@ uniform sampler2D t_density_lut;
 uniform sampler2D t_emission_lut;
 #endif
 
+
 // Varyings
 varying vec3 v_model_position;
+
+// #ifdef ENABLE_CELL_INDICATORS
+// varying float v_cell_indicator;                // want int or float, webgl2 required for flat keyword
+// #endif
 
 #ifdef ENABLE_DEPTH
 varying float v_max_edge_length;         // webgl2 required for flat keyword
@@ -108,13 +119,29 @@ varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 #endif
 
+
 void main()
 {
+    // TODO: See vertex shader for cell indicator plan
+    // TODO: Handle facet indicators
+// #ifdef ENABLE_CELL_INDICATORS
+//     // Round to get the exact integer because fragment shader
+//     // doesn't interpolate constant integer valued floats accurately
+//     int cell_indicator = int(v_cell_indicator + 0.5);
+//     // TODO: Use texture lookup with nearest interpolation to get
+//     // color and discard-or-not (a=0|1) for a range of indicator values
+//     if (cell_indicator != u_cell_indicator_value) {
+//         discard;
+//     }
+// #endif
+
+
 // #ifdef ENABLE_PERSPECTIVE_PROJECTION
 //     vec3 position = v_model_position / gl_FragCoord.w;
 // #else
     vec3 position = v_model_position;
 // #endif
+
 
     // We need the view direction below
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
@@ -408,15 +435,16 @@ void main()
     //     C.r = 1.0;
     // }
 
+    // DEBUGGING:
+    // a = 1.0;
+    // C = vec3(1.0);
+    // C = u_constant_color;
+    // C = vec3(0.0, 0.0, 1.0);
+
+
     // Record result. Note that this will fail to compile
     // if C and a are not defined correctly above, providing a
     // small but significant safeguard towards errors in the
     // ifdef landscape above.
     gl_FragColor = vec4(C, a);
-
-    // DEBUGGING:
-    // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
-    // gl_FragColor = vec4(u_constant_color, 1.0);
-    // gl_FragColor = vec4(u_constant_color, a);
-    // gl_FragColor = vec4(0.0, 0.0, 1.0, a);
 }
