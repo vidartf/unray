@@ -69,9 +69,9 @@ uniform vec3 u_view_direction;
 uniform vec3 u_constant_color;
 uniform vec2 u_isorange;
 uniform float u_particle_area;
-#ifdef ENABLE_CELL_INDICATORS
-uniform int u_cell_indicator_value;
-#endif
+// #ifdef ENABLE_CELL_INDICATORS
+// uniform int u_cell_indicator_value;
+// #endif
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
@@ -92,9 +92,9 @@ uniform sampler2D t_emission_lut;
 // Varyings
 varying vec3 v_model_position;
 
-#ifdef ENABLE_CELL_INDICATORS
-varying float v_cell_indicator;                // want int or float, webgl2 required for flat keyword
-#endif
+// #ifdef ENABLE_CELL_INDICATORS
+// varying float v_cell_indicator;                // want int or float, webgl2 required for flat keyword
+// #endif
 
 #ifdef ENABLE_DEPTH
 varying float v_max_edge_length;         // webgl2 required for flat keyword
@@ -122,16 +122,18 @@ varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 
 void main()
 {
-#ifdef ENABLE_CELL_INDICATORS
-    // Round to get the exact integer because fragment shader
-    // doesn't interpolate constant integer valued floats accurately
-    int cell_indicator = int(v_cell_indicator + 0.5);
-    // TODO: Use texture lookup with nearest interpolation to get
-    // color and discard-or-not (a=0|1) for a range of indicator values
-    if (cell_indicator != u_cell_indicator_value) {
-        discard;
-    }
-#endif
+    // TODO: See vertex shader for cell indicator plan
+    // TODO: Handle facet indicators
+// #ifdef ENABLE_CELL_INDICATORS
+//     // Round to get the exact integer because fragment shader
+//     // doesn't interpolate constant integer valued floats accurately
+//     int cell_indicator = int(v_cell_indicator + 0.5);
+//     // TODO: Use texture lookup with nearest interpolation to get
+//     // color and discard-or-not (a=0|1) for a range of indicator values
+//     if (cell_indicator != u_cell_indicator_value) {
+//         discard;
+//     }
+// #endif
 
 
 // #ifdef ENABLE_PERSPECTIVE_PROJECTION
