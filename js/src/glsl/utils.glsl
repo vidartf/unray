@@ -66,16 +66,31 @@ int count(bvec2 b) {
 
 
 // Return sorted vector
-vec4 sorted(vec4 x) {
-    vec4 y = vec4(x);
-    for (int i = 1; i < 4; ++i) {
-        float z = y[i];
-        int j = i - 1;
-        while (j >= 0 && y[j] > z) {
-            y[j+1] = y[j];
-            --j;
-        }
-        y[j + 1] = z;
-    }
-    return y;
+vec4 sorted(vec4 v)
+{
+    if (v.w < v.z)  v.zw = v.wz;
+    if (v.w < v.y)  v.yw = v.wy;
+    if (v.w < v.x)  v.xw = v.wx;
+    if (v.z < v.y)  v.yz = v.zy;
+    if (v.z < v.x)  v.xz = v.zx;
+    if (v.y < v.x)  v.xy = v.yx;
+    return v;
+}
+
+// Return sorted vector
+vec3 sorted(vec3 v)
+{
+    if (v.z < v.y)  v.yz = v.zy;
+    if (v.z < v.x)  v.xz = v.zx;
+    if (v.y < v.x)  v.xy = v.yx;
+    return v;
+}
+
+// Return sorted vector
+vec2 sorted(vec2 v)
+{
+    if (v.y < v.x)  v.xy = v.yx;
+    // Alternative formulation to test for performance 
+    //v.xy = v.x <= v.y ? v.xy : v.yx;
+    return v;
 }

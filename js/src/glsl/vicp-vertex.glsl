@@ -145,7 +145,7 @@ uniform sampler2D t_emission_lut;
 
 // Vertex attributes (local vertices 0-4 on tetrahedron)
 attribute vec4 a_local_vertices;                 // webgl2 required for ivec4 attributes and gl_VertexID
-
+attribute vec4 a_barycentric_coordinates;
 
 // Cell attributes
 #ifdef ENABLE_CELL_ORDERING
@@ -161,6 +161,8 @@ attribute float c_cell_indicators;               // webgl2 required for int attr
 // Varyings
 // Note: Not position of the model but vertex coordinate in model space
 varying vec3 v_model_position;
+
+varying vec4 v_barycentric_coordinates;
 
 // #ifdef ENABLE_CELL_INDICATORS
 // varying float v_cell_indicator;           // want int or bool, webgl2 required for flat keyword
@@ -200,6 +202,8 @@ void main()
     // 0...3 on the current tetrahedron instance
     int local_vertex_id = local_vertices[0];
 
+    // Interpolate barycentric coordinate on local tetrahedron over fragment
+    v_barycentric_coordinates = a_barycentric_coordinates;
 
 #ifdef ENABLE_CELL_UV
     // Index of the current tetrahedron instance

@@ -675,22 +675,30 @@ class TetrahedralMeshRenderer
         // Note: Seems like we need at least one vertex attribute
         // (i.e. per instance vertex) to please some webgl drivers
 
-        // TODO: Remove this? Contained in local_vertices_buffer, first item.
-        // Replacement for gl_VertexID which requires webgl2
-        // this.local_vertex_id_buffer =  new THREE.BufferAttribute(new Float32Array([0,1,2,3]), 1);
-
         // Setup local tetrahedron vertex indices in a pattern relative to each vertex.
         // For each vertex 0...3, listing the vertices of the opposing face
         // in ccw winding seen from outside the tetrahedron.
         // This simplifies the computation of the opposing normal in the vertex shader,
         // i.e. n0 = normal of the face (v1, v2, v3) opposing v0, pointing away from v0,
         // n0 = normalized((v2-v1) x (v3-v1)) = normal pointing away from v0
+        // First value for each vertex is a replacement for gl_VertexID which requires webgl2
         this.local_vertices_buffer = new THREE.BufferAttribute(new Float32Array([
             0,   1, 2, 3,
             1,   0, 3, 2,
             2,   0, 1, 3,
             3,   0, 2, 1,
         ]), 4);
+
+        // Local barycentric coordinates on tetrahedron. When interpolated over
+        // a facet between the shaders, provides information on where on
+        // the tetrahedron the fragment is located in the cell.
+        this.barycentric_coordinates_buffer = new THREE.BufferAttribute(new Float32Array([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        ]), 4);
+
     }
 
     _init_uniforms()
@@ -809,7 +817,8 @@ class TetrahedralMeshRenderer
         geometry.maxInstancedCount = this.num_tetrahedrons;
         geometry.setIndex(this.element_buffer);
         geometry.addAttribute("a_local_vertices", this.local_vertices_buffer);
-        // geometry.addAttribute("a_vertex_id", this.local_vertex_id_buffer);
+        geometry.addAttribute("a_barycentric_coordinates", this.barycentric_coordinates_buffer);
+
 
         // Setup cells of geometry (using textures or attributes)
 

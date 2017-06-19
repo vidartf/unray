@@ -10,6 +10,7 @@
 
 // Using webpack-glsl-loader to copy in shared code
 @import ./inverse;
+@import ./utils;
 @import ./vicp-lib;
 
 
@@ -91,6 +92,8 @@ uniform sampler2D t_emission_lut;
 
 // Varyings
 varying vec3 v_model_position;
+
+varying vec4 v_barycentric_coordinates;
 
 // #ifdef ENABLE_CELL_INDICATORS
 // varying float v_cell_indicator;                // want int or float, webgl2 required for flat keyword
@@ -427,6 +430,65 @@ void main()
     float a = 1.0 - exp(-depth * u_particle_area * rho); // CHECKME
     vec3 C = a * L;
 #endif
+
+
+    // Debugging / development of barycentric coordinate wireframe
+#ifdef ENABLE_SURFACE_MODEL
+
+    // TODO: Uniform parameters:
+    vec3 u_vertex_color = vec3(0.0, 0.0, 0.0);
+    float u_vertex_size = 0.05;
+
+    vec3 u_edge_color = vec3(0.0, 0.0, 0.0);
+    float u_edge_size = 0.05;
+
+    bool u_discard_face_interior = false;
+
+//#ifdef ENABLE_BARYCENTRIC_COORDINATES
+    vec4 sbc = sorted(v_barycentric_coordinates);
+    // sbc[0] is always 0 on face
+//#endif
+
+    bool on_interior = true;
+
+//#ifdef ENABLE_EDGE_SHADING
+    // sbc[2] + sbc[3] ~= 1 along edge
+    float edge_distance_squared = sbc[1]*sbc[1];
+    float edge_radius_squared = u_edge_size * u_edge_size;
+    bool on_edge = edge_distance_squared < edge_radius_squared;
+    if (on_edge) {
+        // TODO: If sorted() can return indices (say vec4 sbc_index) into the original vector,
+        //       I think sbc_index[2] and sbc_index[3] would be the vertices of the edge?
+        //       Can we use that to implement edge indicators?
+        // C = u_edge_color;
+        C = mix(u_edge_color, C, edge_distance_squared / edge_radius_squared);
+        on_interior = false;
+    }
+//#endif
+
+//#ifdef ENABLE_VERTEX_SHADING
+    // sbc[3] ~= 1 when close to vertex
+    float vertex_distance_squared = sbc[1]*sbc[1] + sbc[2]*sbc[2];
+    float vertex_radius_squared = u_vertex_size * u_vertex_size;
+    bool on_vertex = vertex_distance_squared < vertex_radius_squared;
+    if (on_vertex) {
+        // C = u_vertex_color;
+        C = mix(u_vertex_color, C, vertex_distance_squared / vertex_radius_squared);
+        on_interior = false;
+    }
+//#endif
+
+//#ifdef ENABLE_SURFACE_INTERIOR_DISCARD
+    if (u_discard_face_interior && on_interior) {
+        discard;
+    }
+//#endif
+
+    // Otherwise keep computed color C.
+    // TODO: Cheaper to don't compute C first if it's to be discarded,
+    //       setup ifdefs to make that part flow right
+#endif
+
 
     // Debugging
     // if (gl_FrontFacing) {
