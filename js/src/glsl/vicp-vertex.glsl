@@ -9,7 +9,8 @@
 
 
 // Using webpack-glsl-loader to copy in shared code
-@import ./inverse;
+@import ./utils/inverse;
+@import ./utils/getitem;
 @import ./vicp-lib;
 
 
@@ -265,10 +266,10 @@ void main()
         vertex_uv[i] = index_to_uv(cell[i], u_vertex_texture_shape);
     }
     // Get vertex texture location for the current vertex
-    vec2 this_vertex_uv = get_at(vertex_uv, local_vertex_id);
+    vec2 this_vertex_uv = getitem(vertex_uv, local_vertex_id);
 #else
     // Global index of the current vertex
-    int global_vertex_id = get_at(cell, local_vertex_id);
+    int global_vertex_id = getitem(cell, local_vertex_id);
     // Get vertex texture location for the current vertex
     vec2 this_vertex_uv = index_to_uv(global_vertex_id, u_vertex_texture_shape);
 #endif
@@ -281,16 +282,17 @@ void main()
         coordinates[i] = texture2D(t_coordinates, vertex_uv[i]).xyz;
     }
     // Extract the coordinate of the current vertex
-    v_model_position = get_at(coordinates, local_vertex_id);
+    v_model_position = getitem(coordinates, local_vertex_id);
 #else
     // Get just the coordinate of the current vertex
     v_model_position = texture2D(t_coordinates, this_vertex_uv).xyz;
 #endif
 
-
 #ifdef ENABLE_JACOBIAN_INVERSE
-    mat3 XD = compute_edge_diff_matrix(coordinates);
-    mat3 XDinv = inverse(XD);
+    // Compute 3x3 Jacobian matrix of the coordinate
+    // field on a tetrahedron with given vertices,
+    // assuming a certain reference coordinate system.
+    mat3 Jinv = compute_Jinv(coordinates);
 #endif
 
 
@@ -299,8 +301,8 @@ void main()
     for (int i = 0; i < 4; ++i) {
         density[i] = texture2D(t_density, vertex_uv[i]).a;
     }
-    v_density = get_at(density, local_vertex_id);
-    v_density_gradient = XDinv * compute_edge_diff_vector(density);
+    v_density = getitem(density, local_vertex_id);
+    v_density_gradient = compute_gradient(Jinv, density);
 #elif defined(ENABLE_DENSITY)
     v_density = texture2D(t_density, this_vertex_uv).a;
 #endif
@@ -311,8 +313,8 @@ void main()
     for (int i = 0; i < 4; ++i) {
         emission[i] = texture2D(t_emission, vertex_uv[i]).a;
     }
-    v_emission = get_at(emission, local_vertex_id);
-    v_emission_gradient = XDinv * compute_edge_diff_vector(emission);
+    v_emission = getitem(emission, local_vertex_id);
+    v_emission_gradient = compute_gradient(Jinv, emission);
 #elif defined(ENABLE_EMISSION)
     v_emission = texture2D(t_emission, this_vertex_uv).a;
 #endif
@@ -347,9 +349,9 @@ void main()
     for (int i = 0; i < 4; ++i) {
         // Get vertex coordinates ordered relative to vertex i
         vec3 x0 = coordinates[i];
-        vec3 x1 = get_at(coordinates, faces[i][0]);
-        vec3 x2 = get_at(coordinates, faces[i][1]);
-        vec3 x3 = get_at(coordinates, faces[i][2]);
+        vec3 x1 = getitem(coordinates, faces[i][0]);
+        vec3 x2 = getitem(coordinates, faces[i][1]);
+        vec3 x3 = getitem(coordinates, faces[i][2]);
 
         // Compute the normal vector of the tetrahedon face opposing vertex i
         vec3 edge_a = x2 - x1;
@@ -367,10 +369,10 @@ void main()
     // such that n computed below will point away from local_vertices[0]
 
     // Get vertex coordinates ordered relative to the current vertex
-    vec3 x0 = get_at(coordinates, local_vertices[0]);
-    vec3 x1 = get_at(coordinates, local_vertices[1]);
-    vec3 x2 = get_at(coordinates, local_vertices[2]);
-    vec3 x3 = get_at(coordinates, local_vertices[3]);
+    vec3 x0 = getitem(coordinates, local_vertices[0]);
+    vec3 x1 = getitem(coordinates, local_vertices[1]);
+    vec3 x2 = getitem(coordinates, local_vertices[2]);
+    vec3 x3 = getitem(coordinates, local_vertices[3]);
 
     // Compute the normal vector of the tetrahedon face opposing this vertex
     vec3 edge_a = x2 - x1;

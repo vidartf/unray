@@ -9,8 +9,9 @@
 
 
 // Using webpack-glsl-loader to copy in shared code
-@import ./inverse;
-@import ./utils;
+@import ./utils/inverse;
+@import ./utils/getitem;
+@import ./utils/sorted;
 @import ./vicp-lib;
 
 
@@ -448,6 +449,25 @@ void main()
     vec4 sbc = sorted(v_barycentric_coordinates);
     // sbc[0] is always 0 on face
 //#endif
+
+
+    // TODO: Untested draft:
+#ifdef ENABLE_FACET_INDICATORS
+    // TODO: Use texture lookup to find color and .a=0|1 discard status
+    // ivec4 facet_indicators = ivec4(v_facet_indicators);
+    ivec4 facet_indicators = ivec4(0, 1, 0, 1);
+    int facet_indicator_value = 0;
+
+    float eps = 1e-2;  // TODO: Configurable tolerance
+    for (int i = 0; i < 4; ++i) {
+        if (v_barycentric_coordinates[i] < eps) {
+            if (facet_indicators[i] == facet_indicator_value) {
+                discard;
+            }
+        }
+    }
+#endif
+
 
     bool on_interior = true;
 
