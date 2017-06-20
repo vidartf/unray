@@ -12,6 +12,7 @@
 @import ./utils/inverse;
 @import ./utils/getitem;
 @import ./utils/sorted;
+@import ./utils/depth;
 @import ./vicp-lib;
 
 
@@ -36,6 +37,10 @@ uniform vec3 cameraPosition;
 #define ENABLE_DEPTH 1
 #endif
 
+#ifdef ENABLE_WIREFRAME
+#define ENABLE_BARYCENTRIC_COORDINATES 1
+#endif
+
 #ifdef ENABLE_EMISSION_BACK
 #define ENABLE_EMISSION 1
 #define ENABLE_DEPTH 1
@@ -52,6 +57,10 @@ uniform vec3 cameraPosition;
 #endif
 
 #ifdef ENABLE_EMISSION
+#endif
+
+#ifdef ENABLE_DEPTH
+#define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
 
@@ -94,14 +103,18 @@ uniform sampler2D t_emission_lut;
 // Varyings
 varying vec3 v_model_position;
 
+
+#ifdef ENABLE_BARYCENTRIC_COORDINATES
 varying vec4 v_barycentric_coordinates;
+#endif
 
 // #ifdef ENABLE_CELL_INDICATORS
 // varying float v_cell_indicator;                // want int or float, webgl2 required for flat keyword
 // #endif
 
 #ifdef ENABLE_DEPTH
-varying float v_max_edge_length;         // webgl2 required for flat keyword
+varying float v_max_depth;               // webgl2 required for flat keyword
+varying vec4 v_facing;                   // webgl2 required for flat keyword
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
 varying mat4 v_planes;                   // webgl2 required for flat keyword
 #else
@@ -159,6 +172,7 @@ void main()
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
     vec4 ray_lengths;
     for (int i = 0; i < 4; ++i) {
+        // if (v_facing[i] < 0.0) { // TODO: Don't need to compute this unless v_facing[i] < 0.0
         vec3 n = v_planes[i].xyz;
         float p = v_planes[i].w;
         ray_lengths[i] = (p - dot(n, position)) / dot(n, view_direction);
@@ -176,7 +190,8 @@ void main()
 #else
     vec4 ray_lengths = v_ray_lengths;
 #endif
-    float depth = smallest_positive(ray_lengths, v_max_edge_length);
+    // TODO: Don't need bc anymore here
+    float depth = compute_depth(v_barycentric_coordinates, ray_lengths, v_facing, v_max_depth);
 #endif
 
 
@@ -249,7 +264,7 @@ void main()
 
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
     // Scaling depth to [0,1], deepest is black, shallow is white
-    vec3 C = vec3(1.0 - depth/v_max_edge_length);
+    vec3 C = vec3(1.0 - depth/v_max_depth);
 
     // Always opaque
     float a = 1.0;
@@ -434,21 +449,18 @@ void main()
 
 
     // Debugging / development of barycentric coordinate wireframe
-#ifdef ENABLE_SURFACE_MODEL
+#ifdef ENABLE_WIREFRAME
+    vec4 sbc = sorted(v_barycentric_coordinates);
+    // sbc[0] is always 0 on face
 
     // TODO: Uniform parameters:
-    vec3 u_vertex_color = vec3(0.0, 0.0, 0.0);
-    float u_vertex_size = 0.05;
+    // vec3 u_vertex_color = vec3(0.0, 0.0, 0.0);
+    // float u_vertex_size = 0.05;
 
     vec3 u_edge_color = vec3(0.0, 0.0, 0.0);
     float u_edge_size = 0.05;
 
-    bool u_discard_face_interior = false;
-
-//#ifdef ENABLE_BARYCENTRIC_COORDINATES
-    vec4 sbc = sorted(v_barycentric_coordinates);
-    // sbc[0] is always 0 on face
-//#endif
+    // bool u_discard_face_interior = false;
 
 
     // TODO: Untested draft:
@@ -469,7 +481,7 @@ void main()
 #endif
 
 
-    bool on_interior = true;
+    // bool on_interior = true;
 
 //#ifdef ENABLE_EDGE_SHADING
     // sbc[2] + sbc[3] ~= 1 along edge
@@ -482,27 +494,27 @@ void main()
         //       Can we use that to implement edge indicators?
         // C = u_edge_color;
         C = mix(u_edge_color, C, edge_distance_squared / edge_radius_squared);
-        on_interior = false;
+        // on_interior = false;
     }
 //#endif
 
-//#ifdef ENABLE_VERTEX_SHADING
-    // sbc[3] ~= 1 when close to vertex
-    float vertex_distance_squared = sbc[1]*sbc[1] + sbc[2]*sbc[2];
-    float vertex_radius_squared = u_vertex_size * u_vertex_size;
-    bool on_vertex = vertex_distance_squared < vertex_radius_squared;
-    if (on_vertex) {
-        // C = u_vertex_color;
-        C = mix(u_vertex_color, C, vertex_distance_squared / vertex_radius_squared);
-        on_interior = false;
-    }
-//#endif
+// //#ifdef ENABLE_VERTEX_SHADING
+//     // sbc[3] ~= 1 when close to vertex
+//     float vertex_distance_squared = sbc[1]*sbc[1] + sbc[2]*sbc[2];
+//     float vertex_radius_squared = u_vertex_size * u_vertex_size;
+//     bool on_vertex = vertex_distance_squared < vertex_radius_squared;
+//     if (on_vertex) {
+//         // C = u_vertex_color;
+//         C = mix(u_vertex_color, C, vertex_distance_squared / vertex_radius_squared);
+//         on_interior = false;
+//     }
+// //#endif
 
-//#ifdef ENABLE_SURFACE_INTERIOR_DISCARD
-    if (u_discard_face_interior && on_interior) {
-        discard;
-    }
-//#endif
+// //#ifdef ENABLE_SURFACE_INTERIOR_DISCARD
+//     if (u_discard_face_interior && on_interior) {
+//         discard;
+//     }
+// //#endif
 
     // Otherwise keep computed color C.
     // TODO: Cheaper to don't compute C first if it's to be discarded,
@@ -523,6 +535,90 @@ void main()
     // C = u_constant_color;
     // C = vec3(0.0, 0.0, 1.0);
 
+
+    // Debugging
+    // if (depth > 0.3 * v_max_depth) {
+    // if (depth > v_max_depth * (1.0 + 1e-6)) {
+    //     C.r = 1.0;
+    //     // C.b = 0.0;
+    // // } else if (depth < 0.1 * v_max_depth) {
+    // //     C.r = 0.0;
+    // //     C.b = 1.0;
+    // } else {
+    //     C.r = 0.0;
+    //     // C.b = 0.0;
+    // }
+
+    // Debugging
+    // a = 1.0;
+    // vec4 q = 0.5 * (vec4(1.0) + v_facing);
+    // vec3 r = vec3(1.0, 0.0, 0.0);
+    // vec3 g = vec3(0.0, 1.0, 0.0);
+    // vec3 b = vec3(0.0, 0.0, 1.0);
+    // vec3 y = vec3(0.0, 1.0, 1.0);
+    // C = vec3(0.0);
+    // // C = vec3(max(v_facing), length(v_facing + abs(v_facing)) / 4.0, min(v_facing));
+    // // q[i] = 0 if facing[i] = -1,  q[i] = 1 if facing[i] = +1,  length(q) == sqrt(number of +1 faces)
+    // float q2 = length(q)*length(q);  // number of +1 faces
+    // q2 = 4.0 - q2; // now q2 = number of -1 faces
+    // // looks like -1 faces point toward camera
+    // if (q2 < 0.1)
+    //     C = vec3(0);
+    // else if (q2 < 1.1)
+    //     C = r;
+    // else if (q2 < 2.1)
+    //     C = g;
+    // else if (q2 < 3.1)
+    //     C = b;
+    // else
+    //     C = vec3(1.0);
+
+    // C += maxv(q) * r;
+    // C += minv(q) * b;
+    // C += length(q) / 3.0 * g;
+    // C.r = length(v_facing + abs(v_facing)) / 2.0;
+
+    // C = 0.5 * (q.r * r + q.g * g + q.b * b + q.a * y);
+    // C = vec3(1.0, 0.0, 0.0);
+    // C = vec3(0.0, 0.0, 0.0);
+
+    // Debugging
+    // a = 1.0;
+    // C = vec3(0.0);
+
+    // C.r = 1.0;
+    // for (int i = 0; i < 4; ++i) {
+    //     if (v_facing[i] < 0.0 && ray_lengths[i] > 0.0) {
+    //         C.r = min(C.r, ray_lengths[i] / v_max_depth);
+    //     }
+    // }
+
+    // float tmp = 1.0;
+    // for (int i = 0; i < 4; ++i) {
+    //     // With v_facing[i] < 0.0,  i is a backface, but ray_lengths can still be negative
+    //     // if (v_facing[i] < 0.0 && ray_lengths[i] < 0.0) {
+    //     //     C.r = 1.0;
+    //     // }
+
+    //     // if (v_facing[i] < 0.0 && ray_lengths[i] > 0.0) {
+    //     //     C.b += 0.33;
+    //     // }
+    //     // if (v_facing[i] < 0.0 && ray_lengths[i] > v_max_depth) {
+    //     //     C.r += 0.33;
+    //     // }
+    //     if (v_facing[i] < 0.0 && ray_lengths[i] < 0.0) {
+    //         C.g += 0.33;
+    //     }
+    //     // With  v_facing[i] > 0.0,  ray_lengths[i] is noisy around 0,  naturally.
+    //     // if (v_facing[i] > 0.0 && ray_lengths[i] < 0.0) {
+    //     //     C.g = 1.0;
+    //     // }
+    //     // if (v_facing[i] > 0.0 && ray_lengths[i] > 1e-2*v_max_depth) {
+    //     //     // tmp = 1.0;
+    //     //     C.g = 1.0;
+    //     // }
+    // }
+    // C *= tmp;
 
     // Record result. Note that this will fail to compile
     // if C and a are not defined correctly above, providing a

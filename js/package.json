@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "build": "webpack",
-    "watch": "onchange 'package.json' 'src/*.js' 'src/glsl/*.glsl' -v -- npm run build",
+    "watch": "onchange 'package.json' 'src/*.js' 'src/glsl/*.glsl' 'src/glsl/utils/*.glsl' -v -- npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {

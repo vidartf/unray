@@ -11,6 +11,7 @@
 // Using webpack-glsl-loader to copy in shared code
 @import ./utils/inverse;
 @import ./utils/getitem;
+@import ./utils/minmax;
 @import ./vicp-lib;
 
 
@@ -46,6 +47,10 @@ uniform vec3 cameraPosition;
 #define ENABLE_DEPTH 1
 #endif
 
+#ifdef ENABLE_SURFACE_MODEL
+#define ENABLE_BARYCENTRIC_COORDINATES 1
+#endif
+
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
 #define ENABLE_DEPTH 1
 #endif
@@ -74,6 +79,7 @@ uniform vec3 cameraPosition;
 
 #ifdef ENABLE_DEPTH
 #define ENABLE_COORDINATES 1
+#define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
 #ifdef ENABLE_DENSITY
@@ -163,14 +169,17 @@ attribute float c_cell_indicators;               // webgl2 required for int attr
 // Note: Not position of the model but vertex coordinate in model space
 varying vec3 v_model_position;
 
+#ifdef ENABLE_BARYCENTRIC_COORDINATES
 varying vec4 v_barycentric_coordinates;
+#endif
 
 // #ifdef ENABLE_CELL_INDICATORS
 // varying float v_cell_indicator;           // want int or bool, webgl2 required for flat keyword
 // #endif
 
 #ifdef ENABLE_DEPTH
-varying float v_max_edge_length;         // webgl2 required for flat keyword
+varying float v_max_depth;               // webgl2 required for flat keyword
+varying vec4 v_facing;                   // webgl2 required for flat keyword
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
 varying mat4 v_planes;                   // webgl2 required for flat keyword
 #else
@@ -203,8 +212,12 @@ void main()
     // 0...3 on the current tetrahedron instance
     int local_vertex_id = local_vertices[0];
 
+
+#ifdef ENABLE_BARYCENTRIC_COORDINATES
     // Interpolate barycentric coordinate on local tetrahedron over fragment
     v_barycentric_coordinates = a_barycentric_coordinates;
+#endif
+
 
 #ifdef ENABLE_CELL_UV
     // Index of the current tetrahedron instance
@@ -320,18 +333,33 @@ void main()
 #endif
 
 
+#ifdef ENABLE_DEPTH
+    // Compute upper bound on depth of cell
+    float edge_lengths[6];
+    edge_lengths[0] = distance(coordinates[0], coordinates[1]);
+    edge_lengths[1] = distance(coordinates[0], coordinates[2]);
+    edge_lengths[2] = distance(coordinates[0], coordinates[3]);
+    edge_lengths[3] = distance(coordinates[1], coordinates[2]);
+    edge_lengths[4] = distance(coordinates[1], coordinates[3]);
+    edge_lengths[5] = distance(coordinates[2], coordinates[3]);
+    v_max_depth = max(
+        max(edge_lengths[0], edge_lengths[1]),
+        max(max(edge_lengths[2], edge_lengths[3]),
+            max(edge_lengths[4], edge_lengths[5]))
+    );
+
+    // This didn't quite work out, revisit for bugs if optimization seems worthwhile:
+    // vec4 depth_bounds;
+    // for (int i = 0; i < 4; ++i) {
+    //     depth_bounds[i] = distance(coordinates[i], cameraPosition);
+    // }
+    // float max_dist = maxv(depth_bounds);
+    // float min_dist = minv(depth_bounds);
+    // v_max_depth = sqrt(max_dist*max_dist - min_dist*min_dist);
+#endif
+
 
 #ifdef ENABLE_DEPTH
-    // Compute longest edge on cell
-    // TODO: Can be speed up considerably
-    // TODO: v_max_edge_length can be precomputed
-    float max_edge_length = 0.0;
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            max_edge_length = max(max_edge_length, distance(coordinates[i], coordinates[j]));
-        }
-    }
-    v_max_edge_length = max_edge_length;
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
     // TODO: v_planes can be precomputed
     // Note: This can be done in a separate preprocessing step,
@@ -348,6 +376,7 @@ void main()
 
     for (int i = 0; i < 4; ++i) {
         // Get vertex coordinates ordered relative to vertex i
+        // vec3 x[4] = reorder(coordinates, faces[i]);  // TODO: Possibly easier for compiler to optimize something like this
         vec3 x0 = coordinates[i];
         vec3 x1 = getitem(coordinates, faces[i][0]);
         vec3 x2 = getitem(coordinates, faces[i][1]);
@@ -359,9 +388,24 @@ void main()
         vec3 n = normalize(cross(edge_a, edge_b));
 
         // Store normal vector and plane equation coefficient for this face
-        v_planes[i] = vec4(n, dot(n, x1));
+        float offset = dot(n, x1);
+        v_planes[i] = vec4(n, offset);
+
+        // Store +1 for front facing, -1 for back facing (and 0 for the rest)
+        // Rays always enter through front faces and exit through back faces.
+        // TODO: Robustness around 0? If this becomes 1 on one face and -1 on another, that can be a problem.
+        float camera_offset = dot(n, cameraPosition);
+        // v_facing[i] = sign(camera_offset - offset);
+        // v_facing[i] = camera_offset - offset < 0.0 ? -1.0 : +1.0;
+        // v_facing[i] = dot(n, cameraPosition - x1) < 0.0 ? -1.0 : +1.0;
+        v_facing[i] = camera_offset - offset <= 1e-3*(abs(camera_offset) + abs(offset)) ? -1.0 : +1.0;
+        // v_facing[i] *= -1.0;
+        // camera_offset < offset ? -1
     }
+
 #else
+    // FIXME: This doesn't set v_facing and hasn't been tested in a little while
+
     vec3 view_direction = u_view_direction;
 
     // The vertex attribute local_vertices[1..3] is carefully
@@ -369,6 +413,7 @@ void main()
     // such that n computed below will point away from local_vertices[0]
 
     // Get vertex coordinates ordered relative to the current vertex
+    // vec3 x[4] = reorder(coordinates, local_vertices);  // TODO: Possibly easier for compiler to optimize something like this
     vec3 x0 = getitem(coordinates, local_vertices[0]);
     vec3 x1 = getitem(coordinates, local_vertices[1]);
     vec3 x2 = getitem(coordinates, local_vertices[2]);

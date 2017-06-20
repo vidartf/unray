@@ -93,6 +93,7 @@ const method_properties = {
             ENABLE_EMISSION: 1,
             // TODO: decide on meaning of indicator values
             ENABLE_CELL_INDICATORS: 1, // TODO: Set this if the encoding channel has data
+            ENABLE_WIREFRAME: 1,
         }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
@@ -211,7 +212,8 @@ const method_properties = {
         fragment_shader: shader_sources.fragment,
         channels: default_channels,
         default_encoding: default_encoding,
-    },    max2: {
+    },
+    max2: {
         sorted: false,
         transparent: true,
         depth_test: false,
@@ -362,7 +364,7 @@ const method_properties = {
         depth_write: false,
 
         // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
+        background: new THREE.Color(0.95, 0.95, 0.95),
 
         side: THREE.FrontSide,
 
