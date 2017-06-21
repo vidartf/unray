@@ -108,8 +108,7 @@ uniform vec3 u_view_direction;
 
 
 // Input data uniforms
-// uniform vec3 u_constant_color;
-// uniform float u_particle_area;
+
 #ifdef ENABLE_CELL_INDICATORS
 uniform int u_cell_indicator_value;
 #endif

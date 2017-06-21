@@ -689,7 +689,9 @@ class TetrahedralMeshRenderer
             // with default value set in the default encoding)
             u_cell_indicator_value: { value: 1 },
             u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
-            u_isorange: { value: new THREE.Vector2(0.2, 0.8) },
+            u_wireframe_color: { value: new THREE.Color(0, 0, 0) },
+            u_wireframe_size: { value: 0.01 },
+            u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
             u_particle_area: { value: 1.0 },
             // Input data ranges (u_foo_range is updated in upload() based on encoding.foo.range attribute)
             // The 4 values are: [min, max, max-min, 1.0/(max-min) or 1]
@@ -865,7 +867,8 @@ class TetrahedralMeshRenderer
         // Apply method #defines to shaders
         material.defines = mp.defines;
 
-        //material.extensions = {};
+        // Some extensions need to be explicitly enabled
+        material.extensions.derivatives = true;
 
         return material;
     }

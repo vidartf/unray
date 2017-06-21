@@ -7,6 +7,8 @@
 // precision highp sampler2D;
 // precision highp usampler2D;
 
+// Added by three.js:
+// #extension GL_OES_standard_derivatives : enable
 
 // Using webpack-glsl-loader to copy in shared code
 @import ./utils/inverse;
@@ -78,8 +80,20 @@ uniform vec3 u_view_direction;
 
 // Input data uniforms
 uniform vec3 u_constant_color;
+
+#ifdef ENABLE_WIREFRAME
+uniform vec3 u_wireframe_color;
+uniform float u_wireframe_size;
+#endif
+
+#ifdef ENABLE_ISOSURFACE_MODEL
 uniform vec2 u_isorange;
+#endif
+
+#if defined(ENABLE_XRAY_MODEL) || defined(ENABLE_VOLUME_MODEL)
 uniform float u_particle_area;
+#endif
+
 // #ifdef ENABLE_CELL_INDICATORS
 // uniform int u_cell_indicator_value;
 // #endif
@@ -448,19 +462,27 @@ void main()
 #endif
 
 
-    // Debugging / development of barycentric coordinate wireframe
 #ifdef ENABLE_WIREFRAME
-    vec4 sbc = sorted(v_barycentric_coordinates);
-    // sbc[0] is always 0 on face
+    // Compute a measure of closeness to edge in [0, 1],
+    // using partial derivatives of barycentric coordinates
+    // in window space to ensure edge size is large enough
+    // for far away edges.
+    vec4 bc_x = dFdx(v_barycentric_coordinates);
+    vec4 bc_y = dFdy(v_barycentric_coordinates);
+    vec4 bc_l1 = max(abs(bc_x), abs(bc_y));
+    vec4 edge_closeness = smoothstep(vec4(0.0), max(bc_l1, u_wireframe_size), v_barycentric_coordinates);
 
-    // TODO: Uniform parameters:
-    // vec3 u_vertex_color = vec3(0.0, 0.0, 0.0);
-    // float u_vertex_size = 0.05;
+    // Pick the second smallest edge closeness and square it
+    vec4 sorted_edge_closeness = sorted(edge_closeness);
+    float edge_factor = abs(sorted_edge_closeness[0]) + abs(sorted_edge_closeness[1]);
 
-    vec3 u_edge_color = vec3(0.0, 0.0, 0.0);
-    float u_edge_size = 0.05;
+    // Mix edge color into background
+    C = mix(u_wireframe_color, C, edge_factor * edge_factor);
 
-    // bool u_discard_face_interior = false;
+    // Otherwise keep computed color C.
+    // TODO: Cheaper to don't compute C first if it's to be discarded,
+    //       setup ifdefs to make that part flow right
+#endif
 
 
     // TODO: Untested draft:
@@ -478,47 +500,6 @@ void main()
             }
         }
     }
-#endif
-
-
-    // bool on_interior = true;
-
-//#ifdef ENABLE_EDGE_SHADING
-    // sbc[2] + sbc[3] ~= 1 along edge
-    float edge_distance_squared = sbc[1]*sbc[1];
-    float edge_radius_squared = u_edge_size * u_edge_size;
-    bool on_edge = edge_distance_squared < edge_radius_squared;
-    if (on_edge) {
-        // TODO: If sorted() can return indices (say vec4 sbc_index) into the original vector,
-        //       I think sbc_index[2] and sbc_index[3] would be the vertices of the edge?
-        //       Can we use that to implement edge indicators?
-        // C = u_edge_color;
-        C = mix(u_edge_color, C, edge_distance_squared / edge_radius_squared);
-        // on_interior = false;
-    }
-//#endif
-
-// //#ifdef ENABLE_VERTEX_SHADING
-//     // sbc[3] ~= 1 when close to vertex
-//     float vertex_distance_squared = sbc[1]*sbc[1] + sbc[2]*sbc[2];
-//     float vertex_radius_squared = u_vertex_size * u_vertex_size;
-//     bool on_vertex = vertex_distance_squared < vertex_radius_squared;
-//     if (on_vertex) {
-//         // C = u_vertex_color;
-//         C = mix(u_vertex_color, C, vertex_distance_squared / vertex_radius_squared);
-//         on_interior = false;
-//     }
-// //#endif
-
-// //#ifdef ENABLE_SURFACE_INTERIOR_DISCARD
-//     if (u_discard_face_interior && on_interior) {
-//         discard;
-//     }
-// //#endif
-
-    // Otherwise keep computed color C.
-    // TODO: Cheaper to don't compute C first if it's to be discarded,
-    //       setup ifdefs to make that part flow right
 #endif
 
 
