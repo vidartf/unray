@@ -177,34 +177,6 @@ const method_properties = {
         defines: _.extend({}, default_defines, {
             ENABLE_ISOSURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
-        }),
-
-        vertex_shader: shader_sources.vertex,
-        fragment_shader: shader_sources.fragment,
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    isosurface2: {
-        sorted: false,
-        transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
-
-        // Cells are oriented such that the front side
-        // should be visible, can safely cull the backside
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        blend_src: THREE.SrcAlphaFactor,
-        blend_dst: THREE.OneMinusSrcAlphaFactor,
-
-        defines: _.extend({}, default_defines, {
-            ENABLE_ISOSURFACE_MODEL: 1,
-            ENABLE_EMISSION: 1,
             ENABLE_EMISSION_BACK: 1,
         }),
 

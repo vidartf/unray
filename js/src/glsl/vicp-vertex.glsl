@@ -366,6 +366,7 @@ void main()
     // computing v_planes once for each cell and storing it as
     // a cell texture or instanced buffer attribute.
     // With webgl2 it could be done using vertex transform feedbacks.
+    // This will require 4*4*4=64 bytes per cell for v_planes alone.
 
     // Ccw oriented faces
     ivec3 faces[4];
@@ -388,23 +389,31 @@ void main()
         vec3 n = normalize(cross(edge_a, edge_b));
 
         // Store normal vector and plane equation coefficient for this face
-        float offset = dot(n, x1);
-        v_planes[i] = vec4(n, offset);
+        float face_offset = dot(n, x1);  // Distance from face to origo along n
+        v_planes[i] = vec4(n, face_offset);
+
+        // Compute shortest signed distance from face plane to camera
+        // float face_to_camera_distance
+        //    = dot(n, cameraPosition - x1)
+        //    = dot(n, cameraPosition) - dot(n, x1)
+        //    = dot(v_planes[i].xyz, cameraPosition) - v_planes[i].w
+        //    = dot(n, cameraPosition) - plane_offset
+        float camera_offset = dot(n, cameraPosition);  // Distance from camera to origo along n
+        float face_to_camera_distance = camera_offset - face_offset;
+
+        // If this becomes +1 on one vertex and -1 on another,
+        // that can be a problem. So for robustness, we err on
+        // the -1 side and shift the distance by a small number.
+        face_to_camera_distance -= 1e-3 * (abs(camera_offset) + abs(face_offset));
 
         // Store +1 for front facing, -1 for back facing (and 0 for the rest)
         // Rays always enter through front faces and exit through back faces.
-        // TODO: Robustness around 0? If this becomes 1 on one face and -1 on another, that can be a problem.
-        float camera_offset = dot(n, cameraPosition);
-        // v_facing[i] = sign(camera_offset - offset);
-        // v_facing[i] = camera_offset - offset < 0.0 ? -1.0 : +1.0;
-        // v_facing[i] = dot(n, cameraPosition - x1) < 0.0 ? -1.0 : +1.0;
-        v_facing[i] = camera_offset - offset <= 1e-3*(abs(camera_offset) + abs(offset)) ? -1.0 : +1.0;
-        // v_facing[i] *= -1.0;
-        // camera_offset < offset ? -1
+        v_facing[i] = sign(face_to_camera_distance);
     }
 
 #else
-    // FIXME: This doesn't set v_facing and hasn't been tested in a little while
+    // FIXME: This doesn't set v_facing and hasn't been tested
+    // in a little while. To set v_facing, normals on all faces are needed?
 
     vec3 view_direction = u_view_direction;
 
@@ -440,9 +449,6 @@ void main()
     // triangle in the fragment shader.
     v_ray_lengths = with_nonzero_at(local_vertex_id, ray_length);
 
-    // TODO: Figure out if we can do perspective correct
-    // interpolation of ray lengths somehow, this approach
-    // is only correct for orthographic projection
 #endif
 #endif
 
@@ -452,39 +458,4 @@ void main()
 
     // Map model coordinate to clip space
     gl_Position = MVP * vec4(v_model_position, 1.0);
-
-    // TODO: Is this necessary or us perspective correct interpolation default in webgl?
-    // Adjust coordinate for perspective correct interpolation
-// #ifdef ENABLE_PERSPECTIVE_PROJECTION
-//     v_model_position /= gl_Position.w;
-// #endif
-
-    // Debugging: Ignore camera to check v_model_position
-    // gl_Position = vec4(v_model_position, 1.0);
-
-    // Debugging: Check that this_vertex_uv varies within [0,1]^2    
-    // gl_Position = vec4(this_vertex_uv, 0.0, 1.0);
-
-    // Debugging: Check that this_vertex_uv varies within [0,1]^2    
-    // gl_Position = vec4(2.0*this_vertex_uv - vec2(1.0), 0.0, 1.0);
-
-    // Debugging: Check that local_vertex_id varies 0...3
-    // gl_Position = vec4(
-    //     local_vertex_id == 1 ? 1.0 : 0.0,
-    //     local_vertex_id == 2 ? 1.0 : 0.0,
-    //     local_vertex_id == 3 ? 1.0 : 0.0,
-    //     1.0
-    // );
-
-    // Debugging: Check that local_vertex_id varies 0...3
-    // Placing vertices on a unit circle with angle = id * 90 degrees
-    // gl_Position = vec4(1.0);  // Should never hit the (1,1) corner
-    // if (local_vertex_id == 0)
-    //     gl_Position = vec4( 1.0, 0.0, 0.0, 1.0);
-    // if (local_vertex_id == 1)
-    //     gl_Position = vec4( 0.0, 1.0, 0.0, 1.0);
-    // if (local_vertex_id == 2)
-    //     gl_Position = vec4(-1.0, 0.0, 0.0, 1.0);
-    // if (local_vertex_id == 3)
-    //     gl_Position = vec4( 0.0,-1.0, 0.0, 1.0);
 }

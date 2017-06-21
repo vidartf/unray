@@ -99,3 +99,24 @@ vec4 getitem(vec4 v[4], int i) {
     else if (i == 3)  return v[3];
     return vec4(0.0);
 }
+
+void reorder(out vec3 dst[4], vec3 src[4], ivec4 indices) {
+    for (int i = 0; i < 4; ++i) {
+        int j = indices[i];
+        if      (j == 0)  dst[i] = src[0];
+        else if (j == 1)  dst[i] = src[1];
+        else if (j == 2)  dst[i] = src[2];
+        else if (j == 3)  dst[i] = src[3];
+    }
+}
+
+void reorder2(out vec3 dst[4], vec3 src[4], ivec4 indices) {
+    for (int i = 0; i < 4; ++i) {
+        int j = indices[i];
+        if (j < 2) {
+            dst[i] = j == 0 ? src[0] : src[1];
+        } else {
+            dst[i] = j == 2 ? src[2] : src[3];
+        }
+    }
+}
