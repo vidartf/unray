@@ -336,7 +336,7 @@ const method_properties = {
         depth_write: false,
 
         // Must start with a white background
-        background: new THREE.Color(0.95, 0.95, 0.95),
+        background: new THREE.Color(1, 1, 1),
 
         side: THREE.FrontSide,
 

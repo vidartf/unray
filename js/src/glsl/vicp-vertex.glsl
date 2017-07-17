@@ -367,7 +367,8 @@ void main()
     // With webgl2 it could be done using vertex transform feedbacks.
     // This will require 4*4*4=64 bytes per cell for v_planes alone.
 
-    // Ccw oriented faces
+    // Ccw oriented faces, consistent independent
+    // of which vertex shader we're in
     ivec3 faces[4];
     faces[0] = ivec3(1, 2, 3);
     faces[1] = ivec3(0, 3, 2);
@@ -388,26 +389,64 @@ void main()
         vec3 n = normalize(cross(edge_a, edge_b));
 
         // Store normal vector and plane equation coefficient for this face
-        float face_offset = dot(n, x1);  // Distance from face to origo along n
-        v_planes[i] = vec4(n, face_offset);
+        // (plane equation coefficient is the distance from face to origo along n)
+        v_planes[i] = vec4(n, dot(n, x1));
 
-        // Compute shortest signed distance from face plane to camera
-        // float face_to_camera_distance
-        //    = dot(n, cameraPosition - x1)
-        //    = dot(n, cameraPosition) - dot(n, x1)
-        //    = dot(v_planes[i].xyz, cameraPosition) - v_planes[i].w
-        //    = dot(n, cameraPosition) - plane_offset
-        float camera_offset = dot(n, cameraPosition);  // Distance from camera to origo along n
-        float face_to_camera_distance = camera_offset - face_offset;
 
-        // If this becomes +1 on one vertex and -1 on another,
-        // that can be a problem. So for robustness, we err on
-        // the -1 side and shift the distance by a small number.
-        face_to_camera_distance -= 1e-3 * (abs(camera_offset) + abs(face_offset));
+        // Attempt to handle orthogonal faces robustly.
+        // If a face becomes positive on one vertex and negative on another,
+        // that can be a problem, as this value will be interpolated
+        // across the face (webgl version 1 has no flat interpolation).
+
+        // So for robustness, we err on the +1 side (frontface)
+        // and shift the distance by a small number.
+        // This means almost orthogonal backfaces are likely to become
+        // frontfaces and have their depths ignored.
+        // TODO: Make tolerance runtime configurable for testing
+
+        // Compute cos of angle between face normal and direction to camera
+        float cos_angle = dot(n, normalize(cameraPosition - x1));
+
+#define ENABLE_FACING_IS_COS_ANGLE 1
+#if ENABLE_FACING_IS_COS_ANGLE
+        // Pass on cos_angle and move the classification to the
+        // fragment shader where we can use barycentric coordinate
+        // derivatives to adjust tolerance in screen space
+        v_facing[i] = cos_angle;
+#else
+        float dist = cos_angle;
+
+        // NB! ||vertex_to_camera|| >= near plane distance
+        // cos_angle = -1 if face_to_camera_distance == -||vertex_to_camera||
+        // cos_angle = 0 if face_to_camera_distance == 0
+        // cos_angle = 1 if face_to_camera_distance == ||vertex_to_camera||
+        // face_to_camera_distance = ||vertex_to_camera||  ||n||  cos(theta)
 
         // Store +1 for front facing, -1 for back facing (and 0 for the rest)
         // Rays always enter through front faces and exit through back faces.
-        v_facing[i] = sign(face_to_camera_distance);
+        // float eps = 1e-8;
+        // if (cos_angle > eps) {
+        //     v_facing[i] = +1.0;
+        // } else if (cos_angle < -eps) {
+        //     v_facing[i] = -1.0;
+        // } else {
+        //     v_facing[i] = 0.0;
+        // }
+
+        // Classify tiny slivers as front facing,
+        // to be ignored in depth computations.
+        // Increasing eps will lead to larger edge artifacts.
+        // uniform float u_front_facing_eps;
+        // uniform float u_back_facing_eps;
+        float eps = 1e-6;  // TODO: Make this a uniform to control from notebook
+        if (cos_angle > -eps) {
+            v_facing[i] = +1.0;
+        } else if (cos_angle < eps) {
+            v_facing[i] = -1.0;
+        } else {
+            v_facing[i] = 0.0;
+        }
+#endif
     }
 
 #else
