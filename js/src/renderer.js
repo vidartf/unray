@@ -67,7 +67,7 @@ const default_defines = {
     // webgl1 because gl_InstanceID is not available
     ENABLE_CELL_ORDERING: 1,
 
-    // TODO: Make this a toggle
+    // TODO: Should be determined by camera, maybe use a uniform to toggle
     ENABLE_PERSPECTIVE_PROJECTION: 1,
 };
 
