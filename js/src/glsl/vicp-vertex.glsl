@@ -375,6 +375,13 @@ void main()
     faces[2] = ivec3(0, 1, 3);
     faces[3] = ivec3(0, 2, 1);
 
+    // TODO: Avoid recomputing this four times below
+    // vec3 vertex_to_camera[4];
+    // vertex_to_camera[0] = normalize(cameraPosition - coordinates[0]);
+    // vertex_to_camera[1] = normalize(cameraPosition - coordinates[1]);
+    // vertex_to_camera[2] = normalize(cameraPosition - coordinates[2]);
+    // vertex_to_camera[3] = normalize(cameraPosition - coordinates[3]);
+
     for (int i = 0; i < 4; ++i) {
         // Get vertex coordinates ordered relative to vertex i
         // vec3 x[4] = reorder(coordinates, faces[i]);  // TODO: Possibly easier for compiler to optimize something like this
@@ -404,18 +411,35 @@ void main()
         // frontfaces and have their depths ignored.
         // TODO: Make tolerance runtime configurable for testing
 
-        // Compute cos of angle between face normal and direction to camera
-        float cos_angle = dot(n, normalize(cameraPosition - x1));
+#if 1
+        // Err on the front facing side, but try to still keep
+        // backside slivers as backsides. Ideally this should
+        // match the opengl drivers decision to make the face
+        // front or back facing...
+        // TODO: Reuse vertex_to_camera[] here
+        // TODO: Probably a more efficient way exists.
+        // TODO: Find specs and see if there are any guarantees we can exploit?
 
-#define ENABLE_FACING_IS_COS_ANGLE 1
-#if ENABLE_FACING_IS_COS_ANGLE
+        // Compute cos of angle between face normal and direction to camera
+        vec3 cos_angles = vec3(
+            dot(n, normalize(cameraPosition - x1)),
+            dot(n, normalize(cameraPosition - x2)),
+            dot(n, normalize(cameraPosition - x3))
+        );
+
+        bool front_facing = any(greaterThanEqual(cos_angles, vec3(-1e-3)));  // -1e-5
+        v_facing[i] = front_facing ? +1.0 : -1.0;
+#else
+        // Compute cos of angle between face normal and direction to camera
+        // float cos_angle = dot(n, normalize(cameraPosition - x1));
+
+//#define ENABLE_FACING_IS_COS_ANGLE 1
+#ifdef ENABLE_FACING_IS_COS_ANGLE
         // Pass on cos_angle and move the classification to the
         // fragment shader where we can use barycentric coordinate
         // derivatives to adjust tolerance in screen space
         v_facing[i] = cos_angle;
 #else
-        float dist = cos_angle;
-
         // NB! ||vertex_to_camera|| >= near plane distance
         // cos_angle = -1 if face_to_camera_distance == -||vertex_to_camera||
         // cos_angle = 0 if face_to_camera_distance == 0
@@ -438,14 +462,21 @@ void main()
         // Increasing eps will lead to larger edge artifacts.
         // uniform float u_front_facing_eps;
         // uniform float u_back_facing_eps;
-        float eps = 1e-6;  // TODO: Make this a uniform to control from notebook
+        // Note: cos(theta) can be closely approximated with the linear function cos(theta) = 1 - 2 theta / pi
+        // theta = (1-eps) pi/2  =>  cos(theta) = eps
+        // TODO: Make this a uniform to control from notebook
+
+        // Too large eps will make vertices 
+        // With eps = 1e-7, vertices do not always agree on the side.
+        float eps = 1e-3;
         if (cos_angle > -eps) {
             v_facing[i] = +1.0;
-        } else if (cos_angle < eps) {
+        } else if (cos_angle < 0.0) {
             v_facing[i] = -1.0;
         } else {
             v_facing[i] = 0.0;
         }
+#endif
 #endif
     }
 

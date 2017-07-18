@@ -190,23 +190,45 @@ void main()
     // These variables estimate the screen space resolution
     // for each barycentric coordinate component, useful for
     // determining whether bc is "close to" 0.0 or 1.0
-    vec4 bc_x = dFdx(v_barycentric_coordinates);
-    vec4 bc_y = dFdy(v_barycentric_coordinates);
-    vec4 bc_l1 = max(abs(bc_x), abs(bc_y));
-    vec4 bc_min = min(abs(bc_x), abs(bc_y));
+    // vec4 bc_x = dFdx(v_barycentric_coordinates);
+    // vec4 bc_y = dFdy(v_barycentric_coordinates);
+    // vec4 bc_l1 = max(abs(bc_x), abs(bc_y));
+    vec4 bc_width = fwidth(v_barycentric_coordinates);
+    // vec4 bc_min = min(abs(bc_x), abs(bc_y));
+
 #endif
 
 
 #ifdef ENABLE_DEPTH
 
-#define ENABLE_FACING_IS_COS_ANGLE 1
-#if ENABLE_FACING_IS_COS_ANGLE
-    bvec4 is_back_face = lessThan(v_facing, vec4(0.0));
+// #define ENABLE_FACING_IS_COS_ANGLE 1
+#ifdef ENABLE_FACING_IS_COS_ANGLE
+    bvec4 is_back_face = lessThan(v_facing, vec4());
 #else
     bvec4 is_back_face = lessThan(v_facing, vec4(-0.5));
     // bvec4 is_orthogonal_face = lessThan(abs(v_facing), vec4(0.5));
 #endif
-    bvec4 is_on_face = lessThan(v_barycentric_coordinates, bc_min);
+
+    // Never accept negative ray lengths
+    // bvec4 is_on_face = bvec4(false);
+
+    // Accept negative ray lengths on backside edges, stricter resolution dependent check
+    bvec4 is_on_face = lessThanEqual(v_barycentric_coordinates, vec4(0.0));
+
+    // Accept negative ray lengths on backside edges, stricter resolution dependent check
+    // bvec4 is_on_face = lessThanEqual(v_barycentric_coordinates, 0.5*bc_width);
+
+    // Accept negative ray lengths on backside edges, resolution dependent check
+    // bvec4 is_on_face = lessThan(v_barycentric_coordinates, bc_width);
+
+// Case: is_back_face[i] && is_on_face[i] && !is_outside_face[i] && ray_lengths[i] < 0.0
+// facing = -1  i.e. not_any(greaterThanEqual(cos_angles, vec3(0.0)))
+// bc < bc_width
+// !(bc < 0)  i.e. bc >= 0
+// ray < 0
+// To avoid artifacts from this case, the only solution must
+// be to disregard it and get depth from another backface?
+
 
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
     vec4 ray_lengths = vec4(-1.0);
@@ -308,8 +330,13 @@ void main()
 
 
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
+    // This is primarily a debugging technique
+
     // Scaling depth to [0,1], deepest is black, shallow is white
-    vec3 C = vec3(1.0 - depth/v_max_depth);
+    // vec3 C = vec3(1.0 - depth/v_max_depth);
+
+    // Deepest is green, shallow is red
+    vec3 C = mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), depth/v_max_depth);
 
     // Always opaque
     float a = 1.0;
@@ -508,7 +535,7 @@ void main()
     // using partial derivatives of barycentric coordinates
     // in window space to ensure edge size is large enough
     // for far away edges.
-    vec4 edge_closeness = smoothstep(vec4(0.0), max(bc_l1, u_wireframe_size), v_barycentric_coordinates);
+    vec4 edge_closeness = smoothstep(vec4(0.0), max(bc_width, u_wireframe_size), v_barycentric_coordinates);
 
     // Pick the second smallest edge closeness and square it
     vec4 sorted_edge_closeness = sorted(edge_closeness);
@@ -659,41 +686,42 @@ void main()
 
     // bvec4 is_back_face
     // bvec4 is_on_face
-    // bvec4 is_outside_face = lessThan(v_barycentric_coordinates, vec4(0.0));  // TODO: Use this in depth computation
-    // for (int i = 0; i < 4; ++i) {
+    bvec4 is_outside_face = lessThan(v_barycentric_coordinates, vec4(0.0));  // TODO: Use this in depth computation
+    for (int i = 0; i < 4; ++i) {
 
-    //     // Select edges shared with a backface
-    //     if (is_back_face[i] && is_on_face[i]) {
-    //         // C = vec3(0.0);  a = 1.0;
+        // Select edges shared with a backface
+        if (is_back_face[i] && is_on_face[i]) {
+            // C = vec3(0.0);  a = 1.0;
 
-    //         // Edges outside the face happens all over
-    //         if (is_outside_face[i]) {
-    //             C.r = 1.0;
-    //             a = 1.0;
-    //         }
+            // Edges outside the face happens all over
+            // if (is_outside_face[i]) {
+            //     C.r = 1.0;
+            //     a = 1.0;
+            // }
 
-    //         // When outside the face, negative ray lengths occur routinely
-    //         // if (ray_lengths[i] < 0.0 && is_outside_face[i]) {
-    //         //     C.g = 1.0;
-    //         //     a = 1.0;
-    //         // }
+            // // When outside the face, negative ray lengths occur routinely
+            // if (ray_lengths[i] < 0.0 && is_outside_face[i]) {
+            //     C.r = 1.0;
+            //     a = 1.0;
+            // }
 
-    //         // In fact, when outside the face, non-negative ray lengths are unlikely (but do occur)
-    //         // if (ray_lengths[i] >= 0.0 && is_outside_face[i]) {
-    //         //     C.b = 1.0;
-    //         //     a = 1.0;
-    //         // }
+            // In fact, when outside the face, non-negative ray lengths are unlikely (but do occur)
+            // if (ray_lengths[i] >= 0.0 && is_outside_face[i]) {
+            //     C.b = 1.0;
+            //     a = 1.0;
+            // }
 
-    //         // When not outside the face, negative ray lengths also happens quite often
-    //         // if (ray_lengths[i] < 0.0 && !is_outside_face[i]) {
-    //         //     C.r = 1.0;
-    //         //     a = 1.0;
-    //         // }
+            // When not outside the face, negative ray lengths also happens quite often
+            // Could this be cases that should not be classified as backside?
+            if (ray_lengths[i] < 0.0 && !is_outside_face[i]) {
+                C.r = 1.0;
+                a = 1.0;
+            }
 
     //         // else { a = 0.0; }
     //         // NB! No case for non-negative ray length AND barycentric coordinate simultaneously.
-    //     }
-    // }
+        }
+    }
 
     // float tmp = 1.0;
     // for (int i = 0; i < 4; ++i) {

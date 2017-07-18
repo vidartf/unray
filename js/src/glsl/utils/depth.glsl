@@ -64,7 +64,7 @@ float compute_depth2(vec4 ray_lengths, bvec4 is_back_face, bvec4 on_face, float 
             // the currently rasterized front face, slightly negative
             // depths can be observed due to interpolation errors.
             // Allowing those, and clamping to a non-negative value below.
-            if (ray_lengths[i] > 0.0 || on_face[i]) {
+            if (ray_lengths[i] >= 0.0 || on_face[i]) {
                 depth = min(depth, ray_lengths[i]);
                 touched = true;
             }
