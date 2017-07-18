@@ -62,7 +62,7 @@ uniform vec3 cameraPosition;
 #endif
 
 #ifdef ENABLE_DEPTH
-#define ENABLE_BARYCENTRIC_DERIVATIVES 1
+#define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
 #ifdef ENABLE_BARYCENTRIC_DERIVATIVES
@@ -171,11 +171,8 @@ void main()
 // #endif
 
 
-// #ifdef ENABLE_PERSPECTIVE_PROJECTION
-//     vec3 position = v_model_position / gl_FragCoord.w;
-// #else
+    // Fragment position in model space
     vec3 position = v_model_position;
-// #endif
 
 
     // We need the view direction below
@@ -187,78 +184,51 @@ void main()
 
 
 #ifdef ENABLE_BARYCENTRIC_DERIVATIVES
-    // These variables estimate the screen space resolution
-    // for each barycentric coordinate component, useful for
-    // determining whether bc is "close to" 0.0 or 1.0
-    // vec4 bc_x = dFdx(v_barycentric_coordinates);
-    // vec4 bc_y = dFdy(v_barycentric_coordinates);
-    // vec4 bc_l1 = max(abs(bc_x), abs(bc_y));
+    // Estimate the resolution of the barycentric coordinate
+    // components in screen space, useful for determining
+    // robustly whether bc is "close to" 0.0 or 1.0
     vec4 bc_width = fwidth(v_barycentric_coordinates);
-    // vec4 bc_min = min(abs(bc_x), abs(bc_y));
-
 #endif
 
 
-#ifdef ENABLE_DEPTH
+#if defined(ENABLE_DEPTH) && defined(ENABLE_PERSPECTIVE_PROJECTION)
+    // Initialize to a too large value
+    float depth = 1000.0 * v_max_depth;
+    bool touched = false;
 
-// #define ENABLE_FACING_IS_COS_ANGLE 1
-#ifdef ENABLE_FACING_IS_COS_ANGLE
-    bvec4 is_back_face = lessThan(v_facing, vec4());
-#else
-    bvec4 is_back_face = lessThan(v_facing, vec4(-0.5));
-    // bvec4 is_orthogonal_face = lessThan(abs(v_facing), vec4(0.5));
-#endif
-
-    // Never accept negative ray lengths
-    // bvec4 is_on_face = bvec4(false);
-
-    // Accept negative ray lengths on backside edges, stricter resolution dependent check
-    bvec4 is_on_face = lessThanEqual(v_barycentric_coordinates, vec4(0.0));
-
-    // Accept negative ray lengths on backside edges, stricter resolution dependent check
-    // bvec4 is_on_face = lessThanEqual(v_barycentric_coordinates, 0.5*bc_width);
-
-    // Accept negative ray lengths on backside edges, resolution dependent check
-    // bvec4 is_on_face = lessThan(v_barycentric_coordinates, bc_width);
-
-// Case: is_back_face[i] && is_on_face[i] && !is_outside_face[i] && ray_lengths[i] < 0.0
-// facing = -1  i.e. not_any(greaterThanEqual(cos_angles, vec3(0.0)))
-// bc < bc_width
-// !(bc < 0)  i.e. bc >= 0
-// ray < 0
-// To avoid artifacts from this case, the only solution must
-// be to disregard it and get depth from another backface?
-
-
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-    vec4 ray_lengths = vec4(-1.0);
+    // Check all faces (we don't know which face we're on,
+    // but that's always a front face and will be skipped)
     for (int i = 0; i < 4; ++i) {
-        // Only need lengths for back faces
-        if (is_back_face[i]) {
+        // Only back faces can be exit points
+        if (v_facing[i] < 0.0) {
+            // Compute depth of ray from entry point to this face
             vec3 n = v_planes[i].xyz;
-            float p = v_planes[i].w;
-            ray_lengths[i] = (p - dot(n, position)) / dot(n, view_direction);
+            float ray_length = (v_planes[i].w - dot(n, position)) / dot(n, view_direction);
+
+            // A positive depth means an exit point by definition.
+            // However at the shared edge between a back face and
+            // the currently rasterized front face, slightly negative
+            // depths can be observed due to interpolation errors.
+            // Allowing those, and clamping to a non-negative value below.
+            if (ray_length >= 0.0 || v_barycentric_coordinates[i] <= 0.0) {
+                depth = min(depth, ray_length);
+                touched = true;
+            }
         }
     }
-    // for (int i = 0; i < 4; ++i) {
-    // {
-    //     // Check if exit point is inside tetrahedron
-    //     vec3 exit_point = position + ray_lengths[i] * view_direction;
-    //     for (int j = 0; j < 4; ++j) {
-    //         vec3 nj = v_planes[j].xyz;
-    //         float pj = v_planes[j].w;
-    //         if (pj - dot(nj, position) <= 1e-3) {
-    //             ray_lengths[i] = 0.0;
-    //         }
-    //     }
-    // }
-#else
-    vec4 ray_lengths = v_ray_lengths;
+    // Clamp depth and use zero if it wasn't touched
+    if (!touched) {
+        depth = 0.0;
+    }
+    depth = clamp(depth, 0.0, v_max_depth);
 #endif
 
-    // TODO: Clean up arguments depending on final solution
-    float depth = compute_depth2(ray_lengths, is_back_face, is_on_face, v_max_depth);
-    // float depth = compute_depth(ray_lengths, is_back_face, is_on_face, v_max_depth);
+
+#if defined(ENABLE_DEPTH) && !defined(ENABLE_PERSPECTIVE_PROJECTION)
+    // Find which faces are back faces
+    bvec4 is_back_face = lessThan(v_facing, vec4(-0.5));
+    vec4 ray_lengths = v_ray_lengths;
+    float depth = compute_depth(ray_lengths, v_barycentric_coordinates, is_back_face, v_max_depth);
 #endif
 
 
@@ -409,8 +379,8 @@ void main()
 #ifdef ENABLE_XRAY_MODEL
     #if defined(ENABLE_EMISSION)
     compile_error();  // Xray model does not accept emission, only density
-    #elif defined(ENABLE_DENSITY_UNIFORM)
-    float rho = u_density;  // TODO: Add this
+    #elif !defined(ENABLE_DENSITY)  // defined(ENABLE_DENSITY_UNIFORM)
+    float rho = 0.1; // u_density;  // TODO: Add this parameter
     #elif defined(ENABLE_DENSITY_INTEGRATED)
     // TODO: Preintegrated texture of integrated density from front to back value
     #elif defined(ENABLE_DENSITY_BACK) // TODO: Rename ENABLE_DENSITY_BACK -> ENABLE_DENSITY_LINEAR
@@ -423,33 +393,17 @@ void main()
     compile_error();  // Xray model needs density and density only
     #endif
 
-    // rho = 0.1; // DEBUGGING FIXME REMOVE TODO
+    float area = u_particle_area;
 
     // DEBUGGING: Add some oscillation to density
-    float area = u_particle_area;
-    // area *= (2.0 + u_oscillators[1]) / (3.0);
+    // area *= (2.0 + u_oscillators[1]) / 3.0;
 
     // Compute transparency (NB! this is 1-opacity)
-    float a = exp(-depth * area * rho);  // CHECKME
-    // a = clamp(a, 0.0, 1.0);
-
-
-    // a = 0.1; // depth / v_max_depth;  // TODO DEBUGGING FIXME
-
+    float a = exp(-depth * area * rho);
 
     // This must be zero for no emission to occur, i.e.
     // all color comes from the background and is attenuated by 1-a
-    vec3 C = vec3(0.0);  // CHECKME
-
-    // TODO: Test smallest_positive more
-    // C.rgb = v_ray_lengths.xyz;  // These are nonzero
-
-    // C.r = 0.0; // smallest_positive(vec4(0.0, 0.0, 0.0, 0.0));
-    // C.g = 1.0; // smallest_positive(vec4(1.0, 1.0, 1.0, 1.0));
-    // C.b = 1.0; // smallest_positive(vec4(-1.0, 0.0, 1.0, 0.0));
-
-    // C.r = smallest_positive(vec4(-1.0, 1.0, 0.0, 0.0));
-    // a = 0.0;
+    vec3 C = vec3(0.0);
 #endif
 
 
@@ -566,189 +520,6 @@ void main()
         }
     }
 #endif
-
-
-    // Debugging
-    // if (gl_FrontFacing) {
-    //     C.r = 0.0;
-    // } else {
-    //     C.r = 1.0;
-    // }
-
-    // DEBUGGING:
-    // a = 1.0;
-    // C = vec3(1.0);
-    // C = u_constant_color;
-    // C = vec3(0.0, 0.0, 1.0);
-
-
-    // Debugging
-    // if (depth > 0.3 * v_max_depth) {
-    // if (depth > v_max_depth * (1.0 + 1e-6)) {
-    //     C.r = 1.0;
-    //     // C.b = 0.0;
-    // // } else if (depth < 0.1 * v_max_depth) {
-    // //     C.r = 0.0;
-    // //     C.b = 1.0;
-    // } else {
-    //     C.r = 0.0;
-    //     // C.b = 0.0;
-    // }
-
-    // Debugging
-    // a = 1.0;
-    // vec4 q = 0.5 * (vec4(1.0) + v_facing);
-    // vec3 r = vec3(1.0, 0.0, 0.0);
-    // vec3 g = vec3(0.0, 1.0, 0.0);
-    // vec3 b = vec3(0.0, 0.0, 1.0);
-    // vec3 y = vec3(0.0, 1.0, 1.0);
-    // C = vec3(0.0);
-    // // C = vec3(max(v_facing), length(v_facing + abs(v_facing)) / 4.0, min(v_facing));
-    // // q[i] = 0 if facing[i] = -1,  q[i] = 1 if facing[i] = +1,  length(q) == sqrt(number of +1 faces)
-    // float q2 = length(q)*length(q);  // number of +1 faces
-    // q2 = 4.0 - q2; // now q2 = number of -1 faces
-    // // looks like -1 faces point toward camera
-    // if (q2 < 0.1)
-    //     C = vec3(0);
-    // else if (q2 < 1.1)
-    //     C = r;
-    // else if (q2 < 2.1)
-    //     C = g;
-    // else if (q2 < 3.1)
-    //     C = b;
-    // else
-    //     C = vec3(1.0);
-
-    // C += maxv(q) * r;
-    // C += minv(q) * b;
-    // C += length(q) / 3.0 * g;
-    // C.r = length(v_facing + abs(v_facing)) / 2.0;
-
-    // C = 0.5 * (q.r * r + q.g * g + q.b * b + q.a * y);
-    // C = vec3(1.0, 0.0, 0.0);
-    // C = vec3(0.0, 0.0, 0.0);
-
-    // Debugging
-    // a = 1.0;
-    // C = vec3(0.0);
-
-    // C.r = 1.0;
-    // for (int i = 0; i < 4; ++i) {
-    //     if (v_facing[i] < 0.0 && ray_lengths[i] > 0.0) {
-    //         C.r = min(C.r, ray_lengths[i] / v_max_depth);
-    //     }
-    // }
-
-    // Highlight edges shared with a backface where ray length is negative
-    // for (int i = 0; i < 4; ++i) {
-    //     // if (is_back_face[i] && is_on_face[i] && ray_lengths[i] < 0.0) {
-    //     if (is_back_face[i] && is_on_face[i]) {
-    //         C.r = 1.0;
-    //     }
-    // }
-
-
-    // Highlight edges // TODO: Can probably adjust this with smoothstep as wireframe 
-    // int face_count = 0;
-    // for (int i = 0; i < 4; ++i) {
-    //     if (is_on_face[i]) {
-    //         ++face_count;
-    //     }
-    // }
-    // if (face_count > 1) {
-    //     C = vec3(1.0);
-    //     a = 1.0;
-    // }
-
-
-    // Highlight backface edges
-    // bool red = false;
-    // for (int i = 0; i < 4; ++i) {
-    //     if (is_back_face[i] && is_on_face[i]) {
-    //         red = true;
-    //         break;
-    //     }
-    // }
-    // if (red) { C.r = 1.0; } else { C.b = 1.0; }
-
-
-    // Highlight edges shared with a backface where ray length is negative
-    // for (int i = 0; i < 4; ++i) {
-    //     if (is_orthogonal_face[i] && is_on_face[i]) {
-    //         if (ray_lengths[i] < 0.0) {
-    //             C.r = 1.0;
-    //         } else {
-    //             C.g = 1.0;
-    //         }
-    //         a = 1.0;
-    //     }
-    // }
-
-    // bvec4 is_back_face
-    // bvec4 is_on_face
-    bvec4 is_outside_face = lessThan(v_barycentric_coordinates, vec4(0.0));  // TODO: Use this in depth computation
-    for (int i = 0; i < 4; ++i) {
-
-        // Select edges shared with a backface
-        if (is_back_face[i] && is_on_face[i]) {
-            // C = vec3(0.0);  a = 1.0;
-
-            // Edges outside the face happens all over
-            // if (is_outside_face[i]) {
-            //     C.r = 1.0;
-            //     a = 1.0;
-            // }
-
-            // // When outside the face, negative ray lengths occur routinely
-            // if (ray_lengths[i] < 0.0 && is_outside_face[i]) {
-            //     C.r = 1.0;
-            //     a = 1.0;
-            // }
-
-            // In fact, when outside the face, non-negative ray lengths are unlikely (but do occur)
-            // if (ray_lengths[i] >= 0.0 && is_outside_face[i]) {
-            //     C.b = 1.0;
-            //     a = 1.0;
-            // }
-
-            // When not outside the face, negative ray lengths also happens quite often
-            // Could this be cases that should not be classified as backside?
-            if (ray_lengths[i] < 0.0 && !is_outside_face[i]) {
-                C.r = 1.0;
-                a = 1.0;
-            }
-
-    //         // else { a = 0.0; }
-    //         // NB! No case for non-negative ray length AND barycentric coordinate simultaneously.
-        }
-    }
-
-    // float tmp = 1.0;
-    // for (int i = 0; i < 4; ++i) {
-        // With v_facing[i] < 0.0,  i is a backface, but ray_lengths can still be negative
-        // if (v_facing[i] < 0.0 && ray_lengths[i] < 0.0) {
-        //     C.r = 1.0;
-        // }
-
-        // if (v_facing[i] < 0.0 && ray_lengths[i] > 0.0) {
-        //     C.b += 0.33;
-        // }
-        // if (v_facing[i] < 0.0 && ray_lengths[i] > v_max_depth) {
-        //     C.r += 0.33;
-        // }
-        // if (v_facing[i] < 0.0 && ray_lengths[i] < 0.0) {
-        //     C.g += 0.33;
-        // }
-        // With  v_facing[i] > 0.0,  ray_lengths[i] is noisy around 0,  naturally.
-        // if (v_facing[i] > 0.0 && ray_lengths[i] < 0.0) {
-        //     C.g = 1.0;
-        // }
-        // if (v_facing[i] > 0.0 && ray_lengths[i] > 1e-2*v_max_depth) {
-        //     // tmp = 1.0;
-        //     C.g = 1.0;
-        // }
-    // }
-    // C *= tmp;
 
     // Record result. Note that this will fail to compile
     // if C and a are not defined correctly above, providing a

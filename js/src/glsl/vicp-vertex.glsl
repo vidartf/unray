@@ -333,33 +333,24 @@ void main()
 
 
 #ifdef ENABLE_DEPTH
-    // Compute upper bound on depth of cell
-    float edge_lengths[6];
-    edge_lengths[0] = distance(coordinates[0], coordinates[1]);
-    edge_lengths[1] = distance(coordinates[0], coordinates[2]);
-    edge_lengths[2] = distance(coordinates[0], coordinates[3]);
-    edge_lengths[3] = distance(coordinates[1], coordinates[2]);
-    edge_lengths[4] = distance(coordinates[1], coordinates[3]);
-    edge_lengths[5] = distance(coordinates[2], coordinates[3]);
-    v_max_depth = max(
-        max(edge_lengths[0], edge_lengths[1]),
-        max(max(edge_lengths[2], edge_lengths[3]),
-            max(edge_lengths[4], edge_lengths[5]))
-    );
+    // Compute all unique edges
+    vec3 edge[6];
+    edge[0] = coordinates[1] - coordinates[0];
+    edge[1] = coordinates[2] - coordinates[0];
+    edge[2] = coordinates[3] - coordinates[0];
+    edge[3] = coordinates[2] - coordinates[1];
+    edge[4] = coordinates[3] - coordinates[1];
+    edge[5] = coordinates[3] - coordinates[2];
 
-    // This didn't quite work out, revisit for bugs if optimization seems worthwhile:
-    // vec4 depth_bounds;
-    // for (int i = 0; i < 4; ++i) {
-    //     depth_bounds[i] = distance(coordinates[i], cameraPosition);
-    // }
-    // float max_dist = maxv(depth_bounds);
-    // float min_dist = minv(depth_bounds);
-    // v_max_depth = sqrt(max_dist*max_dist - min_dist*min_dist);
+    // Compute upper bound on depth of cell
+    v_max_depth = 0.0;
+    for (int i = 0; i < 6; ++i) {
+        v_max_depth = max(v_max_depth, length(edge[i]));
+    }
 #endif
 
 
-#ifdef ENABLE_DEPTH
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
+#if defined(ENABLE_DEPTH) && defined(ENABLE_PERSPECTIVE_PROJECTION)
     // TODO: v_planes can be precomputed
     // Note: This can be done in a separate preprocessing step,
     // computing v_planes once for each cell and storing it as
@@ -376,29 +367,89 @@ void main()
     faces[3] = ivec3(0, 2, 1);
 
     // TODO: Avoid recomputing this four times below
-    // vec3 vertex_to_camera[4];
-    // vertex_to_camera[0] = normalize(cameraPosition - coordinates[0]);
-    // vertex_to_camera[1] = normalize(cameraPosition - coordinates[1]);
-    // vertex_to_camera[2] = normalize(cameraPosition - coordinates[2]);
-    // vertex_to_camera[3] = normalize(cameraPosition - coordinates[3]);
+    vec3 vertex_to_camera[4];
+    vertex_to_camera[0] = normalize(cameraPosition - coordinates[0]);
+    vertex_to_camera[1] = normalize(cameraPosition - coordinates[1]);
+    vertex_to_camera[2] = normalize(cameraPosition - coordinates[2]);
+    vertex_to_camera[3] = normalize(cameraPosition - coordinates[3]);
+
+    // TODO: There are only 6 edges, compute them once and use them
+    // to compute all normal vectors without loops and branching
+
+    // Compute the normal vector of the tetrahedon face opposing vertex i
+    // vec3 edge_a = x2 - x1;
+    // vec3 edge_b = x3 - x1;
+    // vec3 n = normalize(cross(edge_a, edge_b));
+    vec3 normals[4];
+    normals[0] = normalize(cross(edge[3], edge[4]));
+    normals[1] = normalize(cross(edge[2], edge[1]));
+    normals[2] = normalize(cross(edge[0], edge[2]));
+    normals[3] = normalize(cross(edge[1], edge[0]));
+
+    // Store normal vector and plane equation coefficient for each face
+    // (plane equation coefficient is the distance from face to origo along n)
+    v_planes[0] = vec4(normals[0], dot(normals[0], coordinates[1]));
+    v_planes[1] = vec4(normals[1], dot(normals[1], coordinates[0]));
+    v_planes[2] = vec4(normals[2], dot(normals[2], coordinates[0]));
+    v_planes[3] = vec4(normals[3], dot(normals[3], coordinates[0]));
+
+    // Compute cos of angle between face normal and direction to camera
+    // vec3 cos_angles;
+    // cos_angles[i][j] = dot(normals[i], vertex_to_camera[j]);
+
+    const float front_facing_eps = 1e-2;
+    // bool front_facing;
+
+    // cos_angles[0] = dot(normals[0], vertex_to_camera[1]);
+    // cos_angles[1] = dot(normals[0], vertex_to_camera[2]);
+    // cos_angles[2] = dot(normals[0], vertex_to_camera[3]);
+
+    // cos_angles[0] = dot(normals[1], vertex_to_camera[0]);
+    // cos_angles[1] = dot(normals[1], vertex_to_camera[2]);
+    // cos_angles[2] = dot(normals[1], vertex_to_camera[3]);
+
+    // cos_angles[0] = dot(normals[2], vertex_to_camera[0]);
+    // cos_angles[1] = dot(normals[2], vertex_to_camera[1]);
+    // cos_angles[2] = dot(normals[2], vertex_to_camera[3]);
+
+    // cos_angles[0] = dot(normals[3], vertex_to_camera[0]);
+    // cos_angles[1] = dot(normals[3], vertex_to_camera[1]);
+    // cos_angles[2] = dot(normals[3], vertex_to_camera[2]);
+    // front_facing = any(greaterThanEqual(cos_angles, vec3(-front_facing_eps)));
+    // v_facing[i] = front_facing ? +1.0 : -1.0;
 
     for (int i = 0; i < 4; ++i) {
-        // Get vertex coordinates ordered relative to vertex i
-        // vec3 x[4] = reorder(coordinates, faces[i]);  // TODO: Possibly easier for compiler to optimize something like this
-        vec3 x0 = coordinates[i];
-        vec3 x1 = getitem(coordinates, faces[i][0]);
-        vec3 x2 = getitem(coordinates, faces[i][1]);
-        vec3 x3 = getitem(coordinates, faces[i][2]);
+        v_facing[i] = -1.0;
+        for (int j = 0; j < 4; ++j) {
+            if (j != i && dot(normals[i], vertex_to_camera[j]) >= -front_facing_eps) {
+                v_facing[i] = +1.0;
+                break;
+            }
+        }
+    }
 
-        // Compute the normal vector of the tetrahedon face opposing vertex i
-        vec3 edge_a = x2 - x1;
-        vec3 edge_b = x3 - x1;
-        vec3 n = normalize(cross(edge_a, edge_b));
+    // for (int i = 0; i < 4; ++i) {
+    //     // Get vertex coordinates ordered relative to vertex i
+    //     // vec3 x[4] = reorder(coordinates, faces[i]);  // TODO: Possibly easier for compiler to optimize something like this
+    //     vec3 x0 = coordinates[i];
+    //     vec3 x1 = getitem(coordinates, faces[i][0]);
+    //     vec3 x2 = getitem(coordinates, faces[i][1]);
+    //     vec3 x3 = getitem(coordinates, faces[i][2]);
 
-        // Store normal vector and plane equation coefficient for this face
-        // (plane equation coefficient is the distance from face to origo along n)
-        v_planes[i] = vec4(n, dot(n, x1));
+    //     vec3 n = normals[i];
 
+    //     // Compute cos of angle between face normal and direction to camera
+    //     vec3 cos_angles = vec3(
+    //         dot(n, normalize(cameraPosition - x1)),
+    //         dot(n, normalize(cameraPosition - x2)),
+    //         dot(n, normalize(cameraPosition - x3))
+    //     );
+
+    //     const float front_facing_eps = 1e-2;
+    //     bool front_facing = any(greaterThanEqual(cos_angles, vec3(-front_facing_eps)));
+    //     v_facing[i] = front_facing ? +1.0 : -1.0;
+
+        // TODO: Clean up comments here, there are some useful messages to keep.
 
         // Attempt to handle orthogonal faces robustly.
         // If a face becomes positive on one vertex and negative on another,
@@ -411,7 +462,16 @@ void main()
         // frontfaces and have their depths ignored.
         // TODO: Make tolerance runtime configurable for testing
 
-#if 1
+        // NB! ||vertex_to_camera|| >= near plane distance
+        // cos_angle = -1 if face_to_camera_distance == -||vertex_to_camera||
+        // cos_angle = 0 if face_to_camera_distance == 0
+        // cos_angle = 1 if face_to_camera_distance == ||vertex_to_camera||
+        // face_to_camera_distance = ||vertex_to_camera||  ||n||  cos(theta)
+
+        // Store +1 for front facing, -1 for back facing (and 0 for the rest)
+        // Rays always enter through front faces and exit through back faces.
+        // uniform float u_front_facing_eps;
+
         // Err on the front facing side, but try to still keep
         // backside slivers as backsides. Ideally this should
         // match the opengl drivers decision to make the face
@@ -421,66 +481,12 @@ void main()
         // TODO: Find specs and see if there are any guarantees we can exploit?
 
         // Compute cos of angle between face normal and direction to camera
-        vec3 cos_angles = vec3(
-            dot(n, normalize(cameraPosition - x1)),
-            dot(n, normalize(cameraPosition - x2)),
-            dot(n, normalize(cameraPosition - x3))
-        );
-
-        bool front_facing = any(greaterThanEqual(cos_angles, vec3(-1e-3)));  // -1e-5
-        v_facing[i] = front_facing ? +1.0 : -1.0;
-#else
-        // Compute cos of angle between face normal and direction to camera
         // float cos_angle = dot(n, normalize(cameraPosition - x1));
-
-//#define ENABLE_FACING_IS_COS_ANGLE 1
-#ifdef ENABLE_FACING_IS_COS_ANGLE
-        // Pass on cos_angle and move the classification to the
-        // fragment shader where we can use barycentric coordinate
-        // derivatives to adjust tolerance in screen space
-        v_facing[i] = cos_angle;
-#else
-        // NB! ||vertex_to_camera|| >= near plane distance
-        // cos_angle = -1 if face_to_camera_distance == -||vertex_to_camera||
-        // cos_angle = 0 if face_to_camera_distance == 0
-        // cos_angle = 1 if face_to_camera_distance == ||vertex_to_camera||
-        // face_to_camera_distance = ||vertex_to_camera||  ||n||  cos(theta)
-
-        // Store +1 for front facing, -1 for back facing (and 0 for the rest)
-        // Rays always enter through front faces and exit through back faces.
-        // float eps = 1e-8;
-        // if (cos_angle > eps) {
-        //     v_facing[i] = +1.0;
-        // } else if (cos_angle < -eps) {
-        //     v_facing[i] = -1.0;
-        // } else {
-        //     v_facing[i] = 0.0;
-        // }
-
-        // Classify tiny slivers as front facing,
-        // to be ignored in depth computations.
-        // Increasing eps will lead to larger edge artifacts.
-        // uniform float u_front_facing_eps;
-        // uniform float u_back_facing_eps;
-        // Note: cos(theta) can be closely approximated with the linear function cos(theta) = 1 - 2 theta / pi
-        // theta = (1-eps) pi/2  =>  cos(theta) = eps
-        // TODO: Make this a uniform to control from notebook
-
-        // Too large eps will make vertices 
-        // With eps = 1e-7, vertices do not always agree on the side.
-        float eps = 1e-3;
-        if (cos_angle > -eps) {
-            v_facing[i] = +1.0;
-        } else if (cos_angle < 0.0) {
-            v_facing[i] = -1.0;
-        } else {
-            v_facing[i] = 0.0;
-        }
+    //}
 #endif
-#endif
-    }
 
-#else
+
+#if defined(ENABLE_DEPTH) && !defined(ENABLE_PERSPECTIVE_PROJECTION)
     // FIXME: This doesn't set v_facing and hasn't been tested
     // in a little while. To set v_facing, normals on all faces are needed?
 
@@ -517,12 +523,11 @@ void main()
     // access to all ray lengths interpolated across the rasterized
     // triangle in the fragment shader.
     v_ray_lengths = with_nonzero_at(local_vertex_id, ray_length);
-
-#endif
 #endif
 
 
-    // TODO: Get this as a uniform
+
+    // TODO: Get this matrix as a uniform
     mat4 MVP = projectionMatrix * modelViewMatrix;
 
     // Map model coordinate to clip space
