@@ -116,6 +116,7 @@ const method_properties = {
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
+            // ENABLE_SURFACE_LIGHT: 1,
         }),
         // select_defines: function(encoding) {
         //     let defines = {};
@@ -178,6 +179,7 @@ const method_properties = {
             ENABLE_ISOSURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
             ENABLE_EMISSION_BACK: 1,
+            // ENABLE_SURFACE_LIGHT: 1,
         }),
 
         vertex_shader: shader_sources.vertex,

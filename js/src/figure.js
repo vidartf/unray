@@ -384,17 +384,21 @@ class FigureView extends widgets.DOMWidgetView
         // debug(this.camera.toJSON());
         // debug(this.camera.projectionMatrix);
 
-        this._times = this._times || [0, 0, 0];
+        // this._times = this._times || [0, 0, 0];
+
         this.renderer.setClearColor(this.bgcolor, 1);
-        this.renderer.context.flush();
-        let t0 = performance.now();
+
+        // this.renderer.context.flush();
+        // let t0 = performance.now();
+
         this.renderer.render(this.scene, this.camera);
-        this.renderer.context.flush();
-        let t1 = performance.now();
-        this._times = [this._times[1], this._times[2], t1-t0];
-        let tmin = Math.min(...this._times);
-        let tavg = (this._times[0] + this._times[1] + this._times[2]) / 3.0;
-        console.log(`Render time: ${t1-t0},  min: ${tmin},  avg: ${tavg}`);
+
+        // this.renderer.context.flush();
+        // let t1 = performance.now();
+        // this._times = [this._times[1], this._times[2], t1-t0];
+        // let tmin = Math.min(...this._times);
+        // let tavg = (this._times[0] + this._times[1] + this._times[2]) / 3.0;
+        // console.log(`Render time: ${t1-t0},  min: ${tmin},  avg: ${tavg}`);
 
         // debug("Done rendering.");
     }

@@ -44,58 +44,74 @@ uniform vec3 cameraPosition;
 // needs to be separate define names.
 
 #ifdef ENABLE_XRAY_MODEL
-#define ENABLE_DEPTH 1
+    #define ENABLE_DEPTH 1
 #endif
 
 #ifdef ENABLE_SURFACE_MODEL
-#define ENABLE_BARYCENTRIC_COORDINATES 1
+    #define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
-#define ENABLE_DEPTH 1
+    #define ENABLE_DEPTH 1
 #endif
 
 #ifdef ENABLE_CELL_ORDERING
-#define ENABLE_CELL_UV 1
+    #define ENABLE_CELL_UV 1
 #endif
 
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
-#define ENABLE_COORDINATES 1
+    #define ENABLE_COORDINATES 1
 #endif
 
 #ifdef ENABLE_EMISSION_BACK
-#define ENABLE_EMISSION 1
-#define ENABLE_DEPTH 1
-#define ENABLE_JACOBIAN_INVERSE 1
-#define ENABLE_VIEW_DIRECTION 1
+    #define ENABLE_EMISSION 1
+    #define ENABLE_EMISSION_GRADIENT 1
+    #define ENABLE_DEPTH 1
+    #define ENABLE_VIEW_DIRECTION 1
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
-#define ENABLE_DENSITY 1
-#define ENABLE_DEPTH 1
-#define ENABLE_JACOBIAN_INVERSE 1
-#define ENABLE_VIEW_DIRECTION 1
+    #define ENABLE_DENSITY 1
+    #define ENABLE_DENSITY_GRADIENT 1
+    #define ENABLE_DEPTH 1
+    #define ENABLE_VIEW_DIRECTION 1
+#endif
+
+#ifdef ENABLE_SURFACE_LIGHT
+    #if defined(ENABLE_EMISSION)
+        #define ENABLE_EMISSION_GRADIENT 1
+    #elif defined(ENABLE_DENSITY)
+        #define ENABLE_DENSITY_GRADIENT 1
+    #endif
+#endif
+
+#ifdef ENABLE_EMISSION_GRADIENT
+    #define ENABLE_JACOBIAN_INVERSE 1
+#endif
+
+#ifdef ENABLE_DENSITY_GRADIENT
+    #define ENABLE_JACOBIAN_INVERSE 1
 #endif
 
 #ifdef ENABLE_DEPTH
-#define ENABLE_COORDINATES 1
-#define ENABLE_BARYCENTRIC_COORDINATES 1
+    #define ENABLE_COORDINATES 1
+    #define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
 #ifdef ENABLE_DENSITY
-#define ENABLE_VERTEX_UV 1
+    #define ENABLE_VERTEX_UV 1
 #endif
 
 #ifdef ENABLE_EMISSION
-#define ENABLE_VERTEX_UV 1
+    #define ENABLE_VERTEX_UV 1
 #endif
 
 #ifdef ENABLE_JACOBIAN_INVERSE
-#define ENABLE_COORDINATES 1
+    #define ENABLE_COORDINATES 1
 #endif
 
 #ifdef ENABLE_COORDINATES
-#define ENABLE_VERTEX_UV 1
+    #define ENABLE_VERTEX_UV 1
 #endif
 
 
@@ -191,14 +207,14 @@ varying vec4 v_ray_lengths;
 #ifdef ENABLE_DENSITY
 varying float v_density;
 #endif
-#ifdef ENABLE_DENSITY_BACK
+#ifdef ENABLE_DENSITY_GRADIENT
 varying vec3 v_density_gradient;         // webgl2 required for flat keyword
 #endif
 
 #ifdef ENABLE_EMISSION
 varying float v_emission;
 #endif
-#ifdef ENABLE_EMISSION_BACK
+#ifdef ENABLE_EMISSION_GRADIENT
 varying vec3 v_emission_gradient;        // webgl2 required for flat keyword
 #endif
 
@@ -236,13 +252,13 @@ void main()
     // Work in progress, this was a varying but currently is not
     float v_cell_indicator;
 
-#ifdef ENABLE_CELL_ORDERING
+  #ifdef ENABLE_CELL_ORDERING
     // Using computed texture location to lookup cell
     v_cell_indicator = texture2D(t_cell_indicators, cell_uv).a;
-#else
+  #else
     // Using cell from per-instance buffer
     v_cell_indicator = c_cell_indicators;
-#endif
+  #endif
 
     // Safely cast to float (probably don't need the +0.5 here, it was
     // needed in fragment shader because of interpolation rounding errors)
@@ -300,6 +316,7 @@ void main()
     v_model_position = texture2D(t_coordinates, this_vertex_uv).xyz;
 #endif
 
+
 #ifdef ENABLE_JACOBIAN_INVERSE
     // Compute 3x3 Jacobian matrix of the coordinate
     // field on a tetrahedron with given vertices,
@@ -308,7 +325,7 @@ void main()
 #endif
 
 
-#ifdef ENABLE_DENSITY_BACK
+#ifdef ENABLE_DENSITY_GRADIENT
     vec4 density;
     for (int i = 0; i < 4; ++i) {
         density[i] = texture2D(t_density, vertex_uv[i]).a;
@@ -320,7 +337,7 @@ void main()
 #endif
 
 
-#ifdef ENABLE_EMISSION_BACK
+#ifdef ENABLE_EMISSION_GRADIENT
     vec4 emission;
     for (int i = 0; i < 4; ++i) {
         emission[i] = texture2D(t_emission, vertex_uv[i]).a;
@@ -333,17 +350,25 @@ void main()
 
 
 #ifdef ENABLE_DEPTH
-    // Compute all unique edges
-    vec3 edge[6];
+    // Compute max length of all 6 unique edges,
+    // saving some of the edges for use in normal computations
+    vec3 edge[5];
+
+#if 0
     edge[0] = coordinates[1] - coordinates[0];
     edge[1] = coordinates[2] - coordinates[0];
     edge[2] = coordinates[3] - coordinates[0];
     edge[3] = coordinates[2] - coordinates[1];
     edge[4] = coordinates[3] - coordinates[1];
-    edge[5] = coordinates[3] - coordinates[2];
+#else
+    edge[0] = coordinates[2] - coordinates[1];
+    edge[1] = coordinates[3] - coordinates[0];
+    edge[2] = coordinates[1] - coordinates[0];
+    edge[3] = coordinates[2] - coordinates[0];
+    edge[4] = coordinates[3] - coordinates[1];
+#endif
 
-    // Compute upper bound on depth of cell
-    v_max_depth = 0.0;
+    v_max_depth = length(coordinates[3] - coordinates[2]);
     for (int i = 0; i < 6; ++i) {
         v_max_depth = max(v_max_depth, length(edge[i]));
     }
@@ -360,38 +385,46 @@ void main()
 
     // Ccw oriented faces, consistent independent
     // of which vertex shader we're in
-    ivec3 faces[4];
-    faces[0] = ivec3(1, 2, 3);
-    faces[1] = ivec3(0, 3, 2);
-    faces[2] = ivec3(0, 1, 3);
-    faces[3] = ivec3(0, 2, 1);
+    // ivec3 faces[4];
+    // faces[0] = ivec3(1, 2, 3);
+    // faces[1] = ivec3(0, 3, 2);
+    // faces[2] = ivec3(0, 1, 3);
+    // faces[3] = ivec3(0, 2, 1);
 
-    // TODO: Avoid recomputing this four times below
+    // Compute direction from each vertex towards camera
     vec3 vertex_to_camera[4];
     vertex_to_camera[0] = normalize(cameraPosition - coordinates[0]);
     vertex_to_camera[1] = normalize(cameraPosition - coordinates[1]);
     vertex_to_camera[2] = normalize(cameraPosition - coordinates[2]);
     vertex_to_camera[3] = normalize(cameraPosition - coordinates[3]);
 
-    // TODO: There are only 6 edges, compute them once and use them
-    // to compute all normal vectors without loops and branching
-
     // Compute the normal vector of the tetrahedon face opposing vertex i
     // vec3 edge_a = x2 - x1;
     // vec3 edge_b = x3 - x1;
     // vec3 n = normalize(cross(edge_a, edge_b));
-    vec3 normals[4];
-    normals[0] = normalize(cross(edge[3], edge[4]));
-    normals[1] = normalize(cross(edge[2], edge[1]));
-    normals[2] = normalize(cross(edge[0], edge[2]));
-    normals[3] = normalize(cross(edge[1], edge[0]));
+#if 1
+    v_planes[0].xyz = normalize(cross(edge[0], edge[4]));
+    v_planes[1].xyz = normalize(cross(edge[1], edge[3]));
+    v_planes[2].xyz = normalize(cross(edge[2], edge[1]));
+    v_planes[3].xyz = normalize(cross(edge[3], edge[2]));
+#else
+    // TODO: Performance test reordering + loop
+    vec3 edge2[4];
+    edge2[0] = edge[4];
+    edge2[1] = edge[3];
+    edge2[2] = edge[1];
+    edge2[3] = edge[2];
+    for (int i = 0; i < 4; ++i) {
+        v_planes[i].xyz = normalize(cross(edge[i], edge2[i]));
+    }
+#endif
 
-    // Store normal vector and plane equation coefficient for each face
+    // Store plane equation coefficient for each face
     // (plane equation coefficient is the distance from face to origo along n)
-    v_planes[0] = vec4(normals[0], dot(normals[0], coordinates[1]));
-    v_planes[1] = vec4(normals[1], dot(normals[1], coordinates[0]));
-    v_planes[2] = vec4(normals[2], dot(normals[2], coordinates[0]));
-    v_planes[3] = vec4(normals[3], dot(normals[3], coordinates[0]));
+    v_planes[0].w = dot(v_planes[0].xyz, coordinates[1]);
+    v_planes[1].w = dot(v_planes[1].xyz, coordinates[0]);
+    v_planes[2].w = dot(v_planes[2].xyz, coordinates[0]);
+    v_planes[3].w = dot(v_planes[3].xyz, coordinates[0]);
 
     // Compute cos of angle between face normal and direction to camera
     // vec3 cos_angles;
@@ -418,15 +451,41 @@ void main()
     // front_facing = any(greaterThanEqual(cos_angles, vec3(-front_facing_eps)));
     // v_facing[i] = front_facing ? +1.0 : -1.0;
 
+    // TODO: Performance testing
+#if 0
+    bvec4 front_facing[4];
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            front_facing[i][j] = i == j ? false : dot(v_planes[i].xyz, vertex_to_camera[j]) >= -front_facing_eps;
+        }
+    }
+    for (int i = 0; i < 4; ++i) {
+        v_facing[i] = any(front_facing[i]) ? +1.0 : -1.0;
+    }
+#elif 0
+    bvec4 front_facing[4];
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            front_facing[i][j] = dot(v_planes[i].xyz, vertex_to_camera[j]) >= -front_facing_eps;
+        }
+    }
+    for (int i = 0; i < 4; ++i) {
+        front_facing[i][i] = false;
+    }
+    for (int i = 0; i < 4; ++i) {
+        v_facing[i] = any(front_facing[i]) ? +1.0 : -1.0;
+    }
+#else
     for (int i = 0; i < 4; ++i) {
         v_facing[i] = -1.0;
         for (int j = 0; j < 4; ++j) {
-            if (j != i && dot(normals[i], vertex_to_camera[j]) >= -front_facing_eps) {
+            if (j != i && dot(v_planes[i].xyz, vertex_to_camera[j]) >= -front_facing_eps) {
                 v_facing[i] = +1.0;
                 break;
             }
         }
     }
+#endif
 
     // for (int i = 0; i < 4; ++i) {
     //     // Get vertex coordinates ordered relative to vertex i
@@ -524,7 +583,6 @@ void main()
     // triangle in the fragment shader.
     v_ray_lengths = with_nonzero_at(local_vertex_id, ray_length);
 #endif
-
 
 
     // TODO: Get this matrix as a uniform

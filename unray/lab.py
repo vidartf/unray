@@ -125,8 +125,8 @@ def render(coordinates, cells,
         # encoding["isovalues"] = {"range": [min, max], "resolution": 10, "scale": "linear"}
         # encoding["isovalues"] = {"range": [min, max], "resolution": 10, "scale": "log"}
         # encoding["isovalues"] = {"value": [v0, v1, v2, ...]}
-        isorange = [0.6 * emission_range[0] + 0.4 * emission_range[1],
-                    0.4 * emission_range[0] + 0.6 * emission_range[1]]
+        isorange = [0.501 * emission_range[0] + 0.499 * emission_range[1],
+                    0.499 * emission_range[0] + 0.501 * emission_range[1]]
         encoding["isorange"] = {"value": isorange}
 
     # Setup plot

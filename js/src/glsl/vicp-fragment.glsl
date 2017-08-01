@@ -32,41 +32,45 @@ uniform vec3 cameraPosition;
 // needs to be separate define names.
 
 #ifdef ENABLE_XRAY_MODEL
-#define ENABLE_DEPTH 1
+    #define ENABLE_DEPTH 1
 #endif
 
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
-#define ENABLE_DEPTH 1
+    #define ENABLE_DEPTH 1
 #endif
 
 #ifdef ENABLE_WIREFRAME
-#define ENABLE_BARYCENTRIC_DERIVATIVES 1
+    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
 #endif
 
 #ifdef ENABLE_EMISSION_BACK
-#define ENABLE_EMISSION 1
-#define ENABLE_DEPTH 1
-#define ENABLE_VIEW_DIRECTION 1
+    #define ENABLE_EMISSION 1
+    #define ENABLE_EMISSION_GRADIENT 1
+    #define ENABLE_DEPTH 1
+    #define ENABLE_VIEW_DIRECTION 1
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
-#define ENABLE_DENSITY 1
-#define ENABLE_DEPTH 1
-#define ENABLE_VIEW_DIRECTION 1
+    #define ENABLE_DENSITY 1
+    #define ENABLE_DENSITY_GRADIENT 1
+    #define ENABLE_DEPTH 1
+    #define ENABLE_VIEW_DIRECTION 1
 #endif
 
-#ifdef ENABLE_DENSITY
-#endif
-
-#ifdef ENABLE_EMISSION
+#ifdef ENABLE_SURFACE_LIGHT
+    #if defined(ENABLE_EMISSION)
+        #define ENABLE_EMISSION_GRADIENT 1
+    #elif defined(ENABLE_DENSITY)
+        #define ENABLE_DENSITY_GRADIENT 1
+    #endif
 #endif
 
 #ifdef ENABLE_DEPTH
-#define ENABLE_BARYCENTRIC_COORDINATES 1
+    #define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
 #ifdef ENABLE_BARYCENTRIC_DERIVATIVES
-#define ENABLE_BARYCENTRIC_COORDINATES 1
+    #define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
 
@@ -147,10 +151,10 @@ varying float v_density;
 varying float v_emission;
 #endif
 
-#ifdef ENABLE_DENSITY_BACK
+#ifdef ENABLE_DENSITY_GRADIENT
 varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 #endif
-#ifdef ENABLE_EMISSION_BACK
+#ifdef ENABLE_EMISSION_GRADIENT
 varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 #endif
 
@@ -281,11 +285,6 @@ void main()
 
 
 #ifdef ENABLE_SURFACE_MODEL
-    // TODO: Could add some light model for the surface shading here?
-
-    // vec3 surface_normal = normalize(v_density_gradient);
-    // vec3 surface_normal = normalize(v_emission_gradient);
-
     #if defined(ENABLE_EMISSION)
     vec3 C = mapped_emission;  // CHECKME
     #elif defined(ENABLE_DENSITY)
@@ -293,6 +292,18 @@ void main()
     #else
     vec3 C = u_constant_color;  // CHECKME
     #endif
+
+    // TODO: Could add some light model for the surface shading here?
+//    #if defined(ENABLE_SURFACE_LIGHT)
+//     vec3 surface_normal = FIXME;  // CHECKME
+//     C *= abs(dot(surface_normal, view_direction)); // CHECKME
+//   #endif
+
+    // TODO: Could modulate surface_scaling or color components with
+    // noise or a texture, e.g.:
+    // C *= (1.0 - u_modulate_amplitude * mapped_density);
+    // C *= (1.0 - u_oscillators[1] * u_modulate_amplitude * mapped_density);
+    // C = desaturate(C, mapped_density);
 
     // Always opaque
     float a = 1.0;
@@ -316,8 +327,6 @@ void main()
     // I'm sure this can be done more elegantly but the endgoal
     // is texture lookups to support arbitrary numbers of isovalues
 #ifdef ENABLE_ISOSURFACE_MODEL
-    // TODO: Could add some light model for the surface shading here?
-
     vec2 isorange = u_isorange;
 
     #if defined(ENABLE_DENSITY)
@@ -331,8 +340,6 @@ void main()
     #else
     compile_error();  // Isosurface needs emission
     #endif
-
-    // vec3 surface_normal = normalize(v_emission_gradient);
 
     bool front_in_range = isorange.x <= front && front <= isorange.y;
     bool back_in_range = isorange.x <= back && back <= isorange.y;
@@ -356,6 +363,16 @@ void main()
     // TODO: Using emission lut here for now, what to do here is question of how to configure encoding parameters
     float scaled_value = (value - u_emission_range.x) * u_emission_range.w;
     vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz;        
+
+    // Apply simple flat shading model
+  #if defined(ENABLE_SURFACE_LIGHT) && (defined(ENABLE_EMISSION) || defined(ENABLE_DENSITY))
+    #if defined(ENABLE_EMISSION)
+    vec3 surface_normal = normalize(v_emission_gradient);  // CHECKME
+    #elif defined(ENABLE_DENSITY)
+    vec3 surface_normal = normalize(v_density_gradient);  // CHECKME
+    #endif
+    C *= abs(dot(surface_normal, view_direction)); // CHECKME
+  #endif
 
     // Opaque since isosurface is contained in [back, front]
     float a = 1.0;
@@ -396,7 +413,7 @@ void main()
     float area = u_particle_area;
 
     // DEBUGGING: Add some oscillation to density
-    // area *= (2.0 + u_oscillators[1]) / 3.0;
+    // area *= abs((2.0 + u_oscillators[1]) / 3.0);
 
     // Compute transparency (NB! this is 1-opacity)
     float a = exp(-depth * area * rho);
