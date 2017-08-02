@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "chai": "^4.1.0",
-    "json-loader": "^0.5.4",
+    "json-loader": "^0.5.7",
     "karma": "^1.7.0",
     "karma-chai": "^0.1.0",
     "karma-chrome-launcher": "^2.2.0",
@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@jupyter-widgets/base": "^0.2.0",
-    "gl-matrix": "^2.3.2",
+    "gl-matrix": "^2.4.0",
     "isndarray": "^1.0.0",
     "ndarray": "^1.0.18",
     "ndarray-determinant": "^1.0.0",
