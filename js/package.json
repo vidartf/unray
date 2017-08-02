@@ -38,7 +38,7 @@
     "karma-mocha-reporter": "^2.2.3",
     "mocha": "^3.5.0",
     "onchange": "^3.2.1",
-    "webpack": "^1.15.0",
+    "webpack": "^3.4.1",
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
