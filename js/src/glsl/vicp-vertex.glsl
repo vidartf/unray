@@ -83,6 +83,7 @@ uniform vec3 cameraPosition;
     #elif defined(ENABLE_DENSITY)
         #define ENABLE_DENSITY_GRADIENT 1
     #endif
+    #define ENABLE_PLANES 1
 #endif
 
 #ifdef ENABLE_EMISSION_GRADIENT
@@ -96,6 +97,14 @@ uniform vec3 cameraPosition;
 #ifdef ENABLE_DEPTH
     #define ENABLE_COORDINATES 1
     #define ENABLE_BARYCENTRIC_COORDINATES 1
+    #define ENABLE_EDGES 1
+    #ifdef ENABLE_PERSPECTIVE_PROJECTION
+        #define ENABLE_PLANES 1
+    #endif
+#endif
+
+#ifdef ENABLE_PLANES
+    #define ENABLE_EDGES 1
 #endif
 
 #ifdef ENABLE_DENSITY
@@ -195,18 +204,21 @@ varying vec4 v_barycentric_coordinates;
 #ifdef ENABLE_DEPTH
 varying float v_max_depth;               // webgl2 required for flat keyword
 varying vec4 v_facing;                   // webgl2 required for flat keyword
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-varying mat4 v_planes;                   // webgl2 required for flat keyword
-#else
-varying vec4 v_ray_lengths;
-#endif
 #endif
 
+#ifdef ENABLE_PLANES
+varying mat4 v_planes;                   // webgl2 required for flat keyword
+#endif
+
+#if defined(ENABLE_DEPTH) && !defined(ENABLE_PERSPECTIVE_PROJECTION)
+varying vec4 v_ray_lengths;
+#endif
 
 // TODO: Can pack density and density_gradient in one vec4 since they're interpolated anyway
 #ifdef ENABLE_DENSITY
 varying float v_density;
 #endif
+
 #ifdef ENABLE_DENSITY_GRADIENT
 varying vec3 v_density_gradient;         // webgl2 required for flat keyword
 #endif
@@ -214,6 +226,7 @@ varying vec3 v_density_gradient;         // webgl2 required for flat keyword
 #ifdef ENABLE_EMISSION
 varying float v_emission;
 #endif
+
 #ifdef ENABLE_EMISSION_GRADIENT
 varying vec3 v_emission_gradient;        // webgl2 required for flat keyword
 #endif
@@ -317,11 +330,32 @@ void main()
 #endif
 
 
+#ifdef ENABLE_EDGES
+    // Precompute 5 of the 6 unique edges for reuse
+    // in normal and edge length computations
+    vec3 edge[5];
+    edge[0] = coordinates[2] - coordinates[1];
+    edge[1] = coordinates[3] - coordinates[0];
+    edge[2] = coordinates[1] - coordinates[0];
+    edge[3] = coordinates[2] - coordinates[0];
+    edge[4] = coordinates[3] - coordinates[1];
+#endif
+
+    // TODO: Can we reuse edges to compute Jinv faster?
 #ifdef ENABLE_JACOBIAN_INVERSE
     // Compute 3x3 Jacobian matrix of the coordinate
     // field on a tetrahedron with given vertices,
     // assuming a certain reference coordinate system.
     mat3 Jinv = compute_Jinv(coordinates);
+#endif
+
+
+#ifdef ENABLE_DEPTH
+    // Compute max length of all 6 unique edges
+    v_max_depth = length(coordinates[3] - coordinates[2]);
+    for (int i = 0; i < 6; ++i) {
+        v_max_depth = max(v_max_depth, length(edge[i]));
+    }
 #endif
 
 
@@ -349,33 +383,7 @@ void main()
 #endif
 
 
-#ifdef ENABLE_DEPTH
-    // Compute max length of all 6 unique edges,
-    // saving some of the edges for use in normal computations
-    vec3 edge[5];
-
-#if 0
-    edge[0] = coordinates[1] - coordinates[0];
-    edge[1] = coordinates[2] - coordinates[0];
-    edge[2] = coordinates[3] - coordinates[0];
-    edge[3] = coordinates[2] - coordinates[1];
-    edge[4] = coordinates[3] - coordinates[1];
-#else
-    edge[0] = coordinates[2] - coordinates[1];
-    edge[1] = coordinates[3] - coordinates[0];
-    edge[2] = coordinates[1] - coordinates[0];
-    edge[3] = coordinates[2] - coordinates[0];
-    edge[4] = coordinates[3] - coordinates[1];
-#endif
-
-    v_max_depth = length(coordinates[3] - coordinates[2]);
-    for (int i = 0; i < 6; ++i) {
-        v_max_depth = max(v_max_depth, length(edge[i]));
-    }
-#endif
-
-
-#if defined(ENABLE_DEPTH) && defined(ENABLE_PERSPECTIVE_PROJECTION)
+#if defined(ENABLE_PLANES)
     // TODO: v_planes can be precomputed
     // Note: This can be done in a separate preprocessing step,
     // computing v_planes once for each cell and storing it as
@@ -402,7 +410,7 @@ void main()
     // vec3 edge_a = x2 - x1;
     // vec3 edge_b = x3 - x1;
     // vec3 n = normalize(cross(edge_a, edge_b));
-#if 1
+#if 0
     v_planes[0].xyz = normalize(cross(edge[0], edge[4]));
     v_planes[1].xyz = normalize(cross(edge[1], edge[3]));
     v_planes[2].xyz = normalize(cross(edge[2], edge[1]));
@@ -419,6 +427,7 @@ void main()
     }
 #endif
 
+    // TODO: Don't need this part for surface normals
     // Store plane equation coefficient for each face
     // (plane equation coefficient is the distance from face to origo along n)
     v_planes[0].w = dot(v_planes[0].xyz, coordinates[1]);
@@ -429,7 +438,10 @@ void main()
     // Compute cos of angle between face normal and direction to camera
     // vec3 cos_angles;
     // cos_angles[i][j] = dot(normals[i], vertex_to_camera[j]);
+#endif
 
+
+#if defined(ENABLE_DEPTH) && defined(ENABLE_PERSPECTIVE_PROJECTION)
     const float front_facing_eps = 1e-2;
     // bool front_facing;
 

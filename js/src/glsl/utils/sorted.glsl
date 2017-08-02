@@ -31,3 +31,43 @@ vec2 sorted(vec2 v)
     if (v.y < v.x)  v.xy = v.yx;
     return v;
 }
+
+// Return index of smallest vector value
+int smallest_index(vec4 v)
+{
+    int i = 0;
+    float x = v[0];
+    if (v[1] < x) {
+        i = 1;
+        x = v[1];
+    }
+    if (v[2] < x) {
+        i = 2;
+        x = v[2];
+    }
+    if (v[3] < x) {
+        i = 3;
+    }
+    return i;
+}
+
+// Return index of smallest vector value
+int smallest_index(vec3 v)
+{
+    int i = 0;
+    float x = v[0];
+    if (v[1] < x) {
+        i = 1;
+        x = v[1];
+    }
+    if (v[2] < x) {
+        i = 2;
+    }
+    return i;
+}
+
+// Return index of smallest vector value
+int smallest_index(vec2 v)
+{
+    return v.x < v.y ? 0 : 1;
+}

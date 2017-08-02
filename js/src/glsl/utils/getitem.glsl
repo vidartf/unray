@@ -100,6 +100,14 @@ vec4 getitem(vec4 v[4], int i) {
     return vec4(0.0);
 }
 
+vec4 getitem(mat4 v, int i) {
+    if      (i == 0)  return v[0];
+    else if (i == 1)  return v[1];
+    else if (i == 2)  return v[2];
+    else if (i == 3)  return v[3];
+    return vec4(0.0);
+}
+
 void reorder(out vec3 dst[4], vec3 src[4], ivec4 indices) {
     for (int i = 0; i < 4; ++i) {
         int j = indices[i];

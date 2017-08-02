@@ -63,10 +63,14 @@ uniform vec3 cameraPosition;
     #elif defined(ENABLE_DENSITY)
         #define ENABLE_DENSITY_GRADIENT 1
     #endif
+    #define ENABLE_PLANES 1
 #endif
 
 #ifdef ENABLE_DEPTH
     #define ENABLE_BARYCENTRIC_COORDINATES 1
+    #ifdef ENABLE_PERSPECTIVE_PROJECTION
+        #define ENABLE_PLANES 1
+    #endif
 #endif
 
 #ifdef ENABLE_BARYCENTRIC_DERIVATIVES
@@ -83,6 +87,11 @@ uniform vec4 u_oscillators;
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
 #else
 uniform vec3 u_view_direction;
+#endif
+
+// Custom light uniforms
+#ifdef ENABLE_SURFACE_LIGHT
+uniform float u_light_floor;
 #endif
 
 
@@ -137,16 +146,20 @@ varying vec4 v_barycentric_coordinates;
 #ifdef ENABLE_DEPTH
 varying float v_max_depth;               // webgl2 required for flat keyword
 varying vec4 v_facing;                   // webgl2 required for flat keyword
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-varying mat4 v_planes;                   // webgl2 required for flat keyword
-#else
-varying vec4 v_ray_lengths;
 #endif
+
+#ifdef ENABLE_PLANES
+varying mat4 v_planes;                   // webgl2 required for flat keyword
+#endif
+
+#if defined(ENABLE_DEPTH) && !defined(ENABLE_PERSPECTIVE_PROJECTION)
+varying vec4 v_ray_lengths;
 #endif
 
 #ifdef ENABLE_DENSITY
 varying float v_density;
 #endif
+
 #ifdef ENABLE_EMISSION
 varying float v_emission;
 #endif
@@ -154,6 +167,7 @@ varying float v_emission;
 #ifdef ENABLE_DENSITY_GRADIENT
 varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 #endif
+
 #ifdef ENABLE_EMISSION_GRADIENT
 varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 #endif
@@ -293,11 +307,13 @@ void main()
     vec3 C = u_constant_color;  // CHECKME
     #endif
 
-    // TODO: Could add some light model for the surface shading here?
-//    #if defined(ENABLE_SURFACE_LIGHT)
-//     vec3 surface_normal = FIXME;  // CHECKME
-//     C *= abs(dot(surface_normal, view_direction)); // CHECKME
-//   #endif
+    // Apply simple flat shading model
+   #if defined(ENABLE_SURFACE_LIGHT)
+    // This is not exact, may be wrong on edges, but decent guess?
+    int facet = smallest_index(v_barycentric_coordinates);
+    vec3 surface_normal = getitem(v_planes, facet).xyz;  // CHECKME
+    C *= u_light_floor + (1.0 - u_light_floor) * abs(dot(surface_normal, view_direction)); // CHECKME
+  #endif
 
     // TODO: Could modulate surface_scaling or color components with
     // noise or a texture, e.g.:
@@ -327,19 +343,19 @@ void main()
     // I'm sure this can be done more elegantly but the endgoal
     // is texture lookups to support arbitrary numbers of isovalues
 #ifdef ENABLE_ISOSURFACE_MODEL
-    vec2 isorange = u_isorange;
 
     #if defined(ENABLE_DENSITY)
     compile_error();  // Isosurface only implemented for emission for now
     #elif defined(ENABLE_EMISSION_BACK)
     float front = v_emission;
     float back = emission_back;
-    #elif defined(ENABLE_EMISSION)
-    float front = v_emission;
-    float back = v_emission;
+    vec4 value_range = u_emission_range;
     #else
-    compile_error();  // Isosurface needs emission
+    compile_error();  // Isosurface needs emission front and back
     #endif
+
+#if 0
+    vec2 isorange = u_isorange;
 
     bool front_in_range = isorange.x <= front && front <= isorange.y;
     bool back_in_range = isorange.x <= back && back <= isorange.y;
@@ -358,10 +374,46 @@ void main()
     } else {
         value = isorange.x;
     }
+#else
+
+    float v0 = 0.5 * (value_range.x + value_range.y);  // fixme uniform
+
+  #if defined(USING_ISOSURFACE_MODE_LINEAR)
+    float dv = 0.1 * value_range.z;  // fixme uniform
+    float dvinv = 1.0 / dv;
+    float na = (back - v0) * dvinv;
+    float nb = (front - v0) * dvinv;
+  #elif defined(USING_ISOSURFACE_MODE_LOG)
+    float vp = pow(value_range.z, 0.1);  // fixme uniform
+    float v0pinv = 1.0 / (v0 * vp);
+    float na = log2(back * v0pinv);
+    float nb = log2(front * v0pinv);
+  #else
+    compile_error();
+  #endif
+
+    float n;
+    if (na <= nb) {
+        n = floor(nb);
+        if (n < ceil(na)) {
+            discard;
+        }
+    } else {
+        n = ceil(nb);
+        if (n > floor(na)) {
+            discard;
+        }
+    }
+
+  #if defined(USING_ISOSURFACE_MODE_LINEAR)
+    float value = v0 + n * dv;
+  #elif defined(USING_ISOSURFACE_MODE_LOG)
+    float value = v0 * pow(vp, n);
+  #endif
+#endif
 
     // Map value through color lut
-    // TODO: Using emission lut here for now, what to do here is question of how to configure encoding parameters
-    float scaled_value = (value - u_emission_range.x) * u_emission_range.w;
+    float scaled_value = (value - value_range.x) * value_range.w;
     vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz;        
 
     // Apply simple flat shading model
@@ -371,7 +423,7 @@ void main()
     #elif defined(ENABLE_DENSITY)
     vec3 surface_normal = normalize(v_density_gradient);  // CHECKME
     #endif
-    C *= abs(dot(surface_normal, view_direction)); // CHECKME
+    C *= u_light_floor + (1.0 - u_light_floor) * abs(dot(surface_normal, view_direction)); // CHECKME
   #endif
 
     // Opaque since isosurface is contained in [back, front]

@@ -94,6 +94,7 @@ const method_properties = {
             // TODO: decide on meaning of indicator values
             ENABLE_CELL_INDICATORS: 1, // TODO: Set this if the encoding channel has data
             ENABLE_WIREFRAME: 1,
+            ENABLE_SURFACE_LIGHT: 1,
         }),
         vertex_shader: shader_sources.vertex,
         fragment_shader: shader_sources.fragment,
@@ -116,7 +117,7 @@ const method_properties = {
         defines: _.extend({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
-            // ENABLE_SURFACE_LIGHT: 1,
+            ENABLE_SURFACE_LIGHT: 1,
         }),
         // select_defines: function(encoding) {
         //     let defines = {};
@@ -179,7 +180,9 @@ const method_properties = {
             ENABLE_ISOSURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
             ENABLE_EMISSION_BACK: 1,
-            // ENABLE_SURFACE_LIGHT: 1,
+            ENABLE_SURFACE_LIGHT: 1,
+            //USING_ISOSURFACE_MODE_LINEAR: 1,  // FIXME: Configurable
+            USING_ISOSURFACE_MODE_LOG: 1,  // FIXME: Configurable
         }),
 
         vertex_shader: shader_sources.vertex,
@@ -686,6 +689,8 @@ class TetrahedralMeshRenderer
             u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0) },
             // Camera uniforms (updated in update_perspective(), threejs provides cameraPosition)
             u_view_direction: { value: new THREE.Vector3(0, 0, 1) },
+            // Light uniforms
+            u_light_floor: { value: 0.5 },
             // Input constants (u_foo is updated in upload() based on
             // encoding.foo.value, but only if foo is present in channels,
             // with default value set in the default encoding)
