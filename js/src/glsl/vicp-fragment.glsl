@@ -347,21 +347,8 @@ void main()
 #endif
 
 
-    // I'm sure this can be done more elegantly but the endgoal
-    // is texture lookups to support arbitrary numbers of isovalues
-#ifdef ENABLE_ISOSURFACE_MODEL
-
-    #if defined(ENABLE_DENSITY)
-    compile_error();  // Isosurface only implemented for emission for now
-    #elif defined(ENABLE_EMISSION_BACK)
-    float front = v_emission;
-    float back = emission_back;
-    vec4 value_range = u_emission_range;
-    #else
-    compile_error();  // Isosurface needs emission front and back
-    #endif
-
-#if 0
+    // TODO: Revamp this code
+#ifdef ENABLE_INTERVAL_VOLUME_MODEL
     vec2 isorange = u_isorange;
 
     bool front_in_range = isorange.x <= front && front <= isorange.y;
@@ -381,9 +368,29 @@ void main()
     } else {
         value = isorange.x;
     }
-#else
+#endif
+
+
+#ifdef ENABLE_ISOSURFACE_MODEL
+    // TODO: This is getting a bit complex, maybe refactor to some functions
+
+    #if defined(ENABLE_EMISSION_BACK)
+    float front = v_emission;
+    float back = emission_back;
+    vec4 value_range = u_emission_range;
+    #elif defined(ENABLE_DENSITY_BACK)
+    float front = v_density;
+    float back = density_back;
+    vec4 value_range = u_density_range;
+    #else
+    compile_error();  // Isosurface needs front and back values
+    #endif
 
     float v0 = 0.5 * (value_range.x + value_range.y);  // fixme uniform
+
+  #if defined(USING_ISOSURFACE_MODE_SINGLE)
+    // TODO: Add single surface mode
+  #endif
 
   #if defined(USING_ISOSURFACE_MODE_LINEAR)
     float dv = 0.1 * value_range.z;  // fixme uniform
@@ -399,6 +406,8 @@ void main()
     compile_error();
   #endif
 
+    // Find the integer n corresponding to isovalue closest to
+    // the front and within [back,front] or [front,back]
     float n;
     if (na <= nb) {
         n = floor(nb);
@@ -412,16 +421,20 @@ void main()
         }
     }
 
+    // Reconstruct isovalue for this n
   #if defined(USING_ISOSURFACE_MODE_LINEAR)
     float value = v0 + n * dv;
   #elif defined(USING_ISOSURFACE_MODE_LOG)
     float value = v0 * pow(vp, n);
   #endif
-#endif
 
     // Map value through color lut
     float scaled_value = (value - value_range.x) * value_range.w;
-    vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz;        
+  #if defined(ENABLE_EMISSION_BACK)
+    vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz; // CHECKME
+  #elif defined(ENABLE_DENSITY_BACK)
+    vec3 C = u_constant_color * texture2D(t_density_lut, vec2(scaled_value, 0.5)).a; // CHECKME
+  #endif
 
     // Apply simple flat shading model
   #if defined(ENABLE_SURFACE_LIGHT) && (defined(ENABLE_EMISSION) || defined(ENABLE_DENSITY))
