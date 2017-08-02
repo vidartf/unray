@@ -36,7 +36,9 @@ uniform vec3 cameraPosition;
 #endif
 
 #ifdef ENABLE_SURFACE_MODEL
-    #define ENABLE_BARYCENTRIC_COORDINATES 1
+    #ifdef ENABLE_SURFACE_LIGHT
+        #define ENABLE_BARYCENTRIC_DERIVATIVES 1
+    #endif
 #endif
 
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
@@ -312,10 +314,11 @@ void main()
     #endif
 
     // Apply simple flat shading model
-   #if defined(ENABLE_SURFACE_LIGHT)
-    // This is not exact, may be wrong on edges, but decent guess?
-    int facet = smallest_index(v_barycentric_coordinates);
+  #if defined(ENABLE_SURFACE_LIGHT)
+    // TODO: If we need to know which facet we're on for other purposes, this is generic:
+    int facet = smallest_index(bc_width);
     vec3 surface_normal = getitem(v_planes, facet).xyz;  // CHECKME
+
     C *= u_light_floor + (1.0 - u_light_floor) * abs(dot(surface_normal, view_direction)); // CHECKME
   #endif
 
@@ -562,18 +565,15 @@ void main()
     // using partial derivatives of barycentric coordinates
     // in window space to ensure edge size is large enough
     // for far away edges.
-    vec4 edge_closeness = smoothstep(vec4(0.0), max(bc_width, u_wireframe_size), v_barycentric_coordinates);
+    vec4 wireframe_size = max(bc_width, u_wireframe_size);
+    vec4 edge_closeness = smoothstep(vec4(0.0), wireframe_size, v_barycentric_coordinates);
 
-    // Pick the second smallest edge closeness and square it
+    // Pick the two smallest edge closeness values and square them
     vec4 sorted_edge_closeness = sorted(edge_closeness);
-    float edge_factor = abs(sorted_edge_closeness[0]) + abs(sorted_edge_closeness[1]);
+    float edge_factor = sorted_edge_closeness[0]*sorted_edge_closeness[0] + sorted_edge_closeness[1]*sorted_edge_closeness[1];
 
     // Mix edge color into background
-    C = mix(u_wireframe_color, C, edge_factor * edge_factor);
-
-    // Otherwise keep computed color C.
-    // TODO: Cheaper to don't compute C first if it's to be discarded,
-    //       setup ifdefs to make that part flow right
+    C = mix(u_wireframe_color, C, edge_factor);
 #endif
 
 
