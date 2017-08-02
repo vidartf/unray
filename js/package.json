@@ -42,7 +42,7 @@
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
-    "@jupyter-widgets/base": "^0.2.0",
+    "@jupyter-widgets/base": "^0.6.6",
     "gl-matrix": "^2.4.0",
     "isndarray": "^1.0.0",
     "ndarray": "^1.0.18",
