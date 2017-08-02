@@ -35,6 +35,10 @@ uniform vec3 cameraPosition;
     #define ENABLE_DEPTH 1
 #endif
 
+#ifdef ENABLE_SURFACE_MODEL
+    #define ENABLE_BARYCENTRIC_COORDINATES 1
+#endif
+
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
     #define ENABLE_DEPTH 1
 #endif
