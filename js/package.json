@@ -49,7 +49,7 @@
     "ndarray-determinant": "^1.0.0",
     "ndarray-ops": "^1.2.2",
     "ndarray-pack": "^1.2.1",
-    "three": "^0.85.2",
+    "three": "^0.86.0",
     "underscore": "^1.8.3"
   }
 }

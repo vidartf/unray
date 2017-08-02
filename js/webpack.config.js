@@ -1,5 +1,10 @@
 const path = require('path');
 
+// Target paths
+const static_path = path.resolve(__dirname, '../unray/static');
+const dist_path = path.resolve(__dirname, 'dist');
+
+// One definition of version
 const version = require('./package.json').version;
 
 // Custom webpack rules are generally the same for all webpack bundles, hence
@@ -20,7 +25,7 @@ const extension = {
     entry: './src/extension.js',
     output: {
         filename: 'extension.js',
-        path: path.resolve(__dirname, '../unray/static'),
+        path: static_path,
         libraryTarget: 'amd'
     }
 };
@@ -35,7 +40,7 @@ const index = {
     entry: './src/index.js',
     output: {
         filename: 'index.js',
-        path: path.resolve(__dirname, '../unray/static'),
+        path: static_path,
         libraryTarget: 'amd'
     },
     devtool: 'source-map',
@@ -63,7 +68,7 @@ const embed = {
     entry: './src/embed.js',
     output: {
         filename: 'index.js',
-        path: path.resolve(__dirname, 'dist'),
+        path: dist_path,
         libraryTarget: 'amd',
         publicPath: 'https://unpkg.com/jupyter-unray@' + version + '/dist/'
     },
