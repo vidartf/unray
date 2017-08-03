@@ -341,12 +341,13 @@ void main()
     edge[4] = coordinates[3] - coordinates[1];
 #endif
 
-    // TODO: Can we reuse edges to compute Jinv faster?
+
 #ifdef ENABLE_JACOBIAN_INVERSE
     // Compute 3x3 Jacobian matrix of the coordinate
     // field on a tetrahedron with given vertices,
     // assuming a certain reference coordinate system.
-    mat3 Jinv = compute_Jinv(coordinates);
+    //mat3 Jinv = compute_Jinv(coordinates);
+    mat3 Jinv = inverse(transpose(mat3(edge[2], edge[3], edge[1])));
 #endif
 
 
@@ -382,6 +383,43 @@ void main()
     v_emission = texture2D(t_emission, this_vertex_uv).a;
 #endif
 
+
+#if 0
+#ifdef ENABLE_ISOSURFACE_MODEL
+    // FIXME: Make this work, also move this and computation of
+    // emission[] and density[] above coordinates because we
+    // don't need those if we discard the cell
+
+    // FIXME: This should be sufficient as the single isovalue version:
+    vec4 values = emission;
+    vec4 values = density;
+    if (all(lt(values, u_isovalue)) || all(gt(values, u_isovalue))) {
+        // This creates degenerate triangles outside the screen,
+        // such that no fragment shaders need to run for this cell
+        gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+        return;
+    }
+
+    // FIXME: A bit more tricky for multiple surfaces:
+    // Check if all vertex values are inside the same isovalue
+    // interval or on the same side of a single isovalue, and
+    // if so discard the cell and stop processing (same for all vertices)
+    vec4 isolevels;
+
+    // FIXME: Implement this, refactor fragment shader pieces into functions to reuse here
+    //isolevels[i] = level n computed from emission[i] or density[i]; depending on linear or log scale
+
+    // FIXME: Validate this code
+    vec3 isolevel_dist = floor(isolevels.xyz) - floor(isolevels.w);
+    if (all(lt(isolevel_dist, 1.0)) && all(ge(isolevel_dist, 0.0))) {
+        // This creates degenerate triangles outside the screen,
+        // such that no fragment shaders need to run for this cell
+        gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+        return;
+    }
+
+#endif
+#endif
 
 #if defined(ENABLE_PLANES)
     // TODO: v_planes can be precomputed

@@ -181,8 +181,11 @@ const method_properties = {
             ENABLE_EMISSION: 1,
             ENABLE_EMISSION_BACK: 1,
             ENABLE_SURFACE_LIGHT: 1,
-            //USING_ISOSURFACE_MODE_LINEAR: 1,  // FIXME: Configurable
-            USING_ISOSURFACE_MODE_LOG: 1,  // FIXME: Configurable
+            // FIXME: Configurable mode:
+            //USING_ISOSURFACE_MODE_LINEAR: 1,
+            USING_ISOSURFACE_MODE_LOG: 1,
+            //USING_ISOSURFACE_MODE_SINGLE: 1,
+            //USING_ISOSURFACE_MODE_SWEEP: 1,
         }),
 
         vertex_shader: shader_sources.vertex,

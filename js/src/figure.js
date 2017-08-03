@@ -365,7 +365,7 @@ class FigureView extends widgets.DOMWidgetView
         debug("step_time: ", passed_time, time_step);
 
         // TODO: Later want camera to be controlled via connected pythreejs widget
-        this.step_camera(passed_time);
+        //this.step_camera(passed_time);
 
         // Update time in tetrenderer
         this.tetrenderer.update_time(passed_time);

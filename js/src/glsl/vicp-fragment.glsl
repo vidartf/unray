@@ -15,6 +15,7 @@
 @import ./utils/getitem;
 @import ./utils/sorted;
 @import ./utils/depth;
+@import ./utils/isosurface;
 @import ./vicp-lib;
 
 
@@ -37,7 +38,7 @@ uniform vec3 cameraPosition;
 
 #ifdef ENABLE_SURFACE_MODEL
     #ifdef ENABLE_SURFACE_LIGHT
-        #define ENABLE_BARYCENTRIC_DERIVATIVES 1
+        #define ENABLE_FACET_PLANE 1
     #endif
 #endif
 
@@ -46,6 +47,10 @@ uniform vec3 cameraPosition;
 #endif
 
 #ifdef ENABLE_WIREFRAME
+    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
+#endif
+
+#ifdef ENABLE_FACET_PLANE
     #define ENABLE_BARYCENTRIC_DERIVATIVES 1
 #endif
 
@@ -215,6 +220,13 @@ void main()
 #endif
 
 
+#ifdef ENABLE_FACET_PLANE
+    // Determine which facet we're on and fetch the normal vector
+    int facet = smallest_index(bc_width);
+    vec4 facet_plane = getitem(v_planes, facet);  // CHECKME
+#endif
+
+
 #if defined(ENABLE_DEPTH) && defined(ENABLE_PERSPECTIVE_PROJECTION)
     // Initialize to a too large value
     float depth = 1000.0 * v_max_depth;
@@ -315,10 +327,7 @@ void main()
 
     // Apply simple flat shading model
   #if defined(ENABLE_SURFACE_LIGHT)
-    // TODO: If we need to know which facet we're on for other purposes, this is generic:
-    int facet = smallest_index(bc_width);
-    vec3 surface_normal = getitem(v_planes, facet).xyz;  // CHECKME
-
+    vec3 surface_normal = facet_plane.xyz;
     C *= u_light_floor + (1.0 - u_light_floor) * abs(dot(surface_normal, view_direction)); // CHECKME
   #endif
 
@@ -386,47 +395,53 @@ void main()
     compile_error();  // Isosurface needs front and back values
     #endif
 
-    float v0 = 0.5 * (value_range.x + value_range.y);  // fixme uniform
+    // FIXME add uniforms
+    // Isovalue for surface n = 0
+    //uniform float u_isovalue;
+    // Isovalue spacing for multiple surface
+    //uniform float u_isosurface_spacing;
+    // Time period for sweep modes
+    uniform float u_sweep_period;
+
+    // FIXME set these uniform defaults in js or python code
+    float u_isovalue = 0.5 * (value_range.x + value_range.y);
+    float u_sweep_period = 2.0;
+  #if !defined(USING_ISOSURFACE_MODE_SINGLE)
+    float num_intervals = 10.0;
+    #if defined(USING_ISOSURFACE_MODE_LINEAR)
+    float u_isosurface_spacing = (1.0 / num_intervals) * (value_range.y - value_range.x);
+    #elif defined(USING_ISOSURFACE_MODE_LOG)
+    float u_isosurface_spacing = pow(value_range.y / value_range.x, 1.0 / (num_intervals + 1.0));
+    #endif
+  #endif
+
 
   #if defined(USING_ISOSURFACE_MODE_SINGLE)
-    // TODO: Add single surface mode
-  #endif
-
-  #if defined(USING_ISOSURFACE_MODE_LINEAR)
-    float dv = 0.1 * value_range.z;  // fixme uniform
-    float dvinv = 1.0 / dv;
-    float na = (back - v0) * dvinv;
-    float nb = (front - v0) * dvinv;
-  #elif defined(USING_ISOSURFACE_MODE_LOG)
-    float vp = pow(value_range.z, 0.1);  // fixme uniform
-    float v0pinv = 1.0 / (v0 * vp);
-    float na = log2(back * v0pinv);
-    float nb = log2(front * v0pinv);
-  #else
-    compile_error();
-  #endif
-
-    // Find the integer n corresponding to isovalue closest to
-    // the front and within [back,front] or [front,back]
-    float n;
-    if (na <= nb) {
-        n = floor(nb);
-        if (n < ceil(na)) {
-            discard;
-        }
-    } else {
-        n = ceil(nb);
-        if (n > floor(na)) {
-            discard;
-        }
+    // Single surface variant, check if value is outside range of ray
+    float value = u_isovalue;
+    if (is_outside_interval(value, back, front)) {
+        discard;
     }
-
-    // Reconstruct isovalue for this n
-  #if defined(USING_ISOSURFACE_MODE_LINEAR)
-    float value = v0 + n * dv;
+  #elif defined(USING_ISOSURFACE_MODE_SWEEP)
+    // Single surface variant, check if value is outside range of ray
+    float value = mix(value_range.x, value_range.y, fract(u_time / u_sweep_period));
+    if (is_outside_interval(value, back, front)) {
+        discard;
+    }
+  #elif defined(USING_ISOSURFACE_MODE_LINEAR)
+    // Multiple surfaces spaced with fixed distance
+    float value;
+    if (!find_isovalue_linear_spacing(value, back, front, u_isovalue, u_isosurface_spacing)) {
+        discard;
+    }
   #elif defined(USING_ISOSURFACE_MODE_LOG)
-    float value = v0 * pow(vp, n);
+    // Multiple surfaces spaced with fixed ratio
+    float value;
+    if (!find_isovalue_log_spacing(value, back, front, u_isovalue, u_isosurface_spacing)) {
+        discard;
+    }
   #endif
+
 
     // Map value through color lut
     float scaled_value = (value - value_range.x) * value_range.w;
@@ -574,6 +589,9 @@ void main()
 
 
 #ifdef ENABLE_WIREFRAME
+    // Shade edges of triagle to show wireframe.
+    // This only works for opaque rendering modes.
+
     // Compute a measure of closeness to edge in [0, 1],
     // using partial derivatives of barycentric coordinates
     // in window space to ensure edge size is large enough
@@ -583,7 +601,8 @@ void main()
 
     // Pick the two smallest edge closeness values and square them
     vec4 sorted_edge_closeness = sorted(edge_closeness);
-    float edge_factor = sorted_edge_closeness[0]*sorted_edge_closeness[0] + sorted_edge_closeness[1]*sorted_edge_closeness[1];
+    float edge_factor = sorted_edge_closeness[0]*sorted_edge_closeness[0]
+                      + sorted_edge_closeness[1]*sorted_edge_closeness[1];
 
     // Mix edge color into background
     C = mix(u_wireframe_color, C, edge_factor);
