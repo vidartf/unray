@@ -699,6 +699,7 @@ class TetrahedralMeshRenderer
             // with default value set in the default encoding)
             u_cell_indicator_value: { value: 1 },
             u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
+            u_exposure: { value: 1.0 },
             u_wireframe_color: { value: new THREE.Color(0, 0, 0) },
             u_wireframe_size: { value: 0.01 },
             u_isorange: { value: new THREE.Vector2(0.0, 1.0) },

@@ -108,6 +108,7 @@ uniform float u_light_floor;
 
 // Input data uniforms
 uniform vec3 u_constant_color;
+uniform float u_exposure;
 
 #ifdef ENABLE_WIREFRAME
 uniform vec3 u_wireframe_color;
@@ -119,7 +120,7 @@ uniform vec2 u_isorange;
 #endif
 
 #if defined(ENABLE_XRAY_MODEL) || defined(ENABLE_VOLUME_MODEL)
-uniform float u_particle_area;
+uniform float u_particle_area;  // TODO: Use u_exposure instead?
 #endif
 
 // #ifdef ENABLE_CELL_INDICATORS
@@ -401,7 +402,7 @@ void main()
     // Isovalue spacing for multiple surface
     //uniform float u_isosurface_spacing;
     // Time period for sweep modes
-    uniform float u_sweep_period;
+    //uniform float u_sweep_period;
 
     // FIXME set these uniform defaults in js or python code
     float u_isovalue = 0.5 * (value_range.x + value_range.y);
@@ -497,13 +498,11 @@ void main()
     compile_error();  // Xray model needs density and density only
     #endif
 
-    float area = u_particle_area;
-
     // DEBUGGING: Add some oscillation to density
-    // area *= abs((2.0 + u_oscillators[1]) / 3.0);
+    // rho *= abs((2.0 + u_oscillators[1]) / 3.0);
 
     // Compute transparency (NB! this is 1-opacity)
-    float a = exp(-depth * area * rho);
+    float a = exp(-depth * u_particle_area * rho);
 
     // This must be zero for no emission to occur, i.e.
     // all color comes from the background and is attenuated by 1-a
@@ -552,6 +551,27 @@ void main()
     vec3 C = u_constant_color * mapped_density;  // CHECKME
     #else
     compile_error();  // Max model needs emission or density
+    #endif
+
+    // Opacity is unused for this mode
+    float a = 1.0;
+#endif
+
+
+#ifdef ENABLE_SUM_MODEL
+    // Evaluate ray integral, use in combination
+    // with blend equation: RGB_src + RGB_dst
+    float scale = u_exposure * depth;
+    #if defined(ENABLE_EMISSION_BACK)
+    vec3 C = scale * mix(mapped_emission, mapped_emission_back, 0.5); // CHECKME
+    #elif defined(ENABLE_EMISSION)
+    vec3 C = scale * mapped_emission; // CHECKME
+    #elif defined(ENABLE_DENSITY_BACK)
+    vec3 C = u_constant_color * (scale * mix(mapped_density, mapped_density_back, 0.5)); // CHECKME
+    #elif defined(ENABLE_DENSITY)
+    vec3 C = u_constant_color * (scale * mapped_density); // CHECKME
+    #else
+    compile_error();  // Volume model requires emission
     #endif
 
     // Opacity is unused for this mode
