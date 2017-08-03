@@ -43,14 +43,15 @@ a cell sorting algorithm must be implementated in javascript or webassembly.
 
 To install use pip:
 
-    $ pip install unray
-    $ jupyter nbextension enable --py --sys-prefix unray
+    pip install unray
+    jupyter nbextension enable --py --sys-prefix unray
 
 
 For a development installation (requires npm),
 
-    $ git clone https://github.com/martinal/unray.git
-    $ cd unray
-    $ pip install -e .
-    $ jupyter nbextension install --py --symlink --sys-prefix unray
-    $ jupyter nbextension enable --py --sys-prefix unray
+    git clone https://github.com/martinal/unray.git
+    cd unray
+    pip install -e .
+    jupyter nbextension install --py --symlink --sys-prefix unray
+    jupyter nbextension enable --py --sys-prefix unray
+
