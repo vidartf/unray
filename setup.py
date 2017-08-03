@@ -53,7 +53,7 @@ setup_args = {
         ]),
     ],
     'install_requires': [
-        'ipywidgets>=7.0.0a4',
+        'ipywidgets>=7.0.0b4',
         'traittypes',
         'numpy',
     ],
