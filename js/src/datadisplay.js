@@ -53,7 +53,6 @@ class DataDisplayView extends widgets.DOMWidgetView
         }
 
         this.div = document.createElement("div");
-        this.el.className = "jupyter-widget jupyter-unray";
         this.el.innerHTML = "";
         this.el.appendChild(this.div);
 

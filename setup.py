@@ -46,7 +46,7 @@ setup_args = {
     'long_description': LONG_DESCRIPTION,
     'include_package_data': True,
     'data_files': [
-        ('share/jupyter/nbextensions/jupyter-unray', [
+        ('share/jupyter/nbextensions/unray', [
             'unray/static/extension.js',
             'unray/static/index.js',
             'unray/static/index.js.map',

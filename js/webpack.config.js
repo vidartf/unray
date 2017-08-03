@@ -50,7 +50,7 @@ const index = {
     externals: ['@jupyter-widgets/base']
 };
 
-// Embeddable jupyter-unray bundle
+// Embeddable unray bundle
 //
 // This bundle is generally almost identical to the notebook bundle
 // containing the custom widget views and models.
@@ -70,7 +70,7 @@ const embed = {
         filename: 'index.js',
         path: dist_path,
         libraryTarget: 'amd',
-        publicPath: 'https://unpkg.com/jupyter-unray@' + version + '/dist/'
+        publicPath: 'https://unpkg.com/unray@' + version + '/dist/'
     },
     devtool: 'source-map',
     module: {

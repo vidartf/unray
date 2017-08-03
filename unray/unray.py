@@ -5,6 +5,7 @@ from traitlets import Unicode, Dict, Any, CFloat, CInt, CBool
 from .traits_numpy import array_serialization, shape_constraints
 from traittypes import Array
 import numpy as np
+from ._version import widget_module_version
 
 default_config = dict(
     raymodel="sum",
@@ -23,10 +24,10 @@ class Unray(widgets.DOMWidget):
     """"""
     _view_name = Unicode('UnrayView').tag(sync=True)
     _model_name = Unicode('UnrayModel').tag(sync=True)
-    _view_module = Unicode('jupyter-unray').tag(sync=True)
-    _model_module = Unicode('jupyter-unray').tag(sync=True)
-    _view_module_version = Unicode('^0.1.0').tag(sync=True)
-    _model_module_version = Unicode('^0.1.0').tag(sync=True)
+    _view_module = Unicode('unray').tag(sync=True)
+    _model_module = Unicode('unray').tag(sync=True)
+    _view_module_version = Unicode(widget_module_version).tag(sync=True)
+    _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
     width = CInt(800).tag(sync=True)
     height = CInt(600).tag(sync=True)

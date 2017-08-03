@@ -7,7 +7,7 @@ if (window.require) {
     window.require.config({
         map: {
             "*" : {
-                "jupyter-unray": "nbextensions/jupyter-unray/index",
+                "unray": "nbextensions/unray/index",
                 "@jupyter-widgets/base": "nbextensions/jupyter-widgets/extension"
             }
         }

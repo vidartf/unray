@@ -9,10 +9,10 @@ from traitlets import Instance, TraitError, TraitType, Undefined
 from traittypes import Array
 
 from .traits_numpy import array_serialization, shape_constraints
+from ._version import widget_module_version 
 
-
-module_name = 'jupyter-unray'
-module_version = '^0.1.0'
+module_name = 'unray'
+module_version = widget_module_version
 
 
 @widgets.register('unray.Data')

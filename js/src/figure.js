@@ -96,12 +96,11 @@ class FigureView extends widgets.DOMWidgetView
 
         // Add it to the DOM
         this.el.innerHTML = "";
-        this.el.className = "jupyter-widget jupyter-unray";
         this.el.appendChild(this.canvas);
 
         // Setup three.js renderer
         // TODO: Use pythreejs for this if we stick to webgl1 and three.js
-		this.renderer = new THREE.WebGLRenderer({
+        this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
             precision: "highp",
             alpha: true,

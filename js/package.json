@@ -1,5 +1,5 @@
 {
-  "name": "jupyter-unray",
+  "name": "unray",
   "version": "0.1.0",
   "description": "Jupyter Widget for Volume Rendering of Unstructured Tetrahedral Mesh Data",
   "author": "Martin Sandve Alnæs <martin.alnes@gmail.com>",
@@ -7,7 +7,7 @@
   "main": "src/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/martinal/jupyter-unray.git"
+    "url": "https://github.com/martinal/unray.git"
   },
   "keywords": [
     "jupyter",
