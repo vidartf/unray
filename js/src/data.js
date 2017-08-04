@@ -1,10 +1,10 @@
 'use strict';
 
-var widgets = require('@jupyter-widgets/base');
-var _ = require('underscore');
+import widgets from '@jupyter-widgets/base';
+import _ from 'underscore';
 
-var version = require('./version.js');
-var serialization = require('./serialization.js');
+import version from './version.js';
+import {array_serialization} from './serialization.js';
 
 
 class DataModel extends widgets.WidgetModel
@@ -42,10 +42,10 @@ class DataModel extends widgets.WidgetModel
     }
 };
 DataModel.serializers = _.extend({
-    array: serialization.array_serialization,
+    array: array_serialization,
 }, widgets.WidgetModel.serializers);
 
 
-module.exports = {
+export {
     DataModel
 };

@@ -1,11 +1,10 @@
 'use strict';
 
-var widgets = require('@jupyter-widgets/base');
-var _ = require('underscore');
-var THREE = require('three');
+import widgets from '@jupyter-widgets/base';
+import _ from 'underscore';
 
-var version = require('./version.js');
-// var serialization = require('./serialization.js');
+import version from './version';
+// import serialization from './serialization';
 
 
 class PlotModel extends widgets.DOMWidgetModel
@@ -92,6 +91,6 @@ class PlotView extends widgets.DOMWidgetView
 };
 
 
-module.exports = {
+export {
     PlotModel, PlotView
 };

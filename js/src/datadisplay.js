@@ -1,9 +1,9 @@
 'use strict';
 
-var widgets = require('@jupyter-widgets/base');
-var _ = require('underscore');
+import widgets from '@jupyter-widgets/base';
+import _ from 'underscore';
 
-var version = require('./version.js');
+import version from './version.js';
 
 
 class DataDisplayModel extends widgets.DOMWidgetModel
@@ -107,6 +107,6 @@ class DataDisplayView extends widgets.DOMWidgetView
 };
 
 
-module.exports = {
+export {
     DataDisplayModel, DataDisplayView
 };

@@ -1,15 +1,13 @@
 'use strict';
 
-var widgets = require('@jupyter-widgets/base');
-var _ = require('underscore');
-var THREE = require('three');
-window.THREE = THREE;
-// require('../node_modules/three/examples/js/controls/TrackballControls');
-require('../node_modules/three/examples/js/controls/OrbitControls');
+import widgets from '@jupyter-widgets/base';
+import _ from 'underscore';
 
-var version = require('./version.js');
-let meshutils = require("./meshutils.js");
-let renderer = require("./renderer.js");
+import THREE from './threeimport';
+
+import version from './version';
+import {compute_bounds, reorient_tetrahedron_cells} from "./meshutils";
+import {TetrahedralMeshRenderer} from "./renderer";
 
 
 //var debug = _.bind(console.log, console);
@@ -139,7 +137,7 @@ class FigureView extends widgets.DOMWidgetView
         //let num_tetrahedrons = raw_data.coordinates.length / 3;
 
         // Reorient tetrahedral cells
-        meshutils.reorient_tetrahedron_cells(
+        reorient_tetrahedron_cells(
             data.cells.get("array").data,
             data.coordinates.get("array").data)
         /////////////////////////////////////////////////////////////////
@@ -147,7 +145,7 @@ class FigureView extends widgets.DOMWidgetView
 
         /////////////////////////////////////////////////////////////////
         // Setup cloud model
-        this.tetrenderer = new renderer.TetrahedralMeshRenderer();
+        this.tetrenderer = new TetrahedralMeshRenderer();
 
         // Initialize renderer once dimensions are known
         this.tetrenderer.init(num_tetrahedrons, num_vertices);
@@ -179,7 +177,7 @@ class FigureView extends widgets.DOMWidgetView
         /////////////////////////////////////////////////////////////////
         // Compute bounding sphere of model
         // (TODO: Maybe let tetrenderer do this?)
-        this.bounds = meshutils.compute_bounds(raw_data.coordinates);
+        this.bounds = compute_bounds(raw_data.coordinates);
         this.model_center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
         // this.model_center = new THREE.Vector3(this.bounds.bbcenter[0], this.bounds.bbcenter[1], this.bounds.bbcenter[2]);
         debug("Computed bounds:", this.bounds);
@@ -404,6 +402,6 @@ class FigureView extends widgets.DOMWidgetView
 };
 
 
-module.exports = {
+export {
     FigureModel, FigureView
 };

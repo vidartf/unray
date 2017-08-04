@@ -1,8 +1,9 @@
+'use strict';
 
-let ndarray = require('ndarray');
+import ndarray from 'ndarray';
 
 // Array serialization code copied from pythreejs
-let typesToArray = {
+const typesToArray = {
     int8: Int8Array,
     int16: Int16Array,
     int32: Int32Array,
@@ -11,23 +12,28 @@ let typesToArray = {
     uint32: Uint32Array,
     float32: Float32Array,
     float64: Float64Array
-}
-let JSONToArray = function(obj, manager) {
+};
+
+const JSONToArray = (obj, manager) => {
     // obj is {shape: list, dtype: string, buffer: DataView}
     // return an ndarray object
-    let arraytype = typesToArray[obj.dtype];
+    const arraytype = typesToArray[obj.dtype];
     if (arraytype === undefined) {
         console.error("Invalid dtype", obj.dtype);
     }
     return ndarray(new arraytype(obj.buffer.buffer), obj.shape);
 }
-let arrayToJSON = function(obj, manager) {
+
+const arrayToJSON = (obj, manager) => {
     // serialize to {shape: list, dtype: string, buffer: buffer}
     return {shape: obj.shape, dtype: obj.dtype, buffer: obj.data}
 }
-let array_serialization = { deserialize: JSONToArray, serialize: arrayToJSON };
 
+const array_serialization = {
+    deserialize: JSONToArray,
+    serialize: arrayToJSON,
+};
 
-module.exports = {
+export {
     array_serialization
 };

@@ -1,9 +1,8 @@
-var _ = require('underscore');
+"use strict";
 
-// Export widget models and views
-module.exports = _.extend({},
-    require('./data.js'),
-    require('./datadisplay.js'),
-    require('./plot.js'),
-    require('./figure.js')
-);
+// Collect and export all widget models and views.
+// This is used to populate the exports from index.js and embed.js
+export * from './data';
+export * from './datadisplay';
+export * from './plot';
+export * from './figure';

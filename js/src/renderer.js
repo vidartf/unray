@@ -1,17 +1,12 @@
 'use strict';
 
-var _ = require('underscore');
-var THREE = require('three');
+import _ from 'underscore';
+import THREE from './threeimport';
+import shader_sources from './shaders';
 
 
 //var debug = _.bind(console.log, console);
 var debug = function() {}
-
-
-const shader_sources = {
-    vertex: require("./glsl/vicp-vertex.glsl"),
-    fragment: require("./glsl/vicp-fragment.glsl"),
-}
 
 
 // TODO: Improve and document channel specifications
@@ -1141,6 +1136,6 @@ class TetrahedralMeshRenderer
     }
 };
 
-module.exports = {
+export {
     TetrahedralMeshRenderer
 };
