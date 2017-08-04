@@ -1,13 +1,16 @@
 'use strict';
 
-import widgets from '@jupyter-widgets/base';
 import _ from 'underscore';
 
-import THREE from './threeimport';
+import widgets from '@jupyter-widgets/base';
 
 import version from './version';
 import {compute_bounds, reorient_tetrahedron_cells} from "./meshutils";
 import {TetrahedralMeshRenderer} from "./renderer";
+
+import './threeimport';
+const THREE = window.THREE;
+// console.log("THREE imported in figure:", THREE);
 
 
 //var debug = _.bind(console.log, console);

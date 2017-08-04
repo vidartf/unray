@@ -1,9 +1,11 @@
 'use strict';
 
 import _ from 'underscore';
-import THREE from './threeimport';
 import shader_sources from './shaders';
 
+import './threeimport';
+const THREE = window.THREE;
+// console.log("THREE imported in renderer:", THREE);
 
 //var debug = _.bind(console.log, console);
 var debug = function() {}
