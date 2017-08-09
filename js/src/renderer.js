@@ -697,8 +697,9 @@ class TetrahedralMeshRenderer
             u_cell_indicator_value: { value: 1 },
             u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
             u_exposure: { value: 1.0 },
-            u_wireframe_color: { value: new THREE.Color(0, 0, 0) },
-            u_wireframe_size: { value: 0.01 },
+            u_wireframe_color: { value: new THREE.Color(0.1, 0.1, 0.1) },
+            u_wireframe_alpha: { value: 0.7 },
+            u_wireframe_size: { value: 0.001 },
             u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
             u_particle_area: { value: 1.0 },
             // Input data ranges (u_foo_range is updated in upload() based on encoding.foo.range attribute)

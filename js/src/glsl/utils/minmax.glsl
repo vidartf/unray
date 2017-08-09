@@ -29,3 +29,33 @@ float minv(vec3 x) {
 float minv(vec2 x) {
     return min(x[0], x[1]);
 }
+
+// Return sum of vec values
+float sumv(vec4 x) {
+    return (x[0] + x[1]) + (x[2] + x[3]);
+}
+
+// Return sum of vec values
+float sumv(vec3 x) {
+    return (x[0] + x[1]) + x[2];
+}
+
+// Return sum of vec values
+float sumv(vec2 x) {
+    return x[0] + x[1];
+}
+
+// Return avg of vec values
+float avgv(vec4 x) {
+    return 0.25 * ((x[0] + x[1]) + (x[2] + x[3]));
+}
+
+// Return avg of vec values
+float avgv(vec3 x) {
+    return (1.0/3.0) * ((x[0] + x[1]) + x[2]);
+}
+
+// Return avg of vec values
+float avgv(vec2 x) {
+    return 0.5 * (x[0] + x[1]);
+}

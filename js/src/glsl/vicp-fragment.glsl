@@ -112,6 +112,7 @@ uniform float u_exposure;
 
 #ifdef ENABLE_WIREFRAME
 uniform vec3 u_wireframe_color;
+uniform float u_wireframe_alpha;
 uniform float u_wireframe_size;
 #endif
 
@@ -616,8 +617,7 @@ void main()
     // using partial derivatives of barycentric coordinates
     // in window space to ensure edge size is large enough
     // for far away edges.
-    vec4 wireframe_size = max(bc_width, u_wireframe_size);
-    vec4 edge_closeness = smoothstep(vec4(0.0), wireframe_size, v_barycentric_coordinates);
+    vec4 edge_closeness = smoothstep(vec4(0.0), max(bc_width, u_wireframe_size), v_barycentric_coordinates);
 
     // Pick the two smallest edge closeness values and square them
     vec4 sorted_edge_closeness = sorted(edge_closeness);
@@ -625,7 +625,7 @@ void main()
                       + sorted_edge_closeness[1]*sorted_edge_closeness[1];
 
     // Mix edge color into background
-    C = mix(u_wireframe_color, C, edge_factor);
+    C = mix(u_wireframe_color, C, mix(1.0, edge_factor, u_wireframe_alpha));
 #endif
 
 
