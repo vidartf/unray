@@ -2,7 +2,9 @@
 
 import _ from 'underscore';
 import shader_sources from './shaders';
-import {compute_bounds, reorient_tetrahedron_cells} from "./meshutils";
+import {compute_bounding_sphere, compute_bounding_box,
+    reorient_tetrahedron_cells} from "./meshutils";
+import {create_instanced_tetrahedron_geometry} from './geometry';
 import './threeimport';
 const THREE = window.THREE;
 // console.log("THREE imported in renderer:", THREE);
@@ -46,9 +48,9 @@ const default_encoding = {
 
 
 function override_defaults(defaults, params) {
-    const p = _.clone(defaults);
+    const p = Object.assign({}, defaults);
     for (let key in params) {
-        _.extend(p[key], params[key]);
+        Object.assign(p[key], params[key]);
     }
     return p;
 }
@@ -85,7 +87,7 @@ const method_properties = {
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
             // TODO: decide on meaning of indicator values
@@ -111,7 +113,7 @@ const method_properties = {
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_SURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
             ENABLE_SURFACE_LIGHT: 1,
@@ -146,7 +148,7 @@ const method_properties = {
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_SURFACE_DEPTH_MODEL: 1,
         }),
 
@@ -173,7 +175,7 @@ const method_properties = {
         blend_src: THREE.SrcAlphaFactor,
         blend_dst: THREE.OneMinusSrcAlphaFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_ISOSURFACE_MODEL: 1,
             ENABLE_EMISSION: 1,
             ENABLE_EMISSION_BACK: 1,
@@ -207,7 +209,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_MAX_MODEL: 1,
             ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
             ENABLE_EMISSION_BACK: 1,
@@ -237,7 +239,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_MAX_MODEL: 1,
             ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
             // ENABLE_EMISSION_BACK: 1,
@@ -265,7 +267,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_MIN_MODEL: 1,
             ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
             ENABLE_EMISSION_BACK: 1,
@@ -295,7 +297,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_MIN_MODEL: 1,
             ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
             // ENABLE_EMISSION_BACK: 1,
@@ -323,7 +325,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.SrcAlphaFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_XRAY_MODEL: 1,
             ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
             // ENABLE_DENSITY_BACK: 1,
@@ -351,7 +353,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.SrcAlphaFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_XRAY_MODEL: 1,
             ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
             ENABLE_DENSITY_BACK: 1,
@@ -378,7 +380,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_SUM_MODEL: 1,
             ENABLE_EMISSION: 1,        // TODO: It might make sense to use emission OR density here?
             ENABLE_EMISSION_BACK: 1,
@@ -405,7 +407,7 @@ const method_properties = {
         blend_src: THREE.OneFactor,
         blend_dst: THREE.OneMinusSrcAlphaFactor,
 
-        defines: _.extend({}, default_defines, {
+        defines: Object.assign({}, default_defines, {
             ENABLE_VOLUME_MODEL: 1,
             ENABLE_DENSITY: 1,      // TODO: All combinations of density/emission with/without backside are valid.
             ENABLE_EMISSION: 1,
@@ -623,57 +625,9 @@ class TetrahedralMeshRenderer
 {
     constructor()
     {
-        this._init_shared_topology();
         this._init_uniforms();
         this._init_attributes();
         this._init_meshes();
-    }
-
-    _init_shared_topology()
-    {
-        // This is the reference tetrahedron,
-        // assumed a few places via face numbering etc.
-        // const reference_coordinates = [
-        //     0, 0, 0,
-        //     1, 0, 0,
-        //     0, 1, 0,
-        //     0, 0, 1
-        // ];
-
-        // Setup triangle strip to draw each tetrahedron instance,
-        // make sure that the faces winded ccw seen from the outside.
-        this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 2, 1, 3, 0, 2]), 1);
-
-        // cw winded version
-        // this.element_buffer = new THREE.BufferAttribute(new Uint8Array([0, 1, 2, 3, 0, 1]), 1);
-
-        // Note: Seems like we need at least one vertex attribute
-        // (i.e. per instance vertex) to please some webgl drivers
-
-        // Setup local tetrahedron vertex indices in a pattern relative to each vertex.
-        // For each vertex 0...3, listing the vertices of the opposing face
-        // in ccw winding seen from outside the tetrahedron.
-        // This simplifies the computation of the opposing normal in the vertex shader,
-        // i.e. n0 = normal of the face (v1, v2, v3) opposing v0, pointing away from v0,
-        // n0 = normalized((v2-v1) x (v3-v1)) = normal pointing away from v0
-        // First value for each vertex is a replacement for gl_VertexID which requires webgl2
-        this.local_vertices_buffer = new THREE.BufferAttribute(new Float32Array([
-            0,   1, 2, 3,
-            1,   0, 3, 2,
-            2,   0, 1, 3,
-            3,   0, 2, 1,
-        ]), 4);
-
-        // Local barycentric coordinates on tetrahedron. When interpolated over
-        // a facet between the shaders, provides information on where on
-        // the tetrahedron the fragment is located in the cell.
-        this.barycentric_coordinates_buffer = new THREE.BufferAttribute(new Float32Array([
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1,
-        ]), 4);
-
     }
 
     _init_uniforms()
@@ -734,17 +688,27 @@ class TetrahedralMeshRenderer
         this.meshes = new Map();
     }
 
-    init(num_tetrahedrons, num_vertices)
+    init_cells(num_tetrahedrons)
     {
         // Expecting dimensions to be set only once,
         // considering that everything must be scrapped
         // when these change
         this.num_tetrahedrons = num_tetrahedrons;
-        this.num_vertices = num_vertices;
 
         // Compute suitable 2D texture shapes large enough
         // to hold this number of values and store in uniforms
         [...this.uniforms.u_cell_texture_shape.value] = compute_texture_shape(this.num_tetrahedrons);
+    }
+
+    init_vertices(num_vertices)
+    {
+        // Expecting dimensions to be set only once,
+        // considering that everything must be scrapped
+        // when these change
+        this.num_vertices = num_vertices;
+
+        // Compute suitable 2D texture shapes large enough
+        // to hold this number of values and store in uniforms
         [...this.uniforms.u_vertex_texture_shape.value] = compute_texture_shape(this.num_vertices);
     }
 
@@ -790,16 +754,10 @@ class TetrahedralMeshRenderer
         }
     }
 
-    create_geometry(method, encoding)
-    {
+    create_geometry(method, encoding) {
         const sorted = method_properties[method].sorted;
 
-        const geometry = new THREE.InstancedBufferGeometry();
-        geometry.maxInstancedCount = this.num_tetrahedrons;
-        geometry.setIndex(this.element_buffer);
-        geometry.addAttribute("a_local_vertices", this.local_vertices_buffer);
-        geometry.addAttribute("a_barycentric_coordinates", this.barycentric_coordinates_buffer);
-
+        const geometry = create_instanced_tetrahedron_geometry(this.num_tetrahedrons);
 
         // Setup cells of geometry (using textures or attributes)
 
@@ -1164,31 +1122,40 @@ class UnrayStateWrapper {
         }
 
 
+        //////////////////////////////////////////
         if (data.cells.get("array").shape[1] !== 4) {
             console.error("Shape error in cells", data.cells);
         }
         const num_tetrahedrons = data.cells.get("array").shape[0];
         //const num_tetrahedrons = raw_data.cells.length / 4;
-
+        this.tetrenderer.init_cells(num_tetrahedrons);
 
         if (data.coordinates.get("array").shape[1] !== 3) {
             console.error("Shape error in coordinates", data.coordinates);
         }
         const num_vertices = data.coordinates.get("array").shape[0];
         //const num_vertices = raw_data.coordinates.length / 3;
-
-        this.bounds = compute_bounds(raw_data.coordinates);
-
-        // Initialize renderer once dimensions are known
-        this.tetrenderer.init(num_tetrahedrons, num_vertices);
+        this.tetrenderer.init_vertices(num_vertices);
 
         // Reorient tetrahedral cells
-        reorient_tetrahedron_cells(data.cells.get("array").data, data.coordinates.get("array").data);
+        reorient_tetrahedron_cells(
+            data.cells.get("array").data,
+            data.coordinates.get("array").data
+        );
+        //////////////////////////////////////////
+
 
         this.tetrenderer.configure(plotname, method, encoding, raw_data);
 
         // Upload data to textures
         this.tetrenderer.upload(raw_data, method, encoding);
+
+        // Refactoring step, splitting compute_bounds
+        // {min, max, bbcenter, center, radius};
+        this.bounds = Object.assign(
+            compute_bounding_box(raw_data.coordinates),
+            compute_bounding_sphere(raw_data.coordinates),
+        );
 
         // Select method-specific background color
         this.bgcolor = this.tetrenderer.select_bgcolor(
@@ -1240,12 +1207,10 @@ class UnrayStateWrapper {
     }
 }
 
-
 function create_unray_state(root, attributes) {
     return new UnrayStateWrapper(root, attributes)
 }
 
-
 export {
-    TetrahedralMeshRenderer, create_unray_state
+    create_unray_state
 };

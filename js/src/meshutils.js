@@ -3,8 +3,7 @@
 import { zip } from 'underscore';
 
 // Compute bounding box of a set of 3D points in a flat array
-function compute_bounding_box(points=new Float32Array([]))
-{
+function compute_bounding_box(points=new Float32Array([])) {
     // Find bounding box
     let min = points.slice(0, 3);
     let max = points.slice(0, 3);
@@ -21,10 +20,8 @@ function compute_bounding_box(points=new Float32Array([]))
 
     // Find center of box
     const center = zip(min, max).map(([a, b]) => 0.5*(a + b));
-
     return {min, max, center};
 }
-
 
 // Estimate center of mass of 3D points
 function compute_center(points=new Float32Array([])) {
@@ -37,9 +34,8 @@ function compute_center(points=new Float32Array([])) {
     return center.map(x => x * 3 / points.length);
 }
 
-
 // Compute smallest radius of sphere around center containing all points
-function compute_radius(points=new Float32Array([]), center=[0,0,0]) {
+function compute_radius(points=new Float32Array([]), center=[0, 0, 0]) {
     // Find radius around center
     let radius = 0;
     const [c0, c1, c2] = center;
@@ -59,19 +55,9 @@ function compute_bounding_sphere(points=new Float32Array([])) {
     return {center, radius};
 }
 
-
-// TODO: Remove this, use the others directly
-function compute_bounds(points) {
-    const {min, max, bbcenter} = compute_bounding_box(points);
-    const {center, radius} = compute_bounding_sphere(points);
-    return {min, max, bbcenter, center, radius};
-}
-
-
 // Reorient tetrahedron cells such that det(J) is positive
 // by swapping the last two indices in each cell if necessary
-function reorient_tetrahedron_cells(cells, vertices)
-{
+function reorient_tetrahedron_cells(cells, vertices) {
     // If given flat arrays
     const c = cells;
     const v = vertices;
@@ -102,7 +88,6 @@ function reorient_tetrahedron_cells(cells, vertices)
         }
     }
 }
-
 
 export {
     compute_bounds,
