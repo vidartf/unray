@@ -5,23 +5,18 @@ import _ from 'underscore';
 import widgets from '@jupyter-widgets/base';
 
 import version from './version';
-import {compute_bounds, reorient_tetrahedron_cells} from "./meshutils";
-import {TetrahedralMeshRenderer} from "./renderer";
+import {create_unray_state} from "./renderer";
 
 import './threeimport';
 const THREE = window.THREE;
 // console.log("THREE imported in figure:", THREE);
 
 
-//var debug = _.bind(console.log, console);
-var debug = function() {}
-
-
 class FigureModel extends widgets.DOMWidgetModel
 {
     defaults()
     {
-        let model_defaults = {
+        const model_defaults = {
             _model_name : 'FigureModel',
             _view_name : 'FigureView',
 
@@ -43,12 +38,6 @@ class FigureModel extends widgets.DOMWidgetModel
             plotname : undefined,
         };
         return _.extend(super.defaults(), version.module_defaults, model_defaults);
-    }
-
-    initialize()
-    {
-        super.initialize(...arguments);
-        debug("FigureModel initialize ", this.get("data"));
     }
 };
 FigureModel.serializers = _.extend({
@@ -81,13 +70,9 @@ class FigureView extends widgets.DOMWidgetView
     */
 
     render() {
-        debug("FigureView render");
-        let that = this;
-
-        let width = this.model.get("width");
-        let height = this.model.get("height");
-        let downscale = this.model.get("downscale");
-
+        const width = this.model.get("width");
+        const height = this.model.get("height");
+        const downscale = this.model.get("downscale");
         this.aspect_ratio = width / height;
 
         // Setup canvas
@@ -115,156 +100,33 @@ class FigureView extends widgets.DOMWidgetView
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width * downscale, height * downscale);
 
-
-        /////////////////////////////////////////////////////////////////
-        // Get raw data arrays from dict of data models
-        // TODO: Use ndarray in TetRenderer instead?
-        let data = this.model.get("data");
-        let raw_data = {};
-        for (let name in data) {
-            // Get the typedarray of the ndarray of the datamodel...
-            let arr = data[name].get("array");
-            raw_data[name] = arr.data;
-        }
-
-        if (data.cells.get("array").shape[1] !== 4) {
-            console.error("Shape error in cells", data.cells);
-        }
-        let num_tetrahedrons = data.cells.get("array").shape[0];
-        //let num_tetrahedrons = raw_data.cells.length / 4;
-
-        if (data.coordinates.get("array").shape[1] !== 3) {
-            console.error("Shape error in coordinates", data.coordinates);
-        }
-        let num_vertices = data.coordinates.get("array").shape[0];
-        //let num_tetrahedrons = raw_data.coordinates.length / 3;
-
-        // Reorient tetrahedral cells
-        reorient_tetrahedron_cells(
-            data.cells.get("array").data,
-            data.coordinates.get("array").data)
-        /////////////////////////////////////////////////////////////////
-
-
-        /////////////////////////////////////////////////////////////////
-        // Setup cloud model
-        this.tetrenderer = new TetrahedralMeshRenderer();
-
-        // Initialize renderer once dimensions are known
-        this.tetrenderer.init(num_tetrahedrons, num_vertices);
-
-        // TODO: Better handling of multiple configurations with data sharing
-        let plots = this.model.get("plots");
-        let plotname = this.model.get("plotname");
-        let plot = plots[plotname];
-        let method = "surface";
-        let encoding = undefined;
-        if (plot) {
-            method = plot.get("method");
-            encoding = plot.get("encoding");
-        }
-        debug("Using method", method);
-        debug("Using encoding", encoding);
-
-        this.tetrenderer.configure(plotname, method, encoding, raw_data);
-
-        // Select method-specific background color
-        let default_bgcolor = new THREE.Color(1, 1, 1);
-        this.bgcolor = this.tetrenderer.select_bgcolor(method, encoding, default_bgcolor);
-
-        // Upload data to textures
-        this.tetrenderer.upload(raw_data, method, encoding);
-        /////////////////////////////////////////////////////////////////
-
-
-        /////////////////////////////////////////////////////////////////
-        // Compute bounding sphere of model
-        // (TODO: Maybe let tetrenderer do this?)
-        this.bounds = compute_bounds(raw_data.coordinates);
-        this.model_center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
-        // this.model_center = new THREE.Vector3(this.bounds.bbcenter[0], this.bounds.bbcenter[1], this.bounds.bbcenter[2]);
-        debug("Computed bounds:", this.bounds);
-        /////////////////////////////////////////////////////////////////
-
-
-        /////////////////////////////////////////////////////////////////
-        // Setup camera
-        this.init_camera();  // NB! Depends on this.bounds being set.
-        /////////////////////////////////////////////////////////////////
-
-
-        /////////////////////////////////////////////////////////////////
+        // Setup root object, this will be created by pythreejs blackbox object later
+        this.obj = new THREE.Object3D();
+                
         // Setup empty scene
         this.scene = new THREE.Scene();
-
-        // FIXME: Swap mesh in scene when changing method etc.
-		this.scene.add(this.tetrenderer.meshes.get(plotname));
-
-        /////////////////////////////////////////////////////////////////
+        this.scene.add(this.obj);
 
 
-        // this.controls = new THREE.TrackballControls(this.camera, this.canvas);
-        this.controls = new THREE.OrbitControls(this.camera, this.canvas);
-        this.controls.addEventListener("change", () => {
-            that.on_camera_changed();
-            that.redraw()
-        });
+        // FIXME: Refactor to move all unray stuff into here
+        const initial = {
+            data: this.model.get("data"),
+            plotname: this.model.get("plotname"),
+            plots: this.model.get("plots"),
+        };
+        this.substate = create_unray_state(this.obj, initial);
 
-        // Wire listeners
-        this.listenTo(this.model, "change:animate", this.on_animate_changed);
-        this.listenTo(this.model, "change:data", this.on_data_changed);
-        this.listenTo(this.model, "change:plots", this.on_plots_changed);
-        //this.wire_data_listeners();
-        //this.wire_plot_listeners();
 
-        return Promise.resolve().then(() => { that.schedule_animation(); });
-    }
+        // Select method-specific background color
+        // TODO: How to deal with this when adding to larger scene?
+        //       I guess it will be up to the user.
+        this.bgcolor = this.substate.get_bgcolor();
 
-    on_animate_changed()
-    {
-        debug("on_animate_changed ", arguments);
+        // Setup camera
+        this.bounds = this.substate.get_bounds();
+        this.model_center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
+        // this.model_center = new THREE.Vector3(this.bounds.bbcenter[0], this.bounds.bbcenter[1], this.bounds.bbcenter[2]);
 
-        // let data = this.model.get("data"); //[name];
-        // debug(data);
-        //this.renderer.on_data_changed(name, data.array);
-
-        this.schedule_animation();
-    }
-
-    on_data_changed(model, data)
-    {
-        debug("====================== on_data_changed ", arguments);
-        debug(model.uuid, data.uuid);
-
-        // let data = this.model.get("data")[name];
-        // this.renderer.on_data_changed(name, data.array);
-
-        this.schedule_animation();
-    }
-
-    on_plots_changed()
-    {
-        // FIXME: Trigger on already connected plot changed
-        debug("====================== on_plots_changed ", arguments);
-
-        this.schedule_animation();
-    }
-
-    on_camera_changed() {
-        // Recompute camera near/far planes to include model
-        let dist = this.camera.position.distanceTo(this.model_center);
-        this.camera.near = Math.max(dist * 0.8 - this.bounds.radius * 1.2, 0.001 * this.bounds.radius);
-        this.camera.far = dist * 1.2 + this.bounds.radius * 1.2;
-        debug("Using near, far:", this.camera.near, this.camera.far);
-
-        // Recompute projection matrix
-        this.camera.updateProjectionMatrix();
-
-        // Update renderer uniforms etc, possibly resort cells
-        this.tetrenderer.update_perspective(this.camera);
-    }
-
-    init_camera() {
         // TODO: Use pythreejs camera and controller if we stick to webgl1 and three.js
         this.use_perspective_camera = true; // TODO: Make this an option
         if (this.use_perspective_camera) {
@@ -273,20 +135,37 @@ class FigureView extends widgets.DOMWidgetView
     		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
         }
         // this.camera.matrixAutoUpdate = true;
-        this.step_camera(0.0);
+        this.step_camera(0.0);  // NB! Depends on this.bounds being set.
+
+        // Setup camera controls
+        this.controls = new THREE.OrbitControls(this.camera, this.canvas);
+        this.controls.addEventListener("change", () => {
+            this.on_camera_changed();
+            this.redraw()
+        });
+
+        // Wire listeners
+        this.listenTo(this.model, "change:animate", () => this.schedule_animation());
+
+        return Promise.resolve().then(() => this.schedule_animation());
     }
 
     step_camera(passed_time) {
-        // Radius of sphere that camera moves on
-        let radius = 1.5 * this.bounds.radius;
+        // These are all the input parameters here
+        let radius = this.bounds.radius;
+        const center = this.model_center;
+        const ar = this.aspect_ratio;
+
+        // Set radius of sphere that camera moves on somewhat larger than model
+        radius *= 1.5;
 
         if (this.use_perspective_camera) {
             // TODO: Use fov calculation to set proper distance
             //this.camera.fov
             radius *= 2;
         } else {
-            let w = Math.max(2 * radius, this.aspect_ratio * 2 * radius);
-            let h = w / this.aspect_ratio;
+            const w = Math.max(2 * radius, ar * 2 * radius);
+            const h = w / ar;
             this.camera.left = -w/2;
             this.camera.right = w/2;
             this.camera.top = h/2;
@@ -294,31 +173,38 @@ class FigureView extends widgets.DOMWidgetView
         }
 
         // Look at center of model
-        this.camera.lookAt(this.model_center.clone());
+        this.camera.lookAt(center.clone());
 
         // Crude animation: move on sphere around model
-        let freq1 = .3;
-        let freq2 = .1;
-        let theta = 2.0 * Math.PI * freq1 * passed_time;
-        let phi = 2.0 * Math.PI * freq2 * passed_time;
-        let offset = new THREE.Vector3(
+        const freq1 = .3;
+        const freq2 = .1;
+        const theta = 2.0 * Math.PI * freq1 * passed_time;
+        const phi = 2.0 * Math.PI * freq2 * passed_time;
+        const offset = new THREE.Vector3(
             radius * Math.cos(phi) * Math.cos(theta),
 		    radius * Math.sin(phi),
             radius * Math.cos(phi) * Math.sin(theta)
         );
-        this.camera.position.addVectors(this.model_center, offset);
+        this.camera.position.addVectors(center, offset);
 
         // Manually trigger camera change for now
         this.on_camera_changed();
     }
 
-    update()
-    {
-        super.update(...arguments);
+    on_camera_changed() {
+        const center = this.model_center;
+        const radius = this.bounds.radius;
+        const camera = this.camera;
 
-        // TODO: New data or plot connected
+        // Recompute camera near/far planes to include model
+        // (TODO: This doesn't seem to work very well)
+        const dist = camera.position.distanceTo(center);
+        camera.near = Math.max(dist * 0.8 - radius * 1.2, 0.001 * radius);
+        camera.far = dist * 1.2 + radius * 1.2;
+        camera.updateProjectionMatrix();
 
-        // debug("FigureView update", Object.keys(this.model.get("data")), arguments);
+        // Update renderer uniforms etc, possibly resort cells
+        this.substate.update_perspective(camera);
     }
 
     schedule_animation()
@@ -343,14 +229,13 @@ class FigureView extends widgets.DOMWidgetView
             this.prev_time = time;
         }
 
-        let animating = this.model.get("animate");
+        const animating = this.model.get("animate");
         if (animating) {
-            let time_step = time - this.prev_time;
-            let passed_time = time - this.start_time;
+            const time_step = time - this.prev_time;
+            const passed_time = time - this.start_time;
             this.step_time(passed_time, time_step);
         }
 
-        // this.redraw_count = this.redraw_count ? this.redraw_count + 1: 1;
         this.redraw();
 
         this.prev_time = time;
@@ -362,45 +247,16 @@ class FigureView extends widgets.DOMWidgetView
 
     step_time(passed_time, time_step)
     {
-        debug("step_time: ", passed_time, time_step);
-
         // TODO: Later want camera to be controlled via connected pythreejs widget
         //this.step_camera(passed_time);
 
         // Update time in tetrenderer
-        this.tetrenderer.update_time(passed_time);
+        this.substate.update_time(passed_time);
     }
 
-    redraw()
-    {
-        // TODO: React to data changes:
-        //this.tetrenderer.update_method(method); // TODO: Better model for methods and data sharing
-        //this.tetrenderer.update_encoding(encoding);
-        //this.tetrenderer.update_data(data);
-
-        // debug("Calling render");
-        // debug(this.scene);
-        // debug(this.camera);
-        // debug(this.camera.toJSON());
-        // debug(this.camera.projectionMatrix);
-
-        // this._times = this._times || [0, 0, 0];
-
+    redraw() {
         this.renderer.setClearColor(this.bgcolor, 1);
-
-        // this.renderer.context.flush();
-        // let t0 = performance.now();
-
         this.renderer.render(this.scene, this.camera);
-
-        // this.renderer.context.flush();
-        // let t1 = performance.now();
-        // this._times = [this._times[1], this._times[2], t1-t0];
-        // let tmin = Math.min(...this._times);
-        // let tavg = (this._times[0] + this._times[1] + this._times[2]) / 3.0;
-        // console.log(`Render time: ${t1-t0},  min: ${tmin},  avg: ${tavg}`);
-
-        // debug("Done rendering.");
     }
 };
 

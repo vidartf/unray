@@ -2,7 +2,7 @@
 
 import _ from 'underscore';
 import shader_sources from './shaders';
-
+import {compute_bounds, reorient_tetrahedron_cells} from "./meshutils";
 import './threeimport';
 const THREE = window.THREE;
 // console.log("THREE imported in renderer:", THREE);
@@ -46,7 +46,7 @@ const default_encoding = {
 
 
 function override_defaults(defaults, params) {
-    let p = _.clone(defaults);
+    const p = _.clone(defaults);
     for (let key in params) {
         _.extend(p[key], params[key]);
     }
@@ -117,7 +117,7 @@ const method_properties = {
             ENABLE_SURFACE_LIGHT: 1,
         }),
         // select_defines: function(encoding) {
-        //     let defines = {};
+        //     const defines = {};
 
         //     defines.ENABLE_SURFACE_MODEL = 1;
         //     defines.ENABLE_EMISSION = 1;
@@ -179,8 +179,8 @@ const method_properties = {
             ENABLE_EMISSION_BACK: 1,
             ENABLE_SURFACE_LIGHT: 1,
             // FIXME: Configurable mode:
-            //USING_ISOSURFACE_MODE_LINEAR: 1,
-            USING_ISOSURFACE_MODE_LOG: 1,
+            USING_ISOSURFACE_MODE_LINEAR: 1,
+            //USING_ISOSURFACE_MODE_LOG: 1,
             //USING_ISOSURFACE_MODE_SINGLE: 1,
             //USING_ISOSURFACE_MODE_SWEEP: 1,
         }),
@@ -421,8 +421,7 @@ const method_properties = {
 };
 
 
-function compute_range(array)
-{
+function compute_range(array) {
     let min = array[0];
     let max = array[0];
     for (let v of array) {
@@ -433,43 +432,40 @@ function compute_range(array)
 }
 
 
-function extended_range(min, max)
-{
+function extended_range(min, max) {
     let range = max - min;
     let scale = range > 0.0 ? 1.0 / range : 1.0;
     return [min, max, range, scale];
 }
 
 
-function allocate_value(item_size)
-{
-    let new_value = null;
+function allocate_value(item_size) {
     switch (item_size)
     {
     case 1:
         return 0;
     case 2:
-        return THREE.Vector2();
+        return new THREE.Vector2();
     case 3:
-        return THREE.Vector3();
+        return new THREE.Vector3();
     case 4:
-        return THREE.Vector4();
+        return new THREE.Vector4();
     case 9:
-        return THREE.Matrix3();
+        return new THREE.Matrix3();
     case 16:
-        return THREE.Matrix4();
+        return new THREE.Matrix4();
+    default:
+        throw `Invalid item size ${item_size}.`;
     }
-    throw `Invalid item size ${item_size}.`;
 }
 
 
-function compute_texture_shape(size)
-{
+function compute_texture_shape(size) {
     if (size <= 0) {
         throw `Expecting a positive size, got ${size}.`;
     }
-    let width = Math.pow(2, Math.floor(Math.log2(size) / 2));
-    let height = Math.ceil(size / width);
+    const width = Math.pow(2, Math.floor(Math.log2(size) / 2));
+    const height = Math.ceil(size / width);
     if (width * height < size) {
         throw `Texture shape computation failed! size=${size}, width=${width}, height=${height}`;
     }
@@ -508,24 +504,24 @@ const dtype2threeformat = {
 
 function allocate_array_texture(dtype, item_size, texture_shape)
 {
-    let size = texture_shape[0] * texture_shape[1] * item_size;
+    const size = texture_shape[0] * texture_shape[1] * item_size;
 
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
     // or maybe porting to webgl2.
-    // let arraytype = dtype2arraytype[dtype];
-    // let padded_data = new arraytype(size);
-    // let type = dtype2threetype[dtype];
+    // const arraytype = dtype2arraytype[dtype];
+    // const padded_data = new arraytype(size);
+    // const type = dtype2threetype[dtype];
 
-    let padded_data = new Float32Array(size);
-    let type = dtype2threetype["float32"];  // NB! See comment above
+    const padded_data = new Float32Array(size);
+    const type = dtype2threetype["float32"];  // NB! See comment above
 
-    let format = dtype2threeformat[item_size];
+    const format = dtype2threeformat[item_size];
 
     debug(`Creating texture for dtype ${dtype} and item size ${item_size} with type ${type} and format ${format}.`);
 
-    let texture = new THREE.DataTexture(padded_data,
+    const texture = new THREE.DataTexture(padded_data,
         texture_shape[0], texture_shape[1],
         format, type);
 
@@ -535,24 +531,24 @@ function allocate_array_texture(dtype, item_size, texture_shape)
 
 function allocate_lut_texture(dtype, item_size, texture_shape)
 {
-    let size = texture_shape[0] * texture_shape[1] * item_size;
+    const size = texture_shape[0] * texture_shape[1] * item_size;
 
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
     // or maybe porting to webgl2.
-    // let arraytype = dtype2arraytype[dtype];
-    // let padded_data = new arraytype(size);
-    // let type = dtype2threetype[dtype];
+    // const arraytype = dtype2arraytype[dtype];
+    // const padded_data = new arraytype(size);
+    // const type = dtype2threetype[dtype];
 
-    let padded_data = new Float32Array(size);
-    let type = dtype2threetype["float32"];  // NB! See comment above
+    const padded_data = new Float32Array(size);
+    const type = dtype2threetype["float32"];  // NB! See comment above
 
-    let format = dtype2threeformat[item_size];
+    const format = dtype2threeformat[item_size];
 
     debug(`Creating texture for dtype ${dtype} and item size ${item_size} with type ${type} and format ${format}.`);
 
-    let texture = new THREE.DataTexture(padded_data,
+    const texture = new THREE.DataTexture(padded_data,
         texture_shape[0], texture_shape[1],
         format, type,
         undefined,
@@ -583,7 +579,7 @@ function update_array_texture(texture, data)
 function sort_cells(ordering, cells, coordinates, camera_position, view_direction)
 {
     /*
-    let num_tetrahedrons = cells.length / 4;
+    const num_tetrahedrons = cells.length / 4;
     for (let i = 0; i < num_tetrahedrons; ++i) {
         ordering[i] = i;
     }
@@ -593,15 +589,15 @@ function sort_cells(ordering, cells, coordinates, camera_position, view_directio
 
     // Naively sort by smallest distance to camera
     ordering.sort((i, j) => {
-        let min_dist = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
-        let indices = [i, j];
+        const min_dist = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+        const indices = [i, j];
         for (let r = 0; r < 2; ++r) {
-            let local_vertices = cells[indices[r]]
+            const local_vertices = cells[indices[r]]
             for (let k = 0; k < 4; ++k) {
-                let offset = 3*local_vertices[k];
+                const offset = 3*local_vertices[k];
                 let dist = 0.0;
                 for (let s = 0; s < 3; ++s) {
-                    let dx = coordinates[offset+s] - camera_position[s];
+                    const dx = coordinates[offset+s] - camera_position[s];
                     // With orthographic camera and constant view direction
                     dist += view_direction[s] * dx;
                     // With perspective camera, use only distance to camera
@@ -637,7 +633,7 @@ class TetrahedralMeshRenderer
     {
         // This is the reference tetrahedron,
         // assumed a few places via face numbering etc.
-        // let reference_coordinates = [
+        // const reference_coordinates = [
         //     0, 0, 0,
         //     1, 0, 0,
         //     0, 1, 0,
@@ -754,7 +750,7 @@ class TetrahedralMeshRenderer
 
     select_bgcolor(method, encoding, default_bgcolor)
     {
-        let mp = method_properties[method];
+        const mp = method_properties[method];
         return mp.background || default_bgcolor;
     }
 
@@ -796,9 +792,9 @@ class TetrahedralMeshRenderer
 
     create_geometry(method, encoding)
     {
-        let sorted = method_properties[method].sorted;
+        const sorted = method_properties[method].sorted;
 
-        let geometry = new THREE.InstancedBufferGeometry();
+        const geometry = new THREE.InstancedBufferGeometry();
         geometry.maxInstancedCount = this.num_tetrahedrons;
         geometry.setIndex(this.element_buffer);
         geometry.addAttribute("a_local_vertices", this.local_vertices_buffer);
@@ -825,9 +821,9 @@ class TetrahedralMeshRenderer
         // TODO: Try this later. Currently not using c_cells, always using c_ordering and t_cells.
         if (!sorted) {
             // let cell_data_channels = ["cells"];
-            let cell_data_channels = [];
+            const cell_data_channels = [];
             for (let channel_name of cell_data_channels) {
-                let attrib = this.attributes["c_" + channel_name];
+                const attrib = this.attributes["c_" + channel_name];
                 if (attrib === undefined) {
                     console.error(`Unknown attribute channel ${channel_name}.`);
                 } else if (attrib === null) {
@@ -842,12 +838,12 @@ class TetrahedralMeshRenderer
 
     create_material(method, encoding)
     {
-        let mp = method_properties[method];
+        const mp = method_properties[method];
 
         // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
 
         // Configure shader
-        let material = new THREE.ShaderMaterial({
+        const material = new THREE.ShaderMaterial({
             // Note: Assuming passing some unused uniforms here will work fine
             // without too much performance penalty, hopefully this is ok
             // as it allows us to share the uniforms dict between methods.
@@ -887,7 +883,7 @@ class TetrahedralMeshRenderer
         // The current implementation assumes:
         // - Each channel has only one possible association
 
-        let mp = method_properties[method];
+        const mp = method_properties[method];
 
         // Copy and override defaults with provided values
         encoding = override_defaults(mp.default_encoding, encoding);
@@ -896,10 +892,10 @@ class TetrahedralMeshRenderer
         for (let channel_name in mp.channels)
         {
             // Get channel description
-            let channel = mp.channels[channel_name];
+            const channel = mp.channels[channel_name];
 
             // Get encoding for this channel
-            let enc = encoding[channel_name];
+            const enc = encoding[channel_name];
 
             // debug("*** allocating for channel", channel_name, channel, enc);
 
@@ -914,7 +910,7 @@ class TetrahedralMeshRenderer
             }
 
             // Default association in channel, can override in encoding
-            let association = enc.association || channel.association;
+            const association = enc.association || channel.association;
             let uniform = null;
             switch (association)
             {
@@ -984,7 +980,7 @@ class TetrahedralMeshRenderer
         // The current implementation assumes:
         // - Each channel has only one possible association
 
-        let mp = method_properties[method];
+        const mp = method_properties[method];
 
         // Copy and override defaults with provided values
         encoding = override_defaults(mp.default_encoding, encoding);
@@ -993,10 +989,10 @@ class TetrahedralMeshRenderer
         for (let channel_name in mp.channels)
         {
             // Get channel description
-            let channel = mp.channels[channel_name];
+            const channel = mp.channels[channel_name];
 
             // Get encoding for this channel
-            let enc = encoding[channel_name];
+            const enc = encoding[channel_name];
 
             // debug("*** allocating for channel", channel_name, channel, enc);
 
@@ -1011,7 +1007,7 @@ class TetrahedralMeshRenderer
             }
 
             // Get new data value either from data or from encoding
-            let new_value = enc.field ? data[enc.field]: enc.value;
+            const new_value = enc.field ? data[enc.field]: enc.value;
             if (new_value === undefined) {
                 console.error(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
                 continue;
@@ -1020,7 +1016,7 @@ class TetrahedralMeshRenderer
             // Default association in channel, can override in encoding
             // (TODO: The idea here was to be able to select vertex/cell
             // association for fields, figure out a better design for that)
-            let association = enc.association || channel.association;
+            const association = enc.association || channel.association;
             let uniform = null;
             switch (association)
             {
@@ -1096,7 +1092,7 @@ class TetrahedralMeshRenderer
                 }
                 if (newrange !== null) {
                     newrange = extended_range(...newrange);
-                    let range_name = "u_" + channel_name + "_range";
+                    const range_name = "u_" + channel_name + "_range";
                     if (this.uniforms.hasOwnProperty(range_name)) {
                         this.uniforms[range_name].value.set(...newrange);
                         debug(`Updating data range for ${channel_name} to ${newrange}.`);
@@ -1112,10 +1108,10 @@ class TetrahedralMeshRenderer
         this.allocate(method, encoding);
 
         // Configure instanced geometry, each tetrahedron is an instance
-        let geometry = this.create_geometry(method, encoding);
+        const geometry = this.create_geometry(method, encoding);
 
         // Configure material (shader)
-        let material = this.create_material(method, encoding);
+        const material = this.create_material(method, encoding);
 
         // How to use wireframe
         //this.use_wireframe = true;
@@ -1125,7 +1121,7 @@ class TetrahedralMeshRenderer
         // }
 
         // Finally we have a Mesh to render for this method
-        let mesh = new THREE.Mesh(geometry, material);
+        const mesh = new THREE.Mesh(geometry, material);
         mesh.setDrawMode(THREE.TriangleStripDrawMode);
         this.meshes.set(plotname, mesh);
 
@@ -1134,11 +1130,122 @@ class TetrahedralMeshRenderer
         // the encoding also affects the above setup
         // but at least this will allow quick switching
         // between methods if nothing else
-        // let plotconfig = this.plotconfigs.get(plotname);
+        // const plotconfig = this.plotconfigs.get(plotname);
         // this.plotconfigs.set(plotname, {method, encoding, mesh});
     }
 };
 
+
+class UnrayStateWrapper {
+    constructor(root, initial) {
+        this.root = root;
+        //this.attributes = Object.assign({}, initial);
+        this.init(initial);
+    }
+
+    init(initial) {
+        const {data, plotname, plots} = initial;
+        const plot = plots[plotname];
+        const method = plot ? plot.get("method") : "surface";
+        const encoding = plot ? plot.get("encoding") : undefined;
+
+        // Setup cloud model
+        this.tetrenderer = new TetrahedralMeshRenderer();
+
+
+        /////////////////////////////////////////////////////////////////
+        // Get raw data arrays from dict of data models
+        // TODO: Use ndarray in TetRenderer instead?
+        const raw_data = {};
+        for (let name in data) {
+            // Get the typedarray of the ndarray of the datamodel...
+            const arr = data[name].get("array");
+            raw_data[name] = arr.data;
+        }
+
+
+        if (data.cells.get("array").shape[1] !== 4) {
+            console.error("Shape error in cells", data.cells);
+        }
+        const num_tetrahedrons = data.cells.get("array").shape[0];
+        //const num_tetrahedrons = raw_data.cells.length / 4;
+
+
+        if (data.coordinates.get("array").shape[1] !== 3) {
+            console.error("Shape error in coordinates", data.coordinates);
+        }
+        const num_vertices = data.coordinates.get("array").shape[0];
+        //const num_vertices = raw_data.coordinates.length / 3;
+
+        this.bounds = compute_bounds(raw_data.coordinates);
+
+        // Initialize renderer once dimensions are known
+        this.tetrenderer.init(num_tetrahedrons, num_vertices);
+
+        // Reorient tetrahedral cells
+        reorient_tetrahedron_cells(data.cells.get("array").data, data.coordinates.get("array").data);
+
+        this.tetrenderer.configure(plotname, method, encoding, raw_data);
+
+        // Upload data to textures
+        this.tetrenderer.upload(raw_data, method, encoding);
+
+        // Select method-specific background color
+        this.bgcolor = this.tetrenderer.select_bgcolor(
+            method, encoding,
+            new THREE.Color(1, 1, 1));
+
+        // FIXME: Swap mesh in scene when changing method etc.
+        const mesh = this.tetrenderer.meshes.get(plotname);
+        this.root.add(mesh);
+    }
+
+    update(changed) {
+        for (let name in changed) {
+
+        }
+        this.attributes = Object.assign({}, this.attributes, changed);
+    }
+
+    // Select method-specific background color
+    // TODO: How to deal with this when adding to larger scene?
+    get_bgcolor() {
+        // Refactoring ongoing, currently computed in init()
+        return this.bgcolor;
+    }
+
+    // TODO: Pick API for bounding box computation
+    get_bounds() {
+        // Refactoring ongoing, currently computed in init()
+        return this.bounds;
+    }
+
+    // TODO: Alternative to update_time + update_perspective,
+    // to be called before doing renderer.render(scene, camera)
+    prerender(time, camera) {
+        this.update_time(time);
+        this.update_perspective(camera);
+    }
+
+    // TODO: Add this to abstract substate model API
+    update_time(time) {
+        //this.time = time;
+        this.tetrenderer.update_time(passed_time);
+    }
+
+    // TODO: Add this to abstract substate model API
+    update_perspective(camera) {
+        //this.camera = camera;
+        this.tetrenderer.update_perspective(camera);
+    }
+}
+
+
+function create_unray_state(root, attributes) {
+    return new UnrayStateWrapper(root, attributes)
+}
+
+
 export {
-    TetrahedralMeshRenderer
+    TetrahedralMeshRenderer, create_unray_state
 };
