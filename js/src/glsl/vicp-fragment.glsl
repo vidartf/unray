@@ -42,6 +42,10 @@ uniform vec3 cameraPosition;
     #endif
 #endif
 
+#ifdef ENABLE_ISOSURFACE_MODEL
+    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
+#endif
+
 #ifdef ENABLE_SURFACE_DEPTH_MODEL
     #define ENABLE_DEPTH 1
 #endif
@@ -127,6 +131,7 @@ uniform float u_particle_area;  // TODO: Use u_exposure instead?
 // #ifdef ENABLE_CELL_INDICATORS
 // uniform int u_cell_indicator_value;
 // #endif
+
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
 #endif
@@ -184,6 +189,11 @@ varying vec3 v_density_gradient;  // webgl2 required for flat keyword
 #ifdef ENABLE_EMISSION_GRADIENT
 varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
 #endif
+
+
+// TODO: Could pass on all vertex values to compute function error
+//       estimate, err = sum_i bc_width[i]*vertex_values[i];
+//varying vec4 v_emission_vertex_values;
 
 
 void main()
@@ -360,7 +370,7 @@ void main()
 
     // TODO: Revamp this code
 #ifdef ENABLE_INTERVAL_VOLUME_MODEL
-    vec2 isorange = u_isorange;
+    vec2 isorange = u_isorange;  // TODO: Rename to u_volume_interval
 
     bool front_in_range = isorange.x <= front && front <= isorange.y;
     bool back_in_range = isorange.x <= back && back <= isorange.y;
@@ -383,7 +393,6 @@ void main()
 
 
 #ifdef ENABLE_ISOSURFACE_MODEL
-    // TODO: This is getting a bit complex, maybe refactor to some functions
 
     #if defined(ENABLE_EMISSION_BACK)
     float front = v_emission;
@@ -417,29 +426,33 @@ void main()
     #endif
   #endif
 
+    // Magically chosen tolerance for avoiding edge artifacts on isosurfaces
+    float tolerance = mix(0.001, 0.05, clamp(0.0, 1.0, maxv(bc_width)));
+    //float tolerance = mix(0.0001, 0.03, clamp(0.0, 1.0, midv(bc_width)));
+    //float tolerance = 0.03;  // TODO: Make this a uniform
 
   #if defined(USING_ISOSURFACE_MODE_SINGLE)
     // Single surface variant, check if value is outside range of ray
     float value = u_isovalue;
-    if (is_outside_interval(value, back, front)) {
+    if (is_outside_interval(value, back, front, tolerance)) {
         discard;
     }
   #elif defined(USING_ISOSURFACE_MODE_SWEEP)
     // Single surface variant, check if value is outside range of ray
     float value = mix(value_range.x, value_range.y, fract(u_time / u_sweep_period));
-    if (is_outside_interval(value, back, front)) {
+    if (is_outside_interval(value, back, front, tolerance)) {
         discard;
     }
   #elif defined(USING_ISOSURFACE_MODE_LINEAR)
     // Multiple surfaces spaced with fixed distance
     float value;
-    if (!find_isovalue_linear_spacing(value, back, front, u_isovalue, u_isosurface_spacing)) {
+    if (!find_isovalue_linear_spacing(value, back, front, u_isovalue, u_isosurface_spacing, tolerance)) {
         discard;
     }
   #elif defined(USING_ISOSURFACE_MODE_LOG)
     // Multiple surfaces spaced with fixed ratio
     float value;
-    if (!find_isovalue_log_spacing(value, back, front, u_isovalue, u_isosurface_spacing)) {
+    if (!find_isovalue_log_spacing(value, back, front, u_isovalue, u_isosurface_spacing, tolerance)) {
         discard;
     }
   #endif
@@ -623,6 +636,9 @@ void main()
     vec4 sorted_edge_closeness = sorted(edge_closeness);
     float edge_factor = sorted_edge_closeness[0]*sorted_edge_closeness[0]
                       + sorted_edge_closeness[1]*sorted_edge_closeness[1];
+
+    // 1 at near plane, 0 at infinity
+    //float proximity = clamp(0.0, 1.0, gl_FragColor.w);
 
     // Mix edge color into background
     C = mix(u_wireframe_color, C, mix(1.0, edge_factor, u_wireframe_alpha));

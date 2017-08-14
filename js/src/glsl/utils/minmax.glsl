@@ -59,3 +59,11 @@ float avgv(vec3 x) {
 float avgv(vec2 x) {
     return 0.5 * (x[0] + x[1]);
 }
+
+// Return avg of two middle values
+float midv(vec4 x) {
+    return 0.5 * (
+          max(min(x.x, x.y), min(x.z, x.w))
+        + min(max(x.x, x.y), max(x.z, x.w))
+        );
+}
