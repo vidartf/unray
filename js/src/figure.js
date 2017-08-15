@@ -46,46 +46,36 @@ FigureModel.serializers = _.extend({
 }, widgets.DOMWidgetModel.serializers);
 
 
-class FigureView extends widgets.DOMWidgetView
-{
-    initialize()
-    {
-        super.initialize(...arguments);
-        this.canvas = null;
-        this.renderer = null;
-    }
-
-    /*
-    on_context_lost()
-    {
-        this.renderer.on_context_lost();
-        this.pause_animation();
-    }
-
-    on_context_restored()
-    {
-        this.renderer.on_context_restored();
-        this.schedule_animation();
-    }
-    */
-
+class FigureView extends widgets.DOMWidgetView {
     render() {
+        // Setup root object, this will be created by pythreejs blackbox object later
+        this.obj = new THREE.Object3D();
+
+        // Setup unray state
+        // FIXME: Refactor to move all unray stuff into here
+        const initial = {
+            data: this.model.get("data"),
+            plotname: this.model.get("plotname"),
+            plots: this.model.get("plots"),
+        };
+        this.substate = create_unray_state(this.obj, initial);
+
+        // Setup scene with root object added
+        this.scene = new THREE.Scene();
+        this.scene.add(this.obj);
+
+        // Setup canvas and add it to the DOM
         const width = this.model.get("width");
         const height = this.model.get("height");
         const downscale = this.model.get("downscale");
         this.aspect_ratio = width / height;
-
-        // Setup canvas
         this.canvas = document.createElement("canvas");
         this.canvas.setAttribute("width", width);
         this.canvas.setAttribute("height", height);
-
-        // Add it to the DOM
         this.el.innerHTML = "";
         this.el.appendChild(this.canvas);
 
         // Setup three.js renderer
-        // TODO: Use pythreejs for this if we stick to webgl1 and three.js
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
             precision: "highp",
@@ -96,37 +86,10 @@ class FigureView extends widgets.DOMWidgetView
             depth: true,
             logarithmicDepthBuffer: true,
         });
-
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width * downscale, height * downscale);
 
-        // Setup root object, this will be created by pythreejs blackbox object later
-        this.obj = new THREE.Object3D();
-                
-        // Setup empty scene
-        this.scene = new THREE.Scene();
-        this.scene.add(this.obj);
-
-
-        // FIXME: Refactor to move all unray stuff into here
-        const initial = {
-            data: this.model.get("data"),
-            plotname: this.model.get("plotname"),
-            plots: this.model.get("plots"),
-        };
-        this.substate = create_unray_state(this.obj, initial);
-
-
-        // Select method-specific background color
-        // TODO: How to deal with this when adding to larger scene?
-        //       I guess it will be up to the user.
-        this.bgcolor = this.substate.get_bgcolor();
-
         // Setup camera
-        this.bounds = this.substate.get_bounds();
-        this.model_center = new THREE.Vector3(this.bounds.center[0], this.bounds.center[1], this.bounds.center[2]);
-        // this.model_center = new THREE.Vector3(this.bounds.bbcenter[0], this.bounds.bbcenter[1], this.bounds.bbcenter[2]);
-
         // TODO: Use pythreejs camera and controller if we stick to webgl1 and three.js
         this.use_perspective_camera = true; // TODO: Make this an option
         if (this.use_perspective_camera) {
@@ -135,7 +98,7 @@ class FigureView extends widgets.DOMWidgetView
     		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
         }
         // this.camera.matrixAutoUpdate = true;
-        this.step_camera(0.0);  // NB! Depends on this.bounds being set.
+        this.step_camera(0.0);
 
         // Setup camera controls
         this.controls = new THREE.OrbitControls(this.camera, this.canvas);
@@ -147,14 +110,15 @@ class FigureView extends widgets.DOMWidgetView
         // Wire listeners
         this.listenTo(this.model, "change:animate", () => this.schedule_animation());
 
+        // Initiate rendering
         return Promise.resolve().then(() => this.schedule_animation());
     }
 
     step_camera(passed_time) {
         // These are all the input parameters here
-        let radius = this.bounds.radius;
-        const center = this.model_center;
         const ar = this.aspect_ratio;
+        const center = this.substate.get_center();
+        let radius = this.substate.get_radius();
 
         // Set radius of sphere that camera moves on somewhat larger than model
         radius *= 1.5;
@@ -192,8 +156,8 @@ class FigureView extends widgets.DOMWidgetView
     }
 
     on_camera_changed() {
-        const center = this.model_center;
-        const radius = this.bounds.radius;
+        const center = this.substate.get_center();
+        const radius = this.substate.get_radius();
         const camera = this.camera;
 
         // Recompute camera near/far planes to include model
@@ -255,7 +219,11 @@ class FigureView extends widgets.DOMWidgetView
     }
 
     redraw() {
-        this.renderer.setClearColor(this.bgcolor, 1);
+        // Select method-specific background color
+        // TODO: How to deal with this when adding to larger scene?
+        //       I guess it will be up to the user.
+        const bgcolor = this.substate.get_bgcolor();
+        this.renderer.setClearColor(bgcolor, 1);
         this.renderer.render(this.scene, this.camera);
     }
 };

@@ -1,8 +1,18 @@
 'use strict';
 
+import {
+    arange,
+    extend2
+} from './utils.js';
+
+import {
+    compute_bounding_sphere,
+    compute_bounding_box,
+    reorient_tetrahedron_cells
+} from "./meshutils";
+
 import './threeimport';
 const THREE = window.THREE;
-
 
 function create_instanced_tetrahedron_geometry(num_tetrahedrons) {
 
@@ -53,10 +63,127 @@ function create_instanced_tetrahedron_geometry(num_tetrahedrons) {
     geometry.setIndex(element_buffer);
     geometry.addAttribute("a_local_vertices", local_vertices_buffer);
     geometry.addAttribute("a_barycentric_coordinates", barycentric_coordinates_buffer);
-
     return geometry;
 }
 
+function create_cell_ordering_attribute(num_tetrahedrons) {
+    const attrib = new THREE.InstancedBufferAttribute(
+        arange(num_tetrahedrons), 1, 1
+    );
+    attrib.setDynamic(true);
+    return attrib;
+}
+
+function create_cells_attribute(cells) {
+    return new THREE.InstancedBufferAttribute(
+        cells, 4, 1
+    );
+}
+
+function create_bounding_sphere(coordinates) {
+    const bsphere = compute_bounding_sphere(coordinates);
+    return new THREE.Sphere(
+        new THREE.Vector3(...bsphere.center),
+        bsphere.radius
+    );
+}
+
+function create_bounding_box(coordinates) {
+    const bbox = compute_bounding_box(coordinates);
+    // Possible alternative:
+    //geometry.boundingBox = new THREE.Box3();
+    //geometry.boundingBox.setFromArray(coordinates);
+    return new THREE.Box3(
+        new THREE.Vector3(...bbox.min),
+        new THREE.Vector3(...bbox.max)
+    );
+}
+
+function create_bounding_sphere_geometry(bsphere, scale=1.0, color=0x333333) {
+    const geometry = new THREE.SphereGeometry(bsphere.radius * scale, 32, 32);
+    const material = new THREE.MeshBasicMaterial({color});
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.copy(bsphere.center);
+    return mesh;
+}
+
+function create_bounding_box_geometry(bbox, scale=1.0, color=0x333333) {
+    const dims = bbox.getSize().toArray().map(x => scale*x);
+    const geometry = new THREE.BoxGeometry(...dims);
+    const material = new THREE.MeshBasicMaterial({color});
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.copy(bbox.getCenter());
+    return mesh;
+}
+
+function create_bounding_box_axis_geometry(bbox, scale=1.0, color=0x000000) {
+    const offset = bbox.getSize().toArray().map(x => 0.5*(scale-1.0)*x);
+    const x = bbox.min.toArray();
+    const y = bbox.max.toArray();
+    for (let i = 0; i < 3; ++i) {
+        x[i] -= offset[i];
+        y[i] += offset[i];
+    }
+    
+    const vertices = new Float32Array([
+        // x[0] constant
+        x[0], x[1], x[2],
+        x[0], x[1], y[2],
+
+        x[0], x[1], y[2],
+        x[0], y[1], y[2],
+
+        x[0], y[1], y[2],
+        x[0], y[1], x[2],
+
+        x[0], y[1], x[2],
+        x[0], x[1], x[2],
+
+        // y[0] constant
+        y[0], x[1], x[2],
+        y[0], x[1], y[2],
+
+        y[0], x[1], y[2],
+        y[0], y[1], y[2],
+
+        y[0], y[1], y[2],
+        y[0], y[1], x[2],
+
+        y[0], y[1], x[2],
+        y[0], x[1], x[2],
+
+        // from x[0] to y[0] plane
+        x[0], x[1], x[2],
+        y[0], x[1], x[2],
+
+        x[0], x[1], y[2],
+        y[0], x[1], y[2],
+
+        x[0], y[1], x[2],
+        y[0], y[1], x[2],
+
+        x[0], y[1], y[2],
+        y[0], y[1], y[2],
+    ]);
+    const geometry = new THREE.BufferGeometry();
+    geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    const material = new THREE.LineBasicMaterial({
+        color: color,
+        transparent: false,
+        depthTest: true,
+        depthWrite: true,
+        });
+    const mesh = new THREE.LineSegments(geometry, material);
+    return mesh;
+}
+
 export {
-    create_instanced_tetrahedron_geometry
+    create_instanced_tetrahedron_geometry,
+    create_cells_attribute,
+    create_cell_ordering_attribute,
+    create_bounding_sphere,
+    create_bounding_box,
+    create_bounding_sphere_geometry,
+    create_bounding_box_geometry,
+    create_bounding_box_axis_geometry
 };
