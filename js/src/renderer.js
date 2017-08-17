@@ -20,7 +20,8 @@ import {
     create_bounding_box,
     create_bounding_sphere_geometry,
     create_bounding_box_geometry,
-    create_bounding_box_axis_geometry
+    create_bounding_box_axis_geometry,
+    create_bounding_box_midplanes_geometry
 } from './geometry';
 
 import {
@@ -1119,9 +1120,19 @@ class UnrayStateWrapper {
         if (0) {
             this.root.add(create_bounding_box_geometry(mesh.geometry.boundingBox, 1.1));
         }
+        // Add a bounding box midplane representation to root for debugging
+        if (0) {
+            this.root.add(create_bounding_box_midplanes_geometry(mesh.geometry.boundingBox, 1.1));
+        }
         // Add a bounding box wireframe representation to root for debugging
         if (1) {
             this.root.add(create_bounding_box_axis_geometry(mesh.geometry.boundingBox, 1.1));
+        }
+        // Add a sphere representation of center for debugging
+        if (0) {
+            const sphere = mesh.geometry.boundingSphere.clone();
+            sphere.radius *= 0.05;
+            this.root.add(create_bounding_sphere_geometry(sphere));
         }
     }
 
@@ -1160,7 +1171,7 @@ class UnrayStateWrapper {
     // TODO: Add this to abstract substate model API
     update_time(time) {
         //this.time = time;
-        this.tetrenderer.update_time(passed_time);
+        this.tetrenderer.update_time(time);
     }
 
     // TODO: Add this to abstract substate model API
