@@ -25,6 +25,13 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 uniform mat4 viewMatrix;
 uniform vec3 cameraPosition;
 */
+    // Copied from THREE.js logbufdepth_pars_fragment.glsl
+#ifdef USE_LOGDEPTHBUF
+	uniform float logDepthBufFC;
+	#ifdef USE_LOGDEPTHBUF_EXT
+		varying float vFragDepth;
+	#endif
+#endif
 
 
 // Crude dependency graph for ENABLE_FOO code blocks.
@@ -667,4 +674,9 @@ void main()
     // small but significant safeguard towards errors in the
     // ifdef landscape above.
     gl_FragColor = vec4(C, a);
+
+    // Copied from THREE.js logbufdepth_fragment.glsl
+#if defined(USE_LOGDEPTHBUF) && defined(USE_LOGDEPTHBUF_EXT)
+	gl_FragDepthEXT = log2(vFragDepth) * logDepthBufFC * 0.5;
+#endif
 }
