@@ -189,9 +189,9 @@ const method_properties = {
             ENABLE_EMISSION_BACK: 1,
             ENABLE_SURFACE_LIGHT: 1,
             // FIXME: Configurable mode:
-            USING_ISOSURFACE_MODE_LINEAR: 1,
+            //USING_ISOSURFACE_MODE_LINEAR: 1,
             //USING_ISOSURFACE_MODE_LOG: 1,
-            //USING_ISOSURFACE_MODE_SINGLE: 1,
+            USING_ISOSURFACE_MODE_SINGLE: 1,
             //USING_ISOSURFACE_MODE_SWEEP: 1,
         }),
 
@@ -733,6 +733,9 @@ class TetrahedralMeshRenderer
             material.blendDst = mp.blend_dst;
         }
 
+        // Not using the fog feature
+        material.fog = false;
+
         // Apply method #defines to shaders
         material.defines = defines;
 
@@ -864,18 +867,18 @@ class TetrahedralMeshRenderer
 
             // Sanity checks
             if (channel === undefined) {
-                console.error(`Channel ${channel_name} is missing description.`);
+                console.warn(`Channel ${channel_name} is missing description.`);
                 continue;
             }
             if (enc === undefined) {
-                console.error(`No encoding found for channel ${channel_name}.`);
+                console.warn(`No encoding found for channel ${channel_name}.`);
                 continue;
             }
 
             // Get new data value either from data or from encoding
             const new_value = enc.field ? data[enc.field]: enc.value;
             if (new_value === undefined) {
-                console.error(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
+                console.log(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
                 continue;
             }
 
@@ -941,7 +944,7 @@ class TetrahedralMeshRenderer
                 update_array_texture(uniform.value, new_value);
                 break;
             default:
-                console.error("unknown association " + association);
+                console.warn("unknown association " + association);
             }
 
             // Update associated data range
@@ -1108,8 +1111,7 @@ class UnrayStateWrapper {
 
         // Register hook for updates before rendering
         mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
-            // TODO: Update material.uniforms with camera state here!
-            //console.log("About to render ", geometry, " using camera ", camera);
+            this.prerender(camera);
         };
 
         // Add a bounding sphere representation to root for debugging
@@ -1143,6 +1145,14 @@ class UnrayStateWrapper {
         //this.attributes = Object.assign({}, this.attributes, changed);
     }
 
+    // TODO: Alternative to update_time + update_perspective,
+    // to be called before doing renderer.render(scene, camera)
+    prerender(camera) {
+        const time = 0.0; // fixme
+        this.tetrenderer.update_time(time);
+        this.tetrenderer.update_perspective(camera);
+    }
+
     // Select method-specific background color
     // TODO: How to deal with this when adding to larger scene?
     get_bgcolor() {
@@ -1159,25 +1169,6 @@ class UnrayStateWrapper {
     get_center() {
         const mesh = this.root.children[0];
         return mesh.geometry.boundingSphere.center.clone();
-    }
-
-    // TODO: Alternative to update_time + update_perspective,
-    // to be called before doing renderer.render(scene, camera)
-    prerender(time, camera) {
-        this.update_time(time);
-        this.update_perspective(camera);
-    }
-
-    // TODO: Add this to abstract substate model API
-    update_time(time) {
-        //this.time = time;
-        this.tetrenderer.update_time(time);
-    }
-
-    // TODO: Add this to abstract substate model API
-    update_perspective(camera) {
-        //this.camera = camera;
-        this.tetrenderer.update_perspective(camera);
     }
 }
 

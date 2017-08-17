@@ -17,6 +17,7 @@ const externals = ['@jupyter-widgets/base'];
 // Custom webpack rules are generally the same for all webpack bundles, hence
 // stored in a separate local variable.
 const rules = [
+//    { test: /\.js$/, enforce: "pre", loader: 'eslint-loader' },
     { test: /\.glsl$/, loader: 'webpack-glsl-loader' },
 ];
 
@@ -85,6 +86,7 @@ const embed = {
     },
     externals: externals,
 }
+
 
 module.exports = [
     extension,

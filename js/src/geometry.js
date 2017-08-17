@@ -195,6 +195,7 @@ function create_bounding_box_axis_geometry(bbox, scale=1.0, color=0x000000) {
         depthTest: true,
         depthWrite: true,
         });
+    material.fog = true;
     return new THREE.LineSegments(geometry, material);
 }
 
