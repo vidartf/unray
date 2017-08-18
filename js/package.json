@@ -34,7 +34,7 @@
     "test:debug": "karma start --debug=true --browsers Chrome karma.conf.js"
   },
   "devDependencies": {
-    "chai": "^4.1.0",
+    "chai": "^4.1.1",
     "chai-as-promised": "^7.1.1",
     "eslint": "^4.4.1",
     "eslint-config-standard": "^10.2.1",
@@ -60,17 +60,17 @@
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
-    "@jupyter-widgets/base": "^0.6.6",
+    "@jupyter-widgets/base": "^0.6.11",
     "d3-array": "^1.2.0",
     "d3-color": "^1.0.3",
     "d3-scale": "^1.0.6",
     "gl-matrix": "^2.4.0",
     "isndarray": "^1.0.0",
-    "three": "^0.85.2",
     "ndarray": "^1.0.18",
     "ndarray-determinant": "^1.0.0",
     "ndarray-ops": "^1.2.2",
     "ndarray-pack": "^1.2.1",
+    "three": "^0.85.2",
     "underscore": "^1.8.3"
   }
 }

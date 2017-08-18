@@ -31,7 +31,6 @@ import './threeimport';
 const THREE = window.THREE;
 // console.log("THREE imported in renderer:", THREE);
 
-
 // TODO: Improve and document channel specifications
 const default_channels = {
     cells:           { association: "cell",            dtype: "int32",   item_size: 4 },
