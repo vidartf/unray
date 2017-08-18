@@ -6,11 +6,8 @@ import _ from 'underscore';
 import version from './version';
 // import serialization from './serialization';
 
-
-class PlotModel extends widgets.DOMWidgetModel
-{
-    defaults()
-    {
+class PlotModel extends widgets.DOMWidgetModel {
+    defaults() {
         let model_defaults = {
             _model_name : 'PlotModel',
             _view_name : 'PlotView',
@@ -22,8 +19,7 @@ class PlotModel extends widgets.DOMWidgetModel
         return _.extend(super.defaults(), version.module_defaults, model_defaults);
     }
 
-    initialize()
-    {
+    initialize() {
         super.initialize(...arguments);
     }
 };
@@ -33,11 +29,8 @@ PlotModel.serializers = _.extend({
 }, widgets.DOMWidgetModel.serializers);
 */
 
-
-class PlotView extends widgets.DOMWidgetView
-{
-    initialize()
-    {
+class PlotView extends widgets.DOMWidgetView {
+    initialize() {
         super.initialize(...arguments);
         console.log("PlotView initialize")
 
@@ -46,13 +39,11 @@ class PlotView extends widgets.DOMWidgetView
         // this.encoding = {};
     }
 
-    render()
-    {
+    render() {
         console.log("PlotView render")
     }
 
-    update(options)
-    {
+    update(options) {
         //super.update(...arguments);
 
         // this.method = this.model.get("method");
@@ -65,15 +56,13 @@ class PlotView extends widgets.DOMWidgetView
         this.trigger("plot:dirty", this);
     }
 
-    process()
-    {
+    process() {
         console.log("PlotView process")
 
         // TODO: Perform precomputations, i.e.
     }
 
-    redraw()
-    {
+    redraw() {
         console.log("PlotView process")
 
         // TODO: Render current state
@@ -87,9 +76,7 @@ class PlotView extends widgets.DOMWidgetView
         //     console.error("Plot method not implemented", this.method);
         // }
     }
-
 };
-
 
 export {
     PlotModel, PlotView

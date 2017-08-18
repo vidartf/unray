@@ -40,9 +40,9 @@ function compute_radius(points=new Float32Array([]), center=[0, 0, 0]) {
     let radius = 0;
     const [c0, c1, c2] = center;
     for (let i = 0; i < points.length; i += 3) {
-        const d0 = points[i] - c0,
-              d1 = points[i + 1] - c1,
-              d2 = points[i + 2] - c2;
+        const d0 = points[i] - c0;
+        const d1 = points[i + 1] - c1;
+        const d2 = points[i + 2] - c2;
         radius = Math.max(radius, d0*d0 + d1*d1 + d2*d2);
     }
     return Math.sqrt(radius);
@@ -58,11 +58,9 @@ function compute_bounding_sphere(points=new Float32Array([])) {
 // Reorient tetrahedron cells such that det(J) is positive
 // by swapping the last two indices in each cell if necessary
 function reorient_tetrahedron_cells(cells, vertices) {
-    // If given flat arrays
     const c = cells;
     const v = vertices;
     const num_cells = cells.length / 4;
-    const num_vertices = vertices.length / 3;
     for (let i = 0; i < num_cells; ++i) {
         // Vertex index preprocessing for this cell
         const j = 4*i;
@@ -90,7 +88,6 @@ function reorient_tetrahedron_cells(cells, vertices) {
 }
 
 export {
-    compute_bounds,
     compute_bounding_box,
     compute_bounding_sphere,
     reorient_tetrahedron_cells

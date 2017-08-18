@@ -1,21 +1,18 @@
 'use strict';
 
 import {
-    arange,
-    extend2
+    arange
 } from './utils.js';
 
 import {
     compute_bounding_sphere,
-    compute_bounding_box,
-    reorient_tetrahedron_cells
+    compute_bounding_box
 } from "./meshutils";
 
 import './threeimport';
 const THREE = window.THREE;
 
 function create_instanced_tetrahedron_geometry(num_tetrahedrons) {
-
     // This is the coordinates of our reference tetrahedron,
     // assumed a few places via face numbering etc.,
     // included here for reference

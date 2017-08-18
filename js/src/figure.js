@@ -21,10 +21,8 @@ function recompute_near_far(center, radius, position) {
 }
 
 
-class FigureModel extends widgets.DOMWidgetModel
-{
-    defaults()
-    {
+class FigureModel extends widgets.DOMWidgetModel {
+    defaults() {
         const model_defaults = {
             _model_name : 'FigureModel',
             _view_name : 'FigureView',
@@ -160,8 +158,7 @@ class FigureView extends widgets.DOMWidgetView {
         fog.far = far;
     }
 
-    schedule_animation()
-    {
+    schedule_animation() {
         if (this.animation_frame_id === undefined) {
             this.animation_frame_id = window.requestAnimationFrame((time) => {
                 this.animation_frame_id = undefined;
@@ -170,8 +167,7 @@ class FigureView extends widgets.DOMWidgetView {
         }
     }
 
-    pause_animation()
-    {
+    pause_animation() {
         if (this.animation_frame_id !== undefined) {
             window.cancelRequestAnimationFrame(this.animation_frame_id);
             this.animation_frame_id = undefined;

@@ -23,6 +23,7 @@
   ],
   "scripts": {
     "build": "webpack",
+    "lint": "eslint src/*.js",
     "node": "node",
     "watch": "onchange 'package.json' 'src/*.js' 'src/glsl/*.glsl' 'src/glsl/utils/*.glsl' -v -- npm run build",
     "test": "karma start --browsers ChromeHeadless karma.conf.js",

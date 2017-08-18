@@ -7,8 +7,6 @@ import {
 } from './utils.js';
 
 import {
-    compute_bounding_sphere,
-    compute_bounding_box,
     reorient_tetrahedron_cells
 } from "./meshutils";
 
@@ -447,10 +445,9 @@ function allocate_value(item_size) {
     case 16:
         return new THREE.Matrix4();
     default:
-        throw `Invalid item size ${item_size}.`;
+        throw { message: 'Invalid item size', item_size: item_size };
     }
 }
-
 
 const compute_texture_shape = (() => {
     const _texture_shapes = new Map();
@@ -461,7 +458,7 @@ const compute_texture_shape = (() => {
             return shape;
         }
         if (size <= 0) {
-            throw `Expecting a positive size, got ${size}.`;
+            throw { message: 'Expecting a positive size', size:size };
         }
         const width = Math.pow(2, Math.floor(Math.log2(size) / 2));
         const height = Math.ceil(size / width);
@@ -470,7 +467,6 @@ const compute_texture_shape = (() => {
 
     return _compute_texture_shape;
 })();
-
 
 const dtype2threetype = {
     float32: THREE.FloatType,
@@ -482,17 +478,15 @@ const dtype2threetype = {
     int8: THREE.IntType,
 };
 
-
-const dtype2arraytype = {
-    float32: Float32Array,
-    uint32: Uint32Array,
-    uint16: Uint16Array,
-    uint8: Uint8Array,
-    int32: Int32Array,
-    int16: Int16Array,
-    int8: Int8Array,
-};
-
+// const dtype2arraytype = {
+//     float32: Float32Array,
+//     uint32: Uint32Array,
+//     uint16: Uint16Array,
+//     uint8: Uint8Array,
+//     int32: Int32Array,
+//     int16: Int16Array,
+//     int8: Int8Array,
+// };
 
 const dtype2threeformat = {
     1: THREE.AlphaFormat,
@@ -572,7 +566,6 @@ function update_array_texture(texture, data)
     texture.needsUpdate = true;
 }
 
-
 function sort_cells(ordering, cells, coordinates, camera_position, view_direction)
 {
     /*
@@ -605,7 +598,7 @@ function sort_cells(ordering, cells, coordinates, camera_position, view_directio
                 min_dist[r] = Math.min(dist, min_dist[r]);
             }
         }
-        if (min_dist[0] == min_dist[1]) {
+        if (min_dist[0] === min_dist[1]) {
             return 0;
         } else if (min_dist[0] < min_dist[1]) {
             return -1;
@@ -936,7 +929,7 @@ class TetrahedralMeshRenderer
                 if (!uniform.value) {
                     uniform.value = allocate_lut_texture(
                         channel.dtype, channel.item_size, [dim, 1]);
-                } else if (uniform.value.image.width != dim) {
+                } else if (uniform.value.image.width !== dim) {
                     // TODO: Should we deallocate the gl texture via uniform.value somehow?
                     uniform.value = allocate_lut_texture(
                         channel.dtype, channel.item_size, [dim, 1]);
@@ -946,7 +939,7 @@ class TetrahedralMeshRenderer
             default:
                 console.warn("unknown association " + association);
             }
-
+    
             // Update associated data range
             if (enc.range !== undefined) {
                 let newrange = null;
@@ -993,13 +986,12 @@ class TetrahedralMeshRenderer
 
         // Allocate various textures and buffers (needs the shapes assigned above)
         this.allocate(method, encoding);
-
-
-        const sorted = method_properties[method].sorted;
+    
+        // FIXME: Enable the non-sorted branch
+        const sorted = true || method_properties[method].sorted;
 
         // Setup cells of geometry (using textures or attributes)
-        //if (sorted) {
-        if (true) {
+        if (sorted) {
             // Need ordering, let ordering be instanced and read cells from texture
             // Initialize ordering array with contiguous indices,
             // stored as floats because webgl2 is required for integer attributes.
@@ -1047,26 +1039,26 @@ class UnrayStateWrapper {
         this.init(initial);
     }
 
-    sketch() {
-        // encoding === initial
+    // sketch() {
+    //     // encoding === initial
 
-        // Scalar spaces:
-        //   number(dtype), vecN(dtype), matMN(dtype), color
-        // Distributed to each:
-        //   global | cell | vertex
+    //     // Scalar spaces:
+    //     //   number(dtype), vecN(dtype), matMN(dtype), color
+    //     // Distributed to each:
+    //     //   global | cell | vertex
 
-        const channelname = "color";
+    //     const channelname = "color";
 
-        const encoding_entry = {
-            entity: "global", // space enum: "global" | "cell" | "vertex"
-            value: "#ff0000", // constant value if global | field (nd)array
-            field: "08jniqjdhc09u2", // null | field id
-        };
+    //     const encoding_entry = {
+    //         entity: "global", // space enum: "global" | "cell" | "vertex"
+    //         value: "#ff0000", // constant value if global | field (nd)array
+    //         field: "08jniqjdhc09u2", // null | field id
+    //     };
 
-        const encoding = {
-            channelname: encoding_entry,
-        };
-    }
+    //     const encoding = {
+    //         channelname: encoding_entry,
+    //     };
+    // }
 
     init(initial) {
         const {data, plotname, plots} = initial;
@@ -1139,9 +1131,9 @@ class UnrayStateWrapper {
     }
 
     update(changed) {
-        for (let name in changed) {
-            //this.channel_update(name)(changed[name]);
-        }
+        // for (let name in changed) {
+        //     this.channel_update(name)(changed[name]);
+        // }
         //this.attributes = Object.assign({}, this.attributes, changed);
     }
 

@@ -1,11 +1,12 @@
 'use strict';
 
 // This is the one place to change how we import THREE.js
+// TODO: Follow whatever pattern pythreejs ends up with
 
 // Import THREE and attach it to window
 const THREE = require('three');
 window.THREE = THREE;
-const OrbitControls = require('../node_modules/three/examples/js/controls/OrbitControls');
+require('../node_modules/three/examples/js/controls/OrbitControls');
 
 //import {THREE} from 'three';
 //import THREE from 'three';
