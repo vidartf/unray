@@ -304,6 +304,7 @@ void main()
     vec3 mapped_emission = texture2D(t_emission_lut, vec2(scaled_emission, 0.5)).xyz;
 #endif
 
+
 #ifdef ENABLE_DENSITY_BACK
     // TODO: With constant view direction,
     //    dot(v_density_gradient, view_direction)

@@ -410,7 +410,6 @@ const method_properties = {
     },
 };
 
-
 function compute_range(array) {
     let min = array[0];
     let max = array[0];
@@ -421,13 +420,11 @@ function compute_range(array) {
     return [min, max];
 }
 
-
 function extended_range(min, max) {
     let range = max - min;
     let scale = range > 0.0 ? 1.0 / range : 1.0;
     return [min, max, range, scale];
 }
-
 
 function allocate_value(item_size) {
     switch (item_size)
@@ -494,9 +491,7 @@ const dtype2threeformat = {
     4: THREE.RGBAFormat
 };
 
-
-function allocate_array_texture(dtype, item_size, texture_shape)
-{
+function allocate_array_texture(dtype, item_size, texture_shape) {
     const size = texture_shape[0] * texture_shape[1] * item_size;
 
     // console.log("Allocating array texture with shape: ", texture_shape);
@@ -521,9 +516,7 @@ function allocate_array_texture(dtype, item_size, texture_shape)
     return texture;
 }
 
-
-function allocate_lut_texture(dtype, item_size, texture_shape)
-{
+function allocate_lut_texture(dtype, item_size, texture_shape) {
     const size = texture_shape[0] * texture_shape[1] * item_size;
 
     // Textures using Int32Array and Uint32Array require webgl2,
@@ -551,8 +544,7 @@ function allocate_lut_texture(dtype, item_size, texture_shape)
 }
 
 
-function update_array_texture(texture, data)
-{
+function update_array_texture(texture, data) {
     try {
         // Note that input data may be Int32Array or Uint32Array
         // here while image.data is currently always Float32Array
@@ -566,8 +558,7 @@ function update_array_texture(texture, data)
     texture.needsUpdate = true;
 }
 
-function sort_cells(ordering, cells, coordinates, camera_position, view_direction)
-{
+function sort_cells(ordering, cells, coordinates, camera_position, view_direction) {
     /*
     const num_tetrahedrons = cells.length / 4;
     for (let i = 0; i < num_tetrahedrons; ++i) {
@@ -704,8 +695,7 @@ class TetrahedralMeshRenderer
         const defines = mp.defines;
         const uniforms = this.uniforms;
 
-        // Configure shader
-        const material = new THREE.ShaderMaterial({
+        const material_config = {
             // Note: Assuming passing some unused uniforms here will work fine
             // without too much performance penalty, hopefully this is ok
             // as it allows us to share the uniforms dict between methods.
@@ -714,9 +704,12 @@ class TetrahedralMeshRenderer
             fragmentShader: fragment_shader,
             side: mp.side,
             transparent: mp.transparent,
-            depthTest: mp.depth_test,
+            depthTest: true,
             depthWrite: mp.depth_write,
-        });
+        };
+
+        // Configure shader
+        const material = new THREE.ShaderMaterial(material_config);
 
         // Configure blending
         if (mp.blending === THREE.CustomBlending) {
@@ -832,7 +825,7 @@ class TetrahedralMeshRenderer
                 default:
                     console.error(`Unknown association ${association}.`);
                 }
-                console.log("Setting new uniform value: ", uniform_name, new_uniform_value);
+                // console.log("Setting new uniform value: ", uniform_name, new_uniform_value);
                 uniform.value = new_uniform_value;
             }
         }
@@ -939,7 +932,7 @@ class TetrahedralMeshRenderer
             default:
                 console.warn("unknown association " + association);
             }
-    
+
             // Update associated data range
             if (enc.range !== undefined) {
                 let newrange = null;
