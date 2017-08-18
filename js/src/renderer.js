@@ -499,7 +499,7 @@ function allocate_array_texture(dtype, item_size, texture_shape)
 {
     const size = texture_shape[0] * texture_shape[1] * item_size;
 
-    console.log("Allocating array texture with shape: ", texture_shape);
+    // console.log("Allocating array texture with shape: ", texture_shape);
 
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
@@ -751,8 +751,8 @@ class TetrahedralMeshRenderer
         // Copy and override defaults with provided values
         encoding = extend2(mp.default_encoding, encoding);
 
-        console.log("Encoding:", encoding)
-        console.log("channels:", channels)
+        // console.log("Encoding:", encoding)
+        // console.log("channels:", channels)
         
         // Process all passed channel
         for (let channel_name in channels)
@@ -1166,10 +1166,10 @@ class UnrayStateWrapper {
 
 function create_unray_state(root, attributes) {
     const state = new UnrayStateWrapper(root, attributes);
-    console.log("////////////////////////////////");
-    console.log("Created unray state:");
-    console.log(state);
-    console.log("////////////////////////////////");
+    // console.log("////////////////////////////////");
+    // console.log("Created unray state:");
+    // console.log(state);
+    // console.log("////////////////////////////////");
     return state;
 }
 
