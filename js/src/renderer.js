@@ -745,10 +745,9 @@ class TetrahedralMeshRenderer
 
         // console.log("Encoding:", encoding)
         // console.log("channels:", channels)
-        
+
         // Process all passed channel
-        for (let channel_name in channels)
-        {
+        for (let channel_name in channels) {
             // Get channel description
             const channel = channels[channel_name];
 
@@ -839,6 +838,8 @@ class TetrahedralMeshRenderer
 
         const channels = mp.channels;
 
+        const uniforms = this.uniforms;
+
         // Copy and override defaults with provided values
         encoding = extend2(mp.default_encoding, encoding);
 
@@ -872,11 +873,10 @@ class TetrahedralMeshRenderer
             // association for fields, figure out a better design for that)
             const association = enc.association || channel.association;
             let uniform = null;
-            switch (association)
-            {
+            switch (association) {
             case "constant":
                 // TODO: Revisit specification of uniform value types in encoding/channels/data
-                uniform = this.uniforms["u_" + channel_name];
+                uniform = uniforms["u_" + channel_name];
                 if (typeof uniform.value === "number") {
                     uniform.value = new_value;
                 } else if (uniform.value.isVector2) {  // TODO: Clean up this verbosity, did this to get rid of some errors quickly
@@ -904,12 +904,15 @@ class TetrahedralMeshRenderer
                 }
                 break;
             case "vertex":
-                uniform = this.uniforms["t_" + channel_name];
+                uniform = uniforms["t_" + channel_name];
                 update_array_texture(uniform.value, new_value);
                 break;
             case "cell":
                 // if (mp.sorted) {
-                uniform = this.uniforms["t_" + channel_name];
+                uniform = uniforms["t_" + channel_name];
+                if (channel_name === "cells") {
+                    console.log("Cells: ", uniform.value, new_value);
+                }
                 update_array_texture(uniform.value, new_value);
                 // } else {
                 //     update instance buffer  // FIXME: See allocate()
@@ -917,7 +920,7 @@ class TetrahedralMeshRenderer
                 break;
             case "lut":
                 var dim = new_value.length / channel.item_size;
-                uniform = this.uniforms["t_" + channel_name];
+                uniform = uniforms["t_" + channel_name];
                 if (!uniform.value) {
                     uniform.value = allocate_lut_texture(
                         channel.dtype, channel.item_size, [dim, 1]);
@@ -943,8 +946,8 @@ class TetrahedralMeshRenderer
                 if (newrange !== null) {
                     newrange = extended_range(...newrange);
                     const range_name = "u_" + channel_name + "_range";
-                    if (this.uniforms.hasOwnProperty(range_name)) {
-                        this.uniforms[range_name].value.set(...newrange);
+                    if (uniforms.hasOwnProperty(range_name)) {
+                        uniforms[range_name].value.set(...newrange);
                     }
                 }
             }
