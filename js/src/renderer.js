@@ -981,7 +981,7 @@ class TetrahedralMeshRenderer
 
         // Allocate various textures and buffers (needs the shapes assigned above)
         this.allocate(method, encoding);
-    
+
         // FIXME: Enable the non-sorted branch
         const sorted = true || method_properties[method].sorted;
 

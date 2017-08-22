@@ -6,6 +6,7 @@
 
 
 import widgets from '@jupyter-widgets/base';
+
 //import _ from 'underscore';
 
 import version from './version';
@@ -68,19 +69,44 @@ class WireframePlotModel extends PlotModel {
 
     initialize(attributes, options) {
         super.initialize(attributes, options);
+
+        // Pythreejs blackbox object will create this.obj in initialize:
+        //this.obj = new THREE.Object3D();
+    }
+
+    mapAttributes(attributes) {
+        const state = {};
+        // FIXME: Convert given model attributes to expected unray state formats
+        return state;
     }
 
     createInitialPlotState(root, attributes) {
         this.log("createInitialPlotState", root, attributes);
 
+        // Setup unray state
+        // FIXME: Map attributes to expected unray input
+        // FIXME: Refactor expected input to unray
         const initial = {
-            // fixme: fill in from attributes
+            data: {
+                cells: fixme,
+                coordinates: fixme
+            },
+            plotname: "cells",
+            plots: {
+                cells: {
+                    encoding: {
+
+                    }
+                }
+            },
         };
-        const initialized = 'hello world';// FIXME
-        return {initialized, root, attributes};// FIXME
-        //return create_unray_state(root, initial);
+
+        return create_unray_state(root, initial);
     }
 };
+WireframePlotModel.serializers = Object.assign({
+    mesh: { deserialize: widgets.unpack_models },
+}, widgets.WidgetModel.serializers);
 
 
 export {

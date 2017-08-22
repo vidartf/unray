@@ -66,6 +66,7 @@
     "d3-scale": "^1.0.6",
     "gl-matrix": "^2.4.0",
     "isndarray": "^1.0.0",
+    "jupyter-datawidgets": "^2.0.1",
     "ndarray": "^1.0.18",
     "ndarray-determinant": "^1.0.0",
     "ndarray-ops": "^1.2.2",

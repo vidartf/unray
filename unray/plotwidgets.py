@@ -11,16 +11,15 @@ from .datawidgets import Mesh
 
 @register
 class Plot(widgets.Widget):
-    """TODO: Document me."""
-    _model_name = Unicode('Plot').tag(sync=True)
+    """Base class for all plot widgets."""
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
 
 @register
 class WireframePlot(Plot):
-    """TODO: Document me."""
-    _model_name = Unicode('WireframePlot').tag(sync=True)
+    """A wireframe plot widget."""
+    _model_name = Unicode('WireframePlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
