@@ -1,3 +1,8 @@
+"""
+See newwidgets.py for implementation plan. Add completed classes to all here.
+Later get rid of old classes Data, Figure, Plot, and move this to unray.* namespace.
+"""
+
 import numpy as np
 import ipywidgets as widgets
 from ipywidgets import widget_serialization, register

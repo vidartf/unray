@@ -1,7 +1,22 @@
+"""
+
+This file contains fairly realistic drafts of the new data and plot widget redesign.
+
+The plan is to pick one by one of these,
+move it to datawidgets.py or plotwidgets.py,
+iterate on its design, and implement the corresponding
+model class in datawidgets.js or plotwidgets.js.
+
+Array traits should be changed to use DataUnion when classes are moved.
+
+At the bottom here are some drafts of high level plot functions
+that can be moved to unlab.py and finalized as the
+
+"""
 import numpy as np
 import ipywidgets as widgets
 from ipywidgets import widget_serialization, register
-from ipydatawidgets import NDArrayWidget
+from ipydatawidgets import DataUnion
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
 from traitlets import Instance, TraitError, TraitType, Undefined
 from ._version import widget_module_name, widget_module_version
@@ -16,11 +31,11 @@ field_types = ["P0", "P1", "D1"]
 @register
 class Field(widgets.Widget):
     """TODO: Document me."""
-    _model_name = Unicode('Field').tag(sync=True)
+    _model_name = Unicode('FieldModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-    values = Instance(NDArrayWidget, allow_none=False).tag(sync=True, **widget_serialization)
+    values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None)).tag(sync=True)
     space = Enum(field_types, "P1").tag(sync=True)
 
 
@@ -29,18 +44,18 @@ indicator_field_types = ["I0", "I1", "I2", "I3"]
 @register
 class IndicatorField(widgets.Widget):
     """TODO: Document me."""
-    _model_name = Unicode('IndicatorField').tag(sync=True)
+    _model_name = Unicode('IndicatorFieldModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-    values = Instance(NDArrayWidget, allow_none=False).tag(sync=True, **widget_serialization)
+    values = DataUnion(dtype=np.int32, shape_constraint=shape_constraints(None)).tag(sync=True)
     space = Enum(indicator_field_types, "I3").tag(sync=True)
 
 
 @register
 class ColorLUT(widgets.Widget):
     """TODO: Document me."""
-    _model_name = Unicode('ColorLUT').tag(sync=True)
+    _model_name = Unicode('ColorLUTModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
@@ -48,10 +63,10 @@ class ColorLUT(widgets.Widget):
 @register
 class ArrayColorLUT(ColorLUT):
     """TODO: Document me."""
-    _model_name = Unicode('ArrayColorLUT').tag(sync=True)
+    _model_name = Unicode('ArrayColorLUTModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
-    values = Instance(NDArrayWidget).tag(sync=True, **widget_serialization)
+    values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None, 3)).tag(sync=True)
     space = Enum(["rgb", "hsv"], "rgb").tag(sync=True)
 
 # TODO: Develop color lookup methods further, rgb, hsv, nominal vs quantitiative, etc etc...
@@ -60,7 +75,7 @@ class ArrayColorLUT(ColorLUT):
 @register
 class NamedColorLUT(ColorLUT):
     """TODO: Document me."""
-    _model_name = Unicode('NamedColorLUT').tag(sync=True)
+    _model_name = Unicode('NamedColorLUTModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     name = Unicode("viridis").tag(sync=True)
@@ -69,7 +84,7 @@ class NamedColorLUT(ColorLUT):
 @register
 class Color(widgets.Widget):
     """TODO: Document me."""
-    _model_name = Unicode('Color').tag(sync=True)
+    _model_name = Unicode('ColorModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
@@ -77,7 +92,7 @@ class Color(widgets.Widget):
 @register
 class ColorConstant(Color):
     """TODO: Document me."""
-    _model_name = Unicode('ColorConstant').tag(sync=True)
+    _model_name = Unicode('ColorConstantModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
@@ -88,7 +103,7 @@ class ColorConstant(Color):
 @register
 class ColorField(Color):
     """TODO: Document me."""
-    _model_name = Unicode('ColorField').tag(sync=True)
+    _model_name = Unicode('ColorFieldModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
@@ -99,7 +114,7 @@ class ColorField(Color):
 @register
 class ColorIndicators(Color):
     """TODO: Document me."""
-    _model_name = Unicode('ColorIndicators').tag(sync=True)
+    _model_name = Unicode('ColorIndicatorsModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
@@ -112,7 +127,7 @@ class ColorIndicators(Color):
 @register
 class SurfacePlot(Plot):
     """TODO: Document me."""
-    _model_name = Unicode('SurfacePlot').tag(sync=True)
+    _model_name = Unicode('SurfacePlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     color = Instance(Color, allow_none=False).tag(sync=True, **widget_serialization)
@@ -125,7 +140,7 @@ class SurfacePlot(Plot):
 @register
 class IsoSurfacePlot(Plot):
     """TODO: Document me."""
-    _model_name = Unicode('IsoSurfacePlot').tag(sync=True)
+    _model_name = Unicode('IsoSurfacePlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     # TODO
@@ -134,7 +149,7 @@ class IsoSurfacePlot(Plot):
 @register
 class XrayPlot(Plot):
     """TODO: Document me."""
-    _model_name = Unicode('XrayPlot').tag(sync=True)
+    _model_name = Unicode('XrayPlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     density = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
@@ -146,7 +161,7 @@ class XrayPlot(Plot):
 @register
 class MinProjPlot(Plot):
     """TODO: Document me."""
-    _model_name = Unicode('MinProjPlot').tag(sync=True)
+    _model_name = Unicode('MinProjPlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     # TODO
@@ -155,7 +170,7 @@ class MinProjPlot(Plot):
 @register
 class MaxProjPlot(Plot):
     """TODO: Document me."""
-    _model_name = Unicode('MaxProjPlot').tag(sync=True)
+    _model_name = Unicode('MaxProjPlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     # TODO
@@ -164,7 +179,7 @@ class MaxProjPlot(Plot):
 @register
 class SumProjPlot(Plot):
     """TODO: Document me."""
-    _model_name = Unicode('SumProjPlot').tag(sync=True)
+    _model_name = Unicode('SumProjPlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     # TODO
@@ -173,7 +188,7 @@ class SumProjPlot(Plot):
 @register
 class VolumePlot(Plot):
     """TODO: Document me."""
-    _model_name = Unicode('VolumePlot').tag(sync=True)
+    _model_name = Unicode('VolumePlotModel').tag(sync=True)
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
     # TODO
