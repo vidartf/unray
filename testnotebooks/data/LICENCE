@@ -1,0 +1,27 @@
+# Licence of meshes
+
+If using any of the meshes published here, please cite the original source described below.
+
+
+## Brain mesh
+
+Please refer to 'Qianqian Fang, "Mesh-based Monte Carlo method using fast ray-tracing in Plucker coordinates," Biomed. Opt. Express 1(1), 165-175 (2010)' for details.
+
+http://mcx.sourceforge.net/cgi-bin/index.cgi?MMC/CollinsAtlasMesh
+
+Collins adult brain atlas FEM mesh - Version 2L (low-resolution).
+
+Created on 02/05/2011 by Qianqian Fang [1] with iso2mesh [2] version 1.0.0.
+The gray/white matter surfaces were created by Katherine Perdue [3] with FreeSurfer [4]
+
+
+The mesh data is in the public domain.
+
+
+## Heart mesh
+
+For the origin of this mesh, see
+
+"High-resolution data assimilation of cardiac mechanics applied to a dyssynchronous ventricle",
+Gabriel Balaban, Henrik Finsberg, et al. Int J Numer Meth Biomed Engng (2017)
+
