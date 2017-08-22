@@ -12,11 +12,13 @@ const THREE = window.THREE;
 // console.log("THREE imported in figure:", THREE);
 
 
-function recompute_near_far(center, radius, position) {
-    const offset = 0.1;
+function recompute_near_far(center, radius, position, fov) {
+    const offset = 0.2;
     const dist = position.distanceTo(center);
-    const near = Math.max((1.0 - offset) * (dist - radius), 0.001 * radius);
-    const far = (1.0 + offset) * (dist + radius);
+    const near_edge = dist - radius;
+    const far_edge = dist + radius;
+    const near = Math.max(0.01 * near_edge, 0.01 * radius);
+    const far = 100 * far_edge;
     return [near, far];
 }
 
@@ -143,7 +145,8 @@ class FigureView extends widgets.DOMWidgetView {
         const [near, far] = recompute_near_far(
             this.substate.get_center(),
             this.substate.get_radius(),
-            this.camera.position
+            this.camera.position,
+            this.camera.fov
         );
 
         // Update camera

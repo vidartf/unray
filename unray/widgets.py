@@ -9,7 +9,7 @@ from traitlets import Instance, TraitError, TraitType, Undefined
 from traittypes import Array
 
 from .traits_numpy import array_serialization, shape_constraints
-from ._version import widget_module_version 
+from ._version import widget_module_version
 
 module_name = 'unray'
 module_version = widget_module_version
@@ -63,19 +63,6 @@ class Data(widgets.Widget):
 
     def _ipython_display_(self):
         return DataDisplay(data=self)
-
-
-@widgets.register('unray.DataDisplay')
-class DataDisplay(widgets.DOMWidget):
-    """"""
-    _view_name = Unicode('DataDisplayView').tag(sync=True)
-    _model_name = Unicode('DataDisplayModel').tag(sync=True)
-    _view_module = Unicode(module_name).tag(sync=True)
-    _model_module = Unicode(module_name).tag(sync=True)
-    _view_module_version = Unicode(module_version).tag(sync=True)
-    _model_module_version = Unicode(module_version).tag(sync=True)
-
-    data = Instance(Data, allow_none=True).tag(sync=True, **widget_serialization)
 
 
 @widgets.register('unray.Plot')
