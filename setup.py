@@ -53,7 +53,9 @@ setup_args = {
         ]),
     ],
     'install_requires': [
-        'ipywidgets>=7.0.0rc0',
+        'ipywidgets>=7.0.0',
+        'ipydatawidgets>=1.1.1',
+        'pythreejs>=0.4.0a0',
         'traittypes',
         'numpy',
     ],

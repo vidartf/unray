@@ -10,8 +10,7 @@ const version = require('./package.json').version;
 
 
 // Packages that shouldn't be bundled but loaded at runtime
-const externals = ['@jupyter-widgets/base', 'jupyter-datawidgets'];
-//const externals = ['@jupyter-widgets/base', 'three', 'jupyter-threejs'];
+const externals = ['@jupyter-widgets/base', 'jupyter-datawidgets', 'three', 'jupyter-threejs'];
 
 
 // Custom webpack rules are generally the same for all webpack bundles, hence

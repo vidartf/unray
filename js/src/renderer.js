@@ -85,6 +85,28 @@ const default_defines = {
 const method_properties = {
     blank: {
     },
+    mesh: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+
+        defines: Object.assign({}, default_defines, {
+            ENABLE_SURFACE_MODEL: 1,
+            ENABLE_WIREFRAME: 1,
+            ENABLE_SURFACE_LIGHT: 1,
+        }),
+
+        channels: default_channels,
+        default_encoding: default_encoding,
+    },
     cells: {
         sorted: false,
         transparent: false,
@@ -1067,10 +1089,10 @@ class UnrayStateWrapper {
         const mesh = this.tetrenderer.create_mesh(method, encoding, data);
         mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
             // FIXME: Set camera and time uniforms directly in material.uniforms here
+            console.log("Calling prerender");
             this.prerender(camera, geometry, material);
         };
         this.root.add(mesh);
-
 
 
         // Add a bounding sphere representation to root for debugging
