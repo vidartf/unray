@@ -61,14 +61,20 @@ class FigureView extends widgets.DOMWidgetView {
         this.obj = new THREE.Object3D();
 
 
+        // Reformat input variables
+        const plot = this.model.get("plots")[this.model.get("plotname")];
+        const method = plot ? plot.get("method") : "surface";
+        const encoding = plot ? plot.get("encoding") : {};
+        // Get the typedarray of the ndarray of the datamodel...
+        const data = _.mapObject(
+            this.model.get("data"),
+            datawidget => datawidget.get("array").data
+        );
+
         // Setup unray state
-        // FIXME: Refactor to move all unray stuff into here
-        const initial = {
-            data: this.model.get("data"),
-            plotname: this.model.get("plotname"),
-            plots: this.model.get("plots"),
-        };
-        this.substate = create_unray_state(this.obj, initial);
+        this.substate = create_unray_state(this.obj, method, encoding, data);
+
+        const bgcolor = this.substate.get_bgcolor();
 
 
         // Everything below will be created using pythreejs widgets
@@ -98,6 +104,8 @@ class FigureView extends widgets.DOMWidgetView {
         });
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width * downscale, height * downscale);
+        this.renderer.setClearColor(bgcolor, 1);
+
 
         // Setup scene with root object added
         this.scene = new THREE.Scene();
@@ -108,16 +116,15 @@ class FigureView extends widgets.DOMWidgetView {
         // Add our root object
         this.scene.add(this.obj);
 
-
-        const center = this.substate.get_center();
-        let radius = this.substate.get_radius();
-
         // Place camera a few radii off center of the model
         // Assuming perspective camera here
+        this.sphere = this.obj.children[0].geometry.boundingSphere;
+        const center = this.sphere.center.clone();
+        const radius = this.sphere.radius;
         const offset = new THREE.Vector3(3*radius, 0, 0);
         const camera = new THREE.PerspectiveCamera(60.0, this.aspect_ratio, 0.1, 100);
         camera.position.addVectors(center, offset);
-        camera.lookAt(center.clone());
+        camera.lookAt(center);
         this.camera = camera;
 
         // Manually trigger camera change for now
@@ -143,8 +150,8 @@ class FigureView extends widgets.DOMWidgetView {
     on_camera_changed() {
         // Recompute camera near/far planes to include model
         const [near, far] = recompute_near_far(
-            this.substate.get_center(),
-            this.substate.get_radius(),
+            this.sphere.center,
+            this.sphere.radius,
             this.camera.position,
             this.camera.fov
         );
@@ -178,39 +185,14 @@ class FigureView extends widgets.DOMWidgetView {
     }
 
     animate(time) {
-        // Seconds are more convenient to work with
-        // time = time / 1000;
-        // if (!this.start_time) {
-        //     this.start_time = time;
-        //     this.prev_time = time;
-        // }
-
         const animating = this.model.get("animate");
-        // this.controls.autoRotate = animating;
-
-        // if (animating) {
-        //     const time_step = time - this.prev_time;
-        //     const passed_time = time - this.start_time;
-        // }
-
         this.redraw();
-
-        // this.prev_time = time;
-
         if (animating) {
             this.schedule_animation();
         }
     }
 
     redraw() {
-        //this.controls.update();
-
-        // Select method-specific background color
-        // TODO: How to deal with this when adding to larger scene?
-        //       I guess it will be up to the user.
-        const bgcolor = this.substate.get_bgcolor();
-        this.renderer.setClearColor(bgcolor, 1);
-
         this.renderer.render(this.scene, this.camera);
     }
 };

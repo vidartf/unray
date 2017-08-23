@@ -426,26 +426,6 @@ function extended_range(min, max) {
     return [min, max, range, scale];
 }
 
-function allocate_value(item_size) {
-    switch (item_size)
-    {
-    case 1:
-        return 0;
-    case 2:
-        return new THREE.Vector2();
-    case 3:
-        return new THREE.Vector3();
-    case 4:
-        return new THREE.Vector4();
-    case 9:
-        return new THREE.Matrix3();
-    case 16:
-        return new THREE.Matrix4();
-    default:
-        throw { message: 'Invalid item size', item_size: item_size };
-    }
-}
-
 const compute_texture_shape = (() => {
     const _texture_shapes = new Map();
 
@@ -543,7 +523,6 @@ function allocate_lut_texture(dtype, item_size, texture_shape) {
     return texture;
 }
 
-
 function update_array_texture(texture, data) {
     try {
         // Note that input data may be Int32Array or Uint32Array
@@ -556,6 +535,66 @@ function update_array_texture(texture, data) {
         console.error("failed to update texture");
     }
     texture.needsUpdate = true;
+}
+
+function update_lut(uniform, new_value, item_size, dtype) {
+    const dim = new_value.length / item_size;
+    if (!uniform.value) {
+        uniform.value = allocate_lut_texture(dtype, item_size, [dim, 1]);
+    } else if (uniform.value.image.width !== dim) {
+        // TODO: Should we deallocate the gl texture via uniform.value somehow?
+        uniform.value = allocate_lut_texture(
+            dtype, item_size, [dim, 1]);
+    }
+    update_array_texture(uniform.value, new_value);
+}
+
+function allocate_value(item_size) {
+    switch (item_size)
+    {
+    case 1:
+        return 0;
+    case 2:
+        return new THREE.Vector2();
+    case 3:
+        return new THREE.Vector3();
+    case 4:
+        return new THREE.Vector4();
+    case 9:
+        return new THREE.Matrix3();
+    case 16:
+        return new THREE.Matrix4();
+    default:
+        throw { message: 'Invalid item size', item_size: item_size };
+    }
+}
+
+function update_uniform_value(uniform, new_value) {
+    if (typeof uniform.value === "number") {
+        uniform.value = new_value;
+    } else if (uniform.value.isVector2) {  // TODO: Clean up this verbosity, did this to get rid of some errors quickly
+        uniform.value.set(new_value[0], new_value[1]);
+    } else if (uniform.value.isVector3) {
+        uniform.value.set(new_value[0], new_value[1], new_value[2]);
+    } else if (uniform.value.isVector4) {
+        uniform.value.set(new_value[0], new_value[1], new_value[2], new_value[3]);
+    } else if (uniform.value.isVector2 || uniform.value.isVector3 || uniform.value.isVector4) {
+        uniform.value.set(...new_value);
+    } else if (uniform.value.isMatrix3 || uniform.value.isMatrix4) {
+        uniform.value.set(...new_value);
+    } else if (uniform.value.isColor) {
+        // TODO: Consider better color handling
+        if (new_value.isColor || typeof new_value === "string") {
+            uniform.value.set(new_value);
+        } else {
+            // Assuming rgb triplet
+            uniform.value.setRGB(new_value[0], new_value[1], new_value[2]);
+        }
+        // uniform.value.setHSL(...new_value);  // hsl triplet
+    } else {
+        console.warn("Unexpected uniform type " + (typeof uniform.value));
+        uniform.value = new_value;
+    }
 }
 
 function sort_cells(ordering, cells, coordinates, camera_position, view_direction) {
@@ -663,7 +702,7 @@ class TetrahedralMeshRenderer {
         // TODO: When using three.js scenegraph, probably need
         // to distinguish better between model and world coordinates
         // in various places
-        //camera.getWorldPosition(this.camera_position);
+        //camera.getWorldPosition(material.uniforms.u_camera_position.value);
 
         const dir = material.uniforms.u_view_direction.value;
         camera.getWorldDirection(dir);
@@ -696,19 +735,6 @@ class TetrahedralMeshRenderer {
             material.uniforms.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
         }
     }
-
-    // add_cell_attribute(geometry, channel_name, attribute) {
-    //     geometry.addAttribute("c_" + channel_name, attribute);
-    // }
-
-    // add_cell_data() {
-    //     // let cell_data_channels = ["cells"];
-    //     const cell_data_channels = [];
-    //     for (let channel_name of cell_data_channels) {
-    //         const attrib = this.attributes["c_" + channel_name];
-    //         add_cell_attribute(geometry, channel_name, attrib);
-    //     }
-    // }
 
     create_material(method, encoding, uniforms) {
         // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
@@ -770,22 +796,27 @@ class TetrahedralMeshRenderer {
         // Copy and override defaults with provided values
         encoding = extend2(mp.default_encoding, encoding);
 
-        // console.log("Encoding:", encoding)
-        // console.log("channels:", channels)
+        const cell_texture_shape = uniforms.u_cell_texture_shape.value;
+        const vertex_texture_shape = uniforms.u_vertex_texture_shape.value;
+
+        const uniform_prefix = {
+            constant: "u_",
+            vertex: "t_",
+            cell: "t_",
+            lut: "t_"
+        };
 
         // Process all passed channel
         for (let channel_name in channels) {
             // Get channel description
             const channel = channels[channel_name];
-
-            // Get encoding for this channel
-            const enc = encoding[channel_name];
-
-            // Some sanity checks
             if (channel === undefined) {
                 console.error(`Channel ${channel_name} is missing description.`);
                 continue;
             }
+
+            // Get encoding for this channel
+            const enc = encoding[channel_name];
             if (enc === undefined) {
                 console.error(`No encoding found for channel ${channel_name}.`);
                 continue;
@@ -793,35 +824,28 @@ class TetrahedralMeshRenderer {
 
             // Default association in channel, can override in encoding
             const association = enc.association || channel.association;
-            const uniform_prefix = {
-                constant: "u_",
-                vertex: "t_",
-                cell: "t_",
-                lut: "t_"
-            };
             const uniform_name = uniform_prefix[association] + channel_name;
             const uniform = uniforms[uniform_name];
 
             if (uniform && !uniform.value) {
-                let new_uniform_value = null;
                 switch (association) {
                 case "constant":
                     // TODO: Allocating uniform shared between methods using
                     // channel data which may conceptually differe between method,
                     // not the best possible design
-                    new_uniform_value = allocate_value(channel.item_size);
+                    uniform.value = allocate_value(channel.item_size);
                     break;
                 case "vertex":
-                    new_uniform_value = allocate_array_texture(
+                    uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
-                        uniforms.u_vertex_texture_shape.value);
+                        vertex_texture_shape);
                     break;
                 case "cell":
                     // Maybe we want to allocate or allow allocation for both the sorted and unsorted case,
                     // to quickly switch between methods e.g. during camera rotation.
-                    new_uniform_value = allocate_array_texture(
+                    uniform.value = allocate_array_texture(
                         channel.dtype, channel.item_size,
-                        uniforms.u_cell_texture_shape.value);
+                        cell_texture_shape);
                     break;
                     // TODO: Currently always placing cell data as textures,
                     // update this for cell data as instance attributes when needed.
@@ -850,8 +874,6 @@ class TetrahedralMeshRenderer {
                 default:
                     console.error(`Unknown association ${association}.`);
                 }
-                // console.log("Setting new uniform value: ", uniform_name, new_uniform_value);
-                uniform.value = new_uniform_value;
             }
         }
     }
@@ -868,19 +890,24 @@ class TetrahedralMeshRenderer {
         // Copy and override defaults with provided values
         encoding = extend2(mp.default_encoding, encoding);
 
+        const uniform_prefix = {
+            constant: "u_",
+            vertex: "t_",
+            cell: "t_",
+            lut: "t_"
+        };
+
         // Process all channels
         for (let channel_name in channels) {
             // Get channel description
             const channel = channels[channel_name];
-
-            // Get encoding for this channel
-            const enc = encoding[channel_name];
-
-            // Sanity checks
             if (channel === undefined) {
                 console.warn(`Channel ${channel_name} is missing description.`);
                 continue;
             }
+
+            // Get encoding for this channel
+            const enc = encoding[channel_name];
             if (enc === undefined) {
                 console.warn(`No encoding found for channel ${channel_name}.`);
                 continue;
@@ -897,64 +924,25 @@ class TetrahedralMeshRenderer {
             // (TODO: The idea here was to be able to select vertex/cell
             // association for fields, figure out a better design for that)
             const association = enc.association || channel.association;
-            let uniform = null;
+            const uniform_name = uniform_prefix[association] + channel_name;
+    
             switch (association) {
             case "constant":
                 // TODO: Revisit specification of uniform value types in encoding/channels/data
-                uniform = uniforms["u_" + channel_name];
-                if (typeof uniform.value === "number") {
-                    uniform.value = new_value;
-                } else if (uniform.value.isVector2) {  // TODO: Clean up this verbosity, did this to get rid of some errors quickly
-                    uniform.value.set(new_value[0], new_value[1]);
-                } else if (uniform.value.isVector3) {
-                    uniform.value.set(new_value[0], new_value[1], new_value[2]);
-                } else if (uniform.value.isVector4) {
-                    uniform.value.set(new_value[0], new_value[1], new_value[2], new_value[3]);
-                } else if (uniform.value.isVector2 || uniform.value.isVector3 || uniform.value.isVector4) {
-                    uniform.value.set(...new_value);
-                } else if (uniform.value.isMatrix3 || uniform.value.isMatrix4) {
-                    uniform.value.set(...new_value);
-                } else if (uniform.value.isColor) {
-                    // TODO: Consider better color handling
-                    if (new_value.isColor || typeof new_value === "string") {
-                        uniform.value.set(new_value);
-                    } else {
-                        // Assuming rgb triplet
-                        uniform.value.setRGB(new_value[0], new_value[1], new_value[2]);
-                    }
-                    // uniform.value.setHSL(...new_value);  // hsl triplet
-                } else {
-                    console.warn("Unexpected uniform type " + (typeof uniform.value) + " for channel " + channel_name);
-                    uniform.value = new_value;
-                }
+                update_uniform_value(uniforms[uniform_name], new_value);
                 break;
             case "vertex":
-                uniform = uniforms["t_" + channel_name];
-                update_array_texture(uniform.value, new_value);
+                update_array_texture(uniforms[uniform_name].value, new_value);
                 break;
             case "cell":
-                // if (mp.sorted) {
-                uniform = uniforms["t_" + channel_name];
-                if (channel_name === "cells") {
-                    console.log("Cells: ", uniform.value, new_value);
-                }
-                update_array_texture(uniform.value, new_value);
-                // } else {
+                //if (sorted) {
+                update_array_texture(uniforms[uniform_name].value, new_value);
+                //} else {
                 //     update instance buffer  // FIXME: See allocate()
-                // }
+                //}
                 break;
             case "lut":
-                var dim = new_value.length / channel.item_size;
-                uniform = uniforms["t_" + channel_name];
-                if (!uniform.value) {
-                    uniform.value = allocate_lut_texture(
-                        channel.dtype, channel.item_size, [dim, 1]);
-                } else if (uniform.value.image.width !== dim) {
-                    // TODO: Should we deallocate the gl texture via uniform.value somehow?
-                    uniform.value = allocate_lut_texture(
-                        channel.dtype, channel.item_size, [dim, 1]);
-                }
-                update_array_texture(uniform.value, new_value);
+                update_lut(uniforms[uniform_name], new_value, channel.item_size, channel.dtype);
                 break;
             default:
                 console.warn("unknown association " + association);
@@ -984,17 +972,20 @@ class TetrahedralMeshRenderer {
         const uniforms = default_uniforms();
 
         // Compute suitable 2D texture shapes large enough
-        // to hold this number of values and store in uniforms
-        [...uniforms.u_cell_texture_shape.value] = compute_texture_shape(num_tetrahedrons);
+        // to hold this number of values
+        const cell_texture_shape = compute_texture_shape(num_tetrahedrons);
+        const vertex_texture_shape = compute_texture_shape(num_vertices);
 
-        // Compute suitable 2D texture shapes large enough
-        // to hold this number of values and store in uniforms
-        [...uniforms.u_vertex_texture_shape.value] = compute_texture_shape(num_vertices);
+        // Store in uniforms
+        [...uniforms.u_cell_texture_shape.value] = cell_texture_shape;
+        [...uniforms.u_vertex_texture_shape.value] = vertex_texture_shape;
 
         // Allocate various textures and buffers (needs the shapes assigned above)
+        // (NB! mutates uniforms)
         this.allocate(method, encoding, data, uniforms);
 
         // Upload more data
+        // (NB! mutates uniforms)
         this.upload(method, encoding, data, uniforms);
 
         return uniforms;
@@ -1036,11 +1027,9 @@ class TetrahedralMeshRenderer {
     }
 
     create_mesh(method, encoding, data) {
-        // Mesh data is required and assumed to be present at this point
+        // Tetrahedral mesh data is required and assumed to be present at this point
         const cells = data[encoding.cells.field];
         const coordinates = data[encoding.coordinates.field];
-
-        // Assuming tetrahedral mesh
         const num_vertices = coordinates.length / 3;
         const num_tetrahedrons = cells.length / 4;
 
@@ -1064,74 +1053,25 @@ class TetrahedralMeshRenderer {
 
 
 class UnrayStateWrapper {
-    constructor(root, initial) {
+    init(root, method, encoding, data) {
+        // Select method-specific background color
+        // TODO: How to deal with this when adding to larger scene?
+        //       I guess it will be up to the user.
+        //       Alternatively, could add a background box of the right color.
+        this.bgcolor = method_properties[method].background || new THREE.Color(1, 1, 1);
+
         this.root = root;
-        this.init(initial);
-    }
+        this.tetrenderer = new TetrahedralMeshRenderer();
 
-    // sketch() {
-    //     // encoding === initial
 
-    //     // Scalar spaces:
-    //     //   number(dtype), vecN(dtype), matMN(dtype), color
-    //     // Distributed to each:
-    //     //   global | cell | vertex
-
-    //     const channelname = "color";
-
-    //     const encoding_entry = {
-    //         entity: "global", // space enum: "global" | "cell" | "vertex"
-    //         value: "#ff0000", // constant value if global | field (nd)array
-    //         field: "08jniqjdhc09u2", // null | field id
-    //     };
-
-    //     const encoding = {
-    //         channelname: encoding_entry,
-    //     };
-    // }
-
-    init_new(initial) {
-        const {data, plotname, plots} = initial;
-        //encoding.cells.field;
-    }
-
-    init(initial) {
-        const {data, plotname, plots} = initial;
-        const plot = plots[plotname];
-        const method = plot ? plot.get("method") : "surface";
-        const encoding = plot ? plot.get("encoding") : undefined;
-
-        // Check mesh dimensions
-        if (data.coordinates.get("array").shape[1] !== 3) {
-            console.error("Shape error in coordinates", data.coordinates);
-        }
-        if (data.cells.get("array").shape[1] !== 4) {
-            console.error("Shape error in cells", data.cells);
-        }
-
-        // Get raw data arrays from dict of data models
-        const raw_data = {};
-        for (let name in data) {
-            // Get the typedarray of the ndarray of the datamodel...
-            const arr = data[name].get("array");
-            raw_data[name] = arr.data;
-        }
-
-        // Setup state with old code (under refactoring)
-        const tetrenderer = new TetrahedralMeshRenderer();
-        const mesh = tetrenderer.create_mesh(method, encoding, raw_data);
-
-        // Add some things to this (internal state is under heavy refactoring)
-        Object.assign(this, {method, tetrenderer});
-
-        // Add mesh to root
-        this.root.add(mesh);
-
-        // Register hook for updates before rendering
+        const mesh = this.tetrenderer.create_mesh(method, encoding, data);
         mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
             // FIXME: Set camera and time uniforms directly in material.uniforms here
             this.prerender(camera, geometry, material);
         };
+        this.root.add(mesh);
+
+
 
         // Add a bounding sphere representation to root for debugging
         if (0) {
@@ -1172,26 +1112,15 @@ class UnrayStateWrapper {
     }
 
     // Select method-specific background color
-    // TODO: How to deal with this when adding to larger scene?
+    // Currently called by figure, TODO: remove when using pythreejs renderer
     get_bgcolor() {
-        return method_properties[this.method].background || new THREE.Color(1, 1, 1);
-    }
-
-    // TODO: Remove this later, not needed
-    get_radius() {
-        const mesh = this.root.children[0];
-        return mesh.geometry.boundingSphere.radius;
-    }
-
-    // TODO: Remove this later, not needed
-    get_center() {
-        const mesh = this.root.children[0];
-        return mesh.geometry.boundingSphere.center.clone();
+        return this.bgcolor;
     }
 }
 
-function create_unray_state(root, attributes) {
-    const state = new UnrayStateWrapper(root, attributes);
+function create_unray_state(root, method, encoding, data) {
+    const state = new UnrayStateWrapper();
+    state.init(root, method, encoding, data);
     // console.log("////////////////////////////////");
     // console.log("Created unray state:");
     // console.log(state);
