@@ -32,6 +32,11 @@ class PlotModel extends widgets.DOMWidgetModel {  // FIXME: Extend Blackbox here
     initialize(attributes, options) {
         super.initialize(attributes, options);
 
+        if (this.obj === undefined) {
+            console.warn("Creating unattached this.obj until blackbox design is completed.");
+            this.obj = new THREE.Object3D();
+        }
+
         // Get any change events
         this.on('change', this.onChange, this);
 
@@ -113,7 +118,7 @@ class WireframePlotModel extends PlotModel {
                 const array = points.get('array');
 
                 data[id] = array.data;
-                encoding.points = { field: id };
+                encoding.coordinates = { field: id };
             }
         }
 
@@ -121,19 +126,9 @@ class WireframePlotModel extends PlotModel {
         //encoding.wireframe = wireframe;
         //encoding.wireframe_size = edgesize;
 
-        // Setup currently expected input data structure for unray renderer
-        const plotname = this.model_id;
+        //const plotname = this.model_id;
 
-        const plot = new Map();
-        plot.set('method', method);
-        plot.set('encoding', encoding);
-
-        const plots = { [plotname]: plot };
-        const initial = { data, plotname, plots };
-
-        console.log("Created initial data:", initial);
-
-        return create_unray_state(root, initial);
+        return create_unray_state(root, method, encoding, data);
     }
 };
 WireframePlotModel.serializers = Object.assign({},
