@@ -31,10 +31,13 @@ class MeshModel extends widgets.WidgetModel {
         // TODO: Reorient cells on change event
     }
 };
-MeshModel.serializers = Object.assign({
-    cells: data_union_serialization,
-    points: data_union_serialization,
-}, widgets.WidgetModel.serializers);
+MeshModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        cells: data_union_serialization,
+        points: data_union_serialization,
+    }
+);
 
 
 // TODO: Add classes mirroring datawidgets.py here

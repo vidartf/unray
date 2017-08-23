@@ -11,6 +11,9 @@ import widgets from '@jupyter-widgets/base';
 
 import version from './version';
 
+import {create_unray_state} from './renderer';
+
+
 // Create model class based on this data flow:
 //    end-user updates data on python widget
 // -> widgets subsystems do their magic
@@ -83,31 +86,62 @@ class WireframePlotModel extends PlotModel {
     createInitialPlotState(root, attributes) {
         this.log("createInitialPlotState", root, attributes);
 
-        // Setup unray state
-        // FIXME: Map attributes to expected unray input
-        // FIXME: Refactor expected input to unray
-        const initial = {
-            data: {
-                cells: fixme,
-                coordinates: fixme
-            },
-            plotname: "cells",
-            plots: {
-                cells: {
-                    encoding: {
+        // Get relevant attributes
+        const { mesh, wireframe, edgesize } = attributes;
 
-                    }
-                }
-            },
-        };
+        // Map attributes to expected unray input
+        const method = "cells";  // FIXME: Hack, surface with wireframe and using restriction
+        const data = {};
+        const encoding = {};
+
+        console.log("Mesh:", mesh);
+
+        if (mesh) {
+            const cells = mesh.get('cells');
+            if (cells) {
+                // FIXME: Do this with ndarray api
+                const id = cells.model_id;
+                const array = cells.get('array');
+
+                data[id] = array.data;
+                encoding.cells = { field: id };
+            }
+            const points = mesh.get('points');
+            if (points) {
+                // FIXME: Do this with ndarray api
+                const id = points.model_id;
+                const array = points.get('array');
+
+                data[id] = array.data;
+                encoding.points = { field: id };
+            }
+        }
+
+        // FIXME: Fix unray input of various small data like this:
+        //encoding.wireframe = wireframe;
+        //encoding.wireframe_size = edgesize;
+
+        // Setup currently expected input data structure for unray renderer
+        const plotname = this.model_id;
+
+        const plot = new Map();
+        plot.set('method', method);
+        plot.set('encoding', encoding);
+
+        const plots = { [plotname]: plot };
+        const initial = { data, plotname, plots };
+
+        console.log("Created initial data:", initial);
 
         return create_unray_state(root, initial);
     }
 };
-WireframePlotModel.serializers = Object.assign({
-    mesh: { deserialize: widgets.unpack_models },
-}, widgets.WidgetModel.serializers);
-
+WireframePlotModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        mesh: { deserialize: widgets.unpack_models }
+    }
+);
 
 export {
     WireframePlotModel,

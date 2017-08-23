@@ -45,6 +45,7 @@ const default_channels = {
     constant_color:       { association: "constant",  dtype: "float32", item_size: 3 }, // color
     isorange:             { association: "constant",  dtype: "float32", item_size: 2 }, // vec2
     particle_area:        { association: "constant",  dtype: "float32", item_size: 1 }, // float
+    //wireframe:       { enable: false, size: 0.001, color: "#000000",  opacity: 1.0, decay: 0.5 },
 };
 
 // TODO: Improve and document encoding specifications, look at vega for ideas
@@ -605,35 +606,48 @@ function default_uniforms() {
         // Time and oscillators (updated in update_time())
         u_time: { value: 0.0 },
         u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0) },
+
         // Camera uniforms (updated in update_perspective(), threejs provides cameraPosition)
         u_view_direction: { value: new THREE.Vector3(0, 0, 1) },
+
         // Light uniforms
         u_light_floor: { value: 0.5 },
+
         // Input constants (u_foo is updated in upload() based on
         // encoding.foo.value, but only if foo is present in channels,
         // with default value set in the default encoding)
         u_cell_indicator_value: { value: 1 },
+
         u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
+
         u_exposure: { value: 1.0 },
+
         u_wireframe_color: { value: new THREE.Color(0.1, 0.1, 0.1) },
         u_wireframe_alpha: { value: 0.7 },
         u_wireframe_size: { value: 0.001 },
+
         u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
+
         u_particle_area: { value: 1.0 },
+
         // Input data ranges (u_foo_range is updated in upload() based on encoding.foo.range attribute)
         // The 4 values are: [min, max, max-min, 1.0/(max-min) or 1]
         u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
         u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+
         // Texture dimensions (set in init() based on given mesh size)
         u_cell_texture_shape: { value: [0, 0] },
         u_vertex_texture_shape: { value: [0, 0] },
+
         // Cell textures (updated in upload() based on encoding)
         t_cells: { value: null },
         t_cell_indicators: { value: null },
+
         // Vertex textures (updated in upload() based on encoding)
         t_coordinates: { value: null },
         t_density: { value: null },
         t_emission: { value: null },
+
         // LUT textures (updated in upload() based on encoding)
         t_density_lut: { value: null },
         t_emission_lut: { value: null },
@@ -642,32 +656,44 @@ function default_uniforms() {
     };
 }
 
-class TetrahedralMeshRenderer
-{
-    constructor() {
-        this.uniforms = default_uniforms();
-        this.attributes = {};
-    }
+class TetrahedralMeshRenderer {
+    constructor() {}
 
-    update_perspective(camera) {
+    update_perspective(camera, geometry, material) {
         // TODO: When using three.js scenegraph, probably need
         // to distinguish better between model and world coordinates
         // in various places
         //camera.getWorldPosition(this.camera_position);
-        camera.getWorldDirection(this.uniforms.u_view_direction.value);
+
+        const dir = material.uniforms.u_view_direction.value;
+        camera.getWorldDirection(dir);
+
+        // TODO: Upload full MVP matrix here to uniforms
+        //       instead of multiplying in vertex shader
 
         // TODO: Enable and improve sorting when other methods are working
         if (0) {
-            sort_cells(this.attributes.c_ordering.array, this.data.cells, this.data.coordinates,
-                       this.uniforms.u_view_direction.value);
-            this.attributes.c_ordering.needsUpdate = true;
+            // TODO: Benchmark use of reordering array vs reordering
+            //       cell data and uploading those larger buffers.
+
+            // Get cells and coordinates from texture data
+            const cells = material.uniforms.t_cells.value.image.data;
+            const coordinates = material.uniforms.t_coordinates.value.image.data;
+
+            // NB! Number of cells === ordering.array.length,
+            // !== cells.length / 4 which includes texture padding.
+
+            // Compute cell reordering in place in geometry attribute array
+            const ordering = geometry.attributes.c_ordering;
+            sort_cells(ordering.array, cells, coordinates, dir);
+            ordering.needsUpdate = true;
         }
     }
 
-    update_time(time) {
-        this.uniforms.u_time.value = time;
+    update_time(time, geometry, material) {
+        material.uniforms.u_time.value = time;
         for (let i=0; i<4; ++i) {
-            this.uniforms.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
+            material.uniforms.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
         }
     }
 
@@ -684,7 +710,7 @@ class TetrahedralMeshRenderer
     //     }
     // }
 
-    create_material(method, encoding) {
+    create_material(method, encoding, uniforms) {
         // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
         // TODO: May also add defines based on encoding if necessary
         // if encoding specifies density or emission, add defines:
@@ -692,8 +718,7 @@ class TetrahedralMeshRenderer
         //     ENABLE_DENSITY_BACK: 1,
         const mp = method_properties[method];
         const defines = mp.defines;
-        const uniforms = this.uniforms;
-
+        
         const material_config = {
             // Note: Assuming passing some unused uniforms here will work fine
             // without too much performance penalty, hopefully this is ok
@@ -727,18 +752,20 @@ class TetrahedralMeshRenderer
         // Some extensions need to be explicitly enabled
         material.extensions.derivatives = true;
 
+        // How to use wireframe natively in THREE.js
+        // material.wireframe = true;
+        // material.wireframeLinewidth = 3;
+
         return material;
     }
 
-    allocate(method, encoding) {
+    allocate(method, encoding, data, uniforms) {
         // The current implementation assumes:
         // - Each channel has only one possible association
 
         const mp = method_properties[method];
 
         const channels = mp.channels;
-
-        const uniforms = this.uniforms;
 
         // Copy and override defaults with provided values
         encoding = extend2(mp.default_encoding, encoding);
@@ -830,15 +857,13 @@ class TetrahedralMeshRenderer
     }
 
     // Upload data, assuming method has been configured
-    upload(data, method, encoding) {
+    upload(method, encoding, data, uniforms) {
         // The current implementation assumes:
         // - Each channel has only one possible association
 
         const mp = method_properties[method];
 
         const channels = mp.channels;
-
-        const uniforms = this.uniforms;
 
         // Copy and override defaults with provided values
         encoding = extend2(mp.default_encoding, encoding);
@@ -954,36 +979,38 @@ class TetrahedralMeshRenderer
         }
     }
 
-    create_mesh(cells, coordinates, method, encoding) {
-        const num_vertices = coordinates.length / 3;
+    create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices) {
+        // Initialize new set of uniforms
+        const uniforms = default_uniforms();
+
+        // Compute suitable 2D texture shapes large enough
+        // to hold this number of values and store in uniforms
+        [...uniforms.u_cell_texture_shape.value] = compute_texture_shape(num_tetrahedrons);
+
+        // Compute suitable 2D texture shapes large enough
+        // to hold this number of values and store in uniforms
+        [...uniforms.u_vertex_texture_shape.value] = compute_texture_shape(num_vertices);
+
+        // Allocate various textures and buffers (needs the shapes assigned above)
+        this.allocate(method, encoding, data, uniforms);
+
+        // Upload more data
+        this.upload(method, encoding, data, uniforms);
+
+        return uniforms;
+    }
+
+    create_geometry(sorted, cells, coordinates) {
+        // Assuming tetrahedral mesh
         const num_tetrahedrons = cells.length / 4;
 
         // Reorient tetrahedral cells (NB! this happens in place!)
-        // TODO: We want cells to be reoriented _once_ if they're reused
+        // TODO: We want cells to be reoriented _once_ if they're
+        //       reused because this is a bit expensive
         reorient_tetrahedron_cells(cells, coordinates);
 
-        // Expecting dimensions to be set only once,
-        // considering that everything must be scrapped
-        // when these change
-        //this.num_tetrahedrons = num_tetrahedrons; // currently unused
-        //this.num_vertices = num_vertices; // currently unused
-    
         // Configure instanced geometry, each tetrahedron is an instance
         const geometry = create_instanced_tetrahedron_geometry(num_tetrahedrons);
-
-        // Compute suitable 2D texture shapes large enough
-        // to hold this number of values and store in uniforms
-        [...this.uniforms.u_cell_texture_shape.value] = compute_texture_shape(num_tetrahedrons);
-
-        // Compute suitable 2D texture shapes large enough
-        // to hold this number of values and store in uniforms
-        [...this.uniforms.u_vertex_texture_shape.value] = compute_texture_shape(num_vertices);
-
-        // Allocate various textures and buffers (needs the shapes assigned above)
-        this.allocate(method, encoding);
-
-        // FIXME: Enable the non-sorted branch
-        const sorted = true || method_properties[method].sorted;
 
         // Setup cells of geometry (using textures or attributes)
         if (sorted) {
@@ -994,14 +1021,10 @@ class TetrahedralMeshRenderer
             // can be used as a replacement for gl_InstanceID which requires webgl2.
             const attrib = create_cell_ordering_attribute(num_tetrahedrons);
             geometry.addAttribute("c_ordering", attrib);
-            this.attributes.c_ordering = attrib;
-            // this.attributes.c_ordering === geometry.attributes.c_ordering
         } else {
             // Don't need ordering, pass cells as instanced buffer attribute instead
             const attrib = create_cells_attribute(cells);
             geometry.addAttribute("c_cells", attrib);
-            this.attributes.c_cells = attrib;
-            // this.attributes.c_cells === geometry.attributes.c_cells;
         }
 
         // Compute bounding box and sphere and set on geometry so
@@ -1009,15 +1032,28 @@ class TetrahedralMeshRenderer
         geometry.boundingSphere = create_bounding_sphere(coordinates);
         geometry.boundingBox = create_bounding_box(coordinates);
 
-        // Configure material (shader)
-        const material = this.create_material(method, encoding);
+        return geometry;
+    }
 
-        // How to use wireframe natively in THREE.js
-        // this.use_wireframe = true;
-        // if (this.use_wireframe) {
-        //     material.wireframe = true;
-        //     material.wireframeLinewidth = 3;
-        // }
+    create_mesh(method, encoding, data) {
+        // Mesh data is required and assumed to be present at this point
+        const cells = data[encoding.cells.field];
+        const coordinates = data[encoding.coordinates.field];
+
+        // Assuming tetrahedral mesh
+        const num_vertices = coordinates.length / 3;
+        const num_tetrahedrons = cells.length / 4;
+
+        // Initialize geometry
+        // FIXME: Enable the non-sorted branch
+        const sorted = true || method_properties[method].sorted;
+        const geometry = this.create_geometry(sorted, cells, coordinates);
+
+        // Initialize uniforms, including textures
+        const uniforms = this.create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices);
+
+        // Configure material (shader)
+        const material = this.create_material(method, encoding, uniforms);
 
         // Finally we have a Mesh to render for this method
         const mesh = new THREE.Mesh(geometry, material);
@@ -1030,7 +1066,6 @@ class TetrahedralMeshRenderer
 class UnrayStateWrapper {
     constructor(root, initial) {
         this.root = root;
-        //this.attributes = Object.assign({}, initial);
         this.init(initial);
     }
 
@@ -1055,15 +1090,26 @@ class UnrayStateWrapper {
     //     };
     // }
 
+    init_new(initial) {
+        const {data, plotname, plots} = initial;
+        //encoding.cells.field;
+    }
+
     init(initial) {
         const {data, plotname, plots} = initial;
         const plot = plots[plotname];
         const method = plot ? plot.get("method") : "surface";
         const encoding = plot ? plot.get("encoding") : undefined;
 
-        /////////////////////////////////////////////////////////////////
+        // Check mesh dimensions
+        if (data.coordinates.get("array").shape[1] !== 3) {
+            console.error("Shape error in coordinates", data.coordinates);
+        }
+        if (data.cells.get("array").shape[1] !== 4) {
+            console.error("Shape error in cells", data.cells);
+        }
+
         // Get raw data arrays from dict of data models
-        // TODO: Use ndarray in TetRenderer instead?
         const raw_data = {};
         for (let name in data) {
             // Get the typedarray of the ndarray of the datamodel...
@@ -1071,24 +1117,9 @@ class UnrayStateWrapper {
             raw_data[name] = arr.data;
         }
 
-        // Get coordinates
-        const coordinates = data.coordinates.get("array");
-        if (coordinates.shape[1] !== 3) {
-            console.error("Shape error in coordinates", data.coordinates);
-        }
-
-        // Get cells
-        const cells = data.cells.get("array");
-        if (cells.shape[1] !== 4) {
-            console.error("Shape error in cells", data.cells);
-        }
-
         // Setup state with old code (under refactoring)
         const tetrenderer = new TetrahedralMeshRenderer();
-        const mesh = tetrenderer.create_mesh(
-            cells.data, coordinates.data,
-            method, encoding);
-        tetrenderer.upload(raw_data, method, encoding);
+        const mesh = tetrenderer.create_mesh(method, encoding, raw_data);
 
         // Add some things to this (internal state is under heavy refactoring)
         Object.assign(this, {method, tetrenderer});
@@ -1098,7 +1129,8 @@ class UnrayStateWrapper {
 
         // Register hook for updates before rendering
         mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
-            this.prerender(camera);
+            // FIXME: Set camera and time uniforms directly in material.uniforms here
+            this.prerender(camera, geometry, material);
         };
 
         // Add a bounding sphere representation to root for debugging
@@ -1129,15 +1161,14 @@ class UnrayStateWrapper {
         // for (let name in changed) {
         //     this.channel_update(name)(changed[name]);
         // }
-        //this.attributes = Object.assign({}, this.attributes, changed);
     }
 
     // TODO: Alternative to update_time + update_perspective,
     // to be called before doing renderer.render(scene, camera)
-    prerender(camera) {
+    prerender(camera, geometry, material) {
         const time = 0.0; // fixme
-        this.tetrenderer.update_time(time);
-        this.tetrenderer.update_perspective(camera);
+        this.tetrenderer.update_time(time, geometry, material);
+        this.tetrenderer.update_perspective(camera, geometry, material);
     }
 
     // Select method-specific background color
