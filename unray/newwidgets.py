@@ -116,7 +116,7 @@ class SurfacePlot(Plot):
     """TODO: Document me."""
     _model_name = Unicode('SurfacePlotModel').tag(sync=True)
     color = Instance(Color, allow_none=False).tag(sync=True, **widget_serialization)
-    restrict = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization) # TODO: Validate field spaces: ["I3", "I2"]
+    #restrict = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization) # TODO: Validate field spaces: ["I3", "I2"]
     wireframe = CBool(False).tag(sync=True)
     edgesize = CFloat(0.001).tag(sync=True)
     # TODO
@@ -135,7 +135,7 @@ class XrayPlot(Plot):
     _model_name = Unicode('XrayPlotModel').tag(sync=True)
     density = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
     color = Instance(ColorConstant, allow_none=False).tag(sync=True, **widget_serialization)
-    restrict = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)  # TODO: Validate field spaces: ["I3", "I2"]
+    #restrict = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)  # TODO: Validate field spaces: ["I3", "I2"]
     # TODO
 
 
