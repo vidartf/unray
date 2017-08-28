@@ -16,7 +16,7 @@ that can be moved to unlab.py and finalized as the
 import numpy as np
 import ipywidgets as widgets
 from ipywidgets import widget_serialization, register
-from ipydatawidgets import DataUnion
+from ipydatawidgets import DataUnion, shape_constraints, data_union_serialization
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
 from traitlets import Instance, TraitError, TraitType, Undefined
 from ._version import widget_module_name, widget_module_version
@@ -39,7 +39,7 @@ class Field(BaseWidget):
     """TODO: Document me."""
     _model_name = Unicode('FieldModel').tag(sync=True)
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-    values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None)).tag(sync=True)
+    values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None)).tag(sync=True, **data_union_serialization)
     space = Enum(field_types, "P1").tag(sync=True)
 
 
@@ -50,7 +50,7 @@ class IndicatorField(BaseWidget):
     """TODO: Document me."""
     _model_name = Unicode('IndicatorFieldModel').tag(sync=True)
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-    values = DataUnion(dtype=np.int32, shape_constraint=shape_constraints(None)).tag(sync=True)
+    values = DataUnion(dtype=np.int32, shape_constraint=shape_constraints(None)).tag(sync=True, **data_union_serialization)
     space = Enum(indicator_field_types, "I3").tag(sync=True)
 
 
@@ -63,7 +63,7 @@ class ColorLUT(BaseWidget):
 class ArrayColorLUT(ColorLUT):
     """TODO: Document me."""
     _model_name = Unicode('ArrayColorLUTModel').tag(sync=True)
-    values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None, 3)).tag(sync=True)
+    values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None, 3)).tag(sync=True, **data_union_serialization)
     space = Enum(["rgb", "hsv"], "rgb").tag(sync=True)
 
 # TODO: Develop color lookup methods further, rgb, hsv, nominal vs quantitiative, etc etc...
