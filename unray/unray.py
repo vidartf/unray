@@ -2,8 +2,7 @@
 
 import ipywidgets as widgets
 from traitlets import Unicode, Dict, Any, CFloat, CInt, CBool
-from .traits_numpy import array_serialization, shape_constraints
-from traittypes import Array
+from ipydatawidgets import DataUnion, data_union_serialization, shape_constraints
 import numpy as np
 from ._version import widget_module_version
 
@@ -19,7 +18,7 @@ default_emission_lut = np.outer(
     )
 
 
-@widgets.register('unray.Unray')
+@widgets.register
 class Unray(widgets.DOMWidget):
     """"""
     _view_name = Unicode('UnrayView').tag(sync=True)
@@ -38,31 +37,31 @@ class Unray(widgets.DOMWidget):
     config = Dict(default_config).tag(sync=True)
 
     cells = (
-        Array(dtype='uint32', default_value=np.zeros(shape=(0, 4), dtype='uint32'))
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None, 4))
+        DataUnion(dtype='uint32', shape_constraint=shape_constraints(None, 4),
+                  default_value=np.zeros(shape=(0, 4), dtype='uint32'))
+        .tag(sync=True, **data_union_serialization)
         )
     ordering = (
-        Array(dtype='uint32', default_value=np.zeros(shape=(0,), dtype='uint32'))
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None,))
+        DataUnion(dtype='uint32', shape_constraint=shape_constraints(None,),
+                  default_value=np.zeros(shape=(0,), dtype='uint32'))
+        .tag(sync=True, **data_union_serialization)
         )
 
     coordinates = (
-        Array(dtype='float32', default_value=np.zeros(shape=(0, 3), dtype='float32'))
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None, 3))
+        DataUnion(dtype='float32', shape_constraint=shape_constraints(None, 3),
+                  default_value=np.zeros(shape=(0, 3), dtype='float32'))
+        .tag(sync=True, **data_union_serialization)
         )
 
     density = (
-        Array(dtype='float32', default_value=np.zeros(shape=(0,), dtype='float32'))
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None,))
+        DataUnion(dtype='float32', shape_constraint=shape_constraints(None,),
+                  default_value=np.zeros(shape=(0,), dtype='float32'))
+        .tag(sync=True, **data_union_serialization)
         )
     emission = (
-        Array(dtype='float32', default_value=np.zeros(shape=(0,), dtype='float32'))
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None,))
+        DataUnion(dtype='float32', shape_constraint=shape_constraints(None,),
+                  default_value=np.zeros(shape=(0,), dtype='float32'))
+        .tag(sync=True, **data_union_serialization)
         )
 
     # TODO: use array instead
@@ -72,36 +71,26 @@ class Unray(widgets.DOMWidget):
     emission_max = CFloat(1.0).tag(sync=True)
 
     density_lut = (
-        Array(dtype='float32', default_value=default_density_lut)
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None,))
+        DataUnion(dtype='float32', shape_constraint=shape_constraints(None,),
+                  default_value=default_density_lut)
+        .tag(sync=True, **data_union_serialization)
         )
     emission_lut = (
-        Array(dtype='float32', default_value=default_emission_lut)
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(None, 3))
+        DataUnion(dtype='float32', shape_constraint=shape_constraints(None, 3),
+                  default_value=default_emission_lut)
+        .tag(sync=True, **data_union_serialization)
         )
 
     mvp = (
-        Array(dtype='float32', default_value=np.eye(4, dtype='float32'))
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(4, 4))
+        DataUnion(dtype='float32', shape_constraint=shape_constraints(4, 4),
+                  default_value=np.eye(4, dtype='float32'))
+        .tag(sync=True, **data_union_serialization)
         )
     view_direction = (
-        Array(dtype='float32', default_value=np.asarray([0.0, 0.0, 1.0], dtype='float32'))
-        .tag(sync=True, **array_serialization)
-        .valid(shape_constraints(3,))
+        DataUnion(dtype='float32', shape_constraint=shape_constraints(3,),
+                  default_value=np.asarray([0.0, 0.0, 1.0], dtype='float32'))
+        .tag(sync=True, **data_union_serialization)
         )
 
     def show(self):
         self.send({"action": "show"})
-
-    def set_data(self, name, array):
-        "Send array with a custom message instead of via traitlets. Not sure if we'll need this."
-        content = {
-            "action": "set_data",
-            "name": name,
-            "dtype": array.dtype.name,
-            "shape": array.shape,
-        }
-        return self.send(content, [array])

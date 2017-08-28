@@ -1,7 +1,7 @@
 import numpy as np
 import ipywidgets as widgets
 from ipywidgets import widget_serialization, register
-from ipydatawidgets import NDArrayWidget
+from ipydatawidgets import DataUnion, data_union_serialization
 import pythreejs
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
 from traitlets import Instance, TraitError, TraitType, Undefined
