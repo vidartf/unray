@@ -8,3 +8,4 @@ export * from './figure';
 
 export * from './datawidgets';
 export * from './plotwidgets';
+export * from './newwidgets';
