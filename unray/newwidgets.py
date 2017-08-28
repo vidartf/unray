@@ -175,17 +175,19 @@ class VolumePlot(Plot):
 #     return NDArrayWidget(values)
 
 
-def surf(field, restrict=None):
+def surf(field, lut=None, restrict=None):
     "TODO: Design and document."
-    lut = ColorLUT(values=[0,0,0, 1,1,1])
+    if lut is None:
+        lut = ArrayColorLUT(values=[[0,0,0], [1,1,1]])
     color = ColorField(field=field, lut=lut)
     kwargs = dict(color=color, restrict=restrict, wireframe=False)
     return SurfacePlot(**kwargs)
 
 
-def wireframe(field, restrict=None):
+def wireframe(field, lut=None, restrict=None):
     "TODO: Design and document."
-    lut = ColorLUT(values=[0,0,0, 1,1,1])
+    if lut is None:
+        lut = ArrayColorLUT(values=[0,0,0, 1,1,1])
     color = ColorField(field=field, lut=lut)
     kwargs = dict(color=color, restrict=restrict, wireframe=True)
     return SurfacePlot(**kwargs)
@@ -197,25 +199,28 @@ def xray(field, restrict=None):
     return XrayPlot(**kwargs)
 
 
-def minproj(field, restrict=None):
+def minproj(field, lut=None, restrict=None):
     "TODO: Design and document."
-    lut = ColorLUT(values=[0,0,0, 1,1,1])
+    if lut is None:
+        lut = ArrayColorLUT(values=[0,0,0, 1,1,1])
     color = ColorField(field=field, lut=lut)
     kwargs = dict(color=color, restrict=restrict)
     return MinProjPlot(**kwargs)
 
 
-def maxproj(field, restrict=None):
+def maxproj(field, lut=None, restrict=None):
     "TODO: Design and document."
-    lut = ColorLUT(values=[0,0,0, 1,1,1])
+    if lut is None:
+        lut = ArrayColorLUT(values=[0,0,0, 1,1,1])
     color = ColorField(field=field, lut=lut)
     kwargs = dict(color=color, restrict=restrict)
     return MaxProjPlot(**kwargs)
 
 
-def sumproj(field, restrict=None):
+def sumproj(field, lut=None, restrict=None):
     "TODO: Design and document."
-    lut = ColorLUT(values=[0,0,0, 1,1,1])
+    if lut is None:
+        lut = ColorLUArrayColorLUTT(values=[0,0,0, 1,1,1])
     color = ColorField(field=field, lut=lut)
     kwargs = dict(color=color, restrict=restrict)
     return SumProjPlot(**kwargs)
@@ -225,7 +230,7 @@ def volume(field, restrict=None):
     "TODO: Design and document."
     lut0 = ScalarLut(values=[0,0,0, 1,1,1])
     density = ScalarField(field=field, lut=lut0)
-    lut1 = ColorLUT(values=[0,0,0, 1,1,1])
+    lut1 = ArrayColorLUT(values=[0,0,0, 1,1,1])
     color = ColorField(field=field, lut=lut)
     kwargs = dict(density=density, color=color, restrict=restrict)
     return VolumePlot(**kwargs)
