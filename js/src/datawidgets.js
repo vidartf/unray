@@ -1,7 +1,7 @@
 'use strict';
 
 import widgets from '@jupyter-widgets/base';
-import {data_union_serialization, data_union_array_serialization} from 'jupyter-datawidgets';
+import {data_union_serialization, getArrayFromUnion, listenToUnion} from 'jupyter-datawidgets';
 import version from './version';
 
 
@@ -15,16 +15,20 @@ class MeshModel extends widgets.WidgetModel {
         });
     }
 
-    initialize(attributes, options) {
-        super.initialize(attributes, options);
 
-        // Get any change events
-        this.on('change', this.onChange, this);
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+
+        // This will ensure changes to the data in these trigger a change event
+        // regardless of whether they are arrays or datawidgets:
+        // The change events will trigger a rerender when object is added to scene
+        this.datawidget_properties.push('cells', 'points');
     }
 
     onChange(model, options) {
+        super.onChange(model, options);
         // Let backbone tell us which attributes have changed
-        const changed = model.changedAttributes();
+        const changed = this.changedAttributes();
 
         console.log("Mesh::onChange", model, options, changed);
 

@@ -13,8 +13,13 @@ import version from './version';
 
 import {create_unray_state} from './renderer';
 
+import {
+    getArrayFromUnion, data_union_serialization
+} from 'jupyter-datawidgets';
+
 import {BlackboxModel} from 'jupyter-threejs';
-//import * as Three from 'jupyter-threejs';
+
+import * as THREE from 'three';
 
 
 class PlotModel extends BlackboxModel {
@@ -22,43 +27,20 @@ class PlotModel extends BlackboxModel {
         return Object.assign(super.defaults(), version.module_defaults);
     }
 
-    initialize(attributes, options) {
-        super.initialize(attributes, options);
-
-        // Avoid race condition with base class initialize
-        this.plotPromise = this.initPromise.then(() => {
-            // this.obj is the root created by pythreejs blackbox
-            const root = this.obj;
-            if (root === undefined) {
-                console.error("Expected this.obj to be available.");
-            }
-
-            // Initialize subclass plot state
-            this.plotState = this.createInitialPlotState(root, attributes);
-        });
-    
-        // Get any change events
-        this.on('change', this.onPlotChange, this);
+    constructThreeObject() {
+        const root = new THREE.Group();
+        this.plotState = this.createInitialPlotState(root);
+        return root;
     }
 
-    // onChange is taken by base class
-    onPlotChange(model, options) {
-        // TODO: I don't know if this is right
-        if (options === 'pushFromThree') {
-            return;
-        }
+    syncToThreeObj() {
+        super.syncToThreeObj();
 
         // Let backbone tell us which attributes have changed
-        const changed = model.changedAttributes();
+        const changed = this.changedAttributes();
 
-        // Avoid race condition with initialize
-        this.plotPromise = this.plotPromise.then(() => {
-            // Let plotState update itself (mutates this.plotState)
-            this.updatePlotState(changed);
-
-            // Trigger new rendering in pythreejs
-            this.trigger('rerender', this, {});
-        });
+        // Let plotState update itself (mutates this.plotState)
+        this.updatePlotState(changed);
     }
 
     log() {
@@ -80,7 +62,6 @@ class WireframePlotModel extends PlotModel {
     defaults() {
         return Object.assign(super.defaults(), {
             _model_name : 'WireframePlotModel',
-            _view_name : 'WireframePlotView',
             }, this.plotDefaults());
     }
 
@@ -90,11 +71,11 @@ class WireframePlotModel extends PlotModel {
     //     return state;
     // }
 
-    createInitialPlotState(root, attributes) {
-        this.log("createInitialPlotState", root, attributes);
+    createInitialPlotState(root) {
+        this.log("createInitialPlotState", root);
 
         // Get relevant attributes
-        const { mesh, wireframe, edgesize } = attributes;
+        const mesh = this.get('mesh');
 
         // Map attributes to expected unray input
         const method = "mesh";  // FIXME: Hack, surface with wireframe and using restriction
@@ -105,20 +86,18 @@ class WireframePlotModel extends PlotModel {
             const cells = mesh.get('cells');
             if (cells) {
                 // FIXME: Get id and array with ipydatawidgets api
-                const id = cells.model_id;
                 const array = cells.get('array');
 
-                data[id] = array.data;
-                encoding.cells = { field: id };
+                data['cells'] = getArrayFromUnion(array).data;
+                encoding.cells = { field: 'cells' };
             }
             const points = mesh.get('points');
             if (points) {
                 // FIXME: Get id and array with ipydatawidgets api
-                const id = points.model_id;
                 const array = points.get('array');
 
-                data[id] = array.data;
-                encoding.coordinates = { field: id };
+                data['points'] = getArrayFromUnion(array).data;
+                encoding.coordinates = { field: 'points' };
             }
         }
 
@@ -140,7 +119,7 @@ class WireframePlotModel extends PlotModel {
     }
 };
 WireframePlotModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
+    BlackboxModel.serializers,
     {
         mesh: { deserialize: widgets.unpack_models }
     }
