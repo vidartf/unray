@@ -6,16 +6,16 @@ from ipywidgets import widget_serialization
 
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool
 from traitlets import Instance, TraitError, TraitType, Undefined
-from traittypes import Array
 
-from .traits_numpy import array_serialization, shape_constraints
+from ipydatawidgets import DataUnion, data_union_serialization
+
 from ._version import widget_module_version
 
 module_name = 'unray'
 module_version = widget_module_version
 
 
-@widgets.register('unray.Data')
+@widgets.register
 class Data(widgets.Widget):
     """"""
     _model_name = Unicode('DataModel').tag(sync=True)
@@ -23,49 +23,14 @@ class Data(widgets.Widget):
     _model_module_version = Unicode(module_version).tag(sync=True)
 
     # Default unvalidated traitlet
-    array = Array().tag(sync=True, **array_serialization)
+    array = DataUnion().tag(sync=True, **data_union_serialization)
     name = Unicode("unnamed").tag(sync=True)
-
-    # TODO: Is there a way to let the instance of this object
-    # validate the array with specific dtype/shape requirements?
-    # This doesn't work because the traits are class members,
-    # not instance members, so self.array doesn't do what we want:
-    '''
-    def __init__(self, *args, **kwargs):
-        if len(args) > 1:
-            raise ValueError("Expected at most one positional argument.")
-
-        # Get user validation parameters
-        shape = kwargs.pop("shape", None)
-        dtype = kwargs.pop("dtype", None)
-        default = kwargs.pop("default", Undefined)
-
-        # This makes life simpler
-        allow_none = False
-
-        # Override class traitlet with customized version with validation
-        if ( (default is not Undefined) or (allow_none is True)
-                or (dtype is not None) or (shape is not None)):
-            self.array = Array(default_value=default,
-                               allow_none=allow_none,
-                               dtype=dtype).tag(sync=True, **array_serialization)
-            if shape is not None:
-                nshape = tuple(d or None for d in shape)
-                self.array = self.array.valid(shape_constraints(*nshape))
-
-        # Pass on given value as kwarg to widget
-        if args:
-            kwargs["array"] = args[0]
-
-        # Now move on to widget initialization
-        widgets.Widget.__init__(self, **kwargs)
-    '''
 
     def _ipython_display_(self):
         return DataDisplay(data=self)
 
 
-@widgets.register('unray.Plot')
+@widgets.register
 class Plot(widgets.DOMWidget):
     """"""
     _view_name = Unicode('PlotView').tag(sync=True)
@@ -80,7 +45,7 @@ class Plot(widgets.DOMWidget):
     encoding = Dict(value_trait=Dict(), default_value={}).tag(sync=True)
 
 
-@widgets.register('unray.Figure')
+@widgets.register
 class Figure(widgets.DOMWidget):
     """"""
     _view_name = Unicode('FigureView').tag(sync=True)

@@ -1,4 +1,5 @@
 import numpy as np
+from ipydatawidgets import get_union_array
 from unray.widgets import Data, Plot, Figure
 
 
@@ -65,56 +66,48 @@ def render(coordinates, cells,
     # Always add mesh to data and encoding
     if coordinates is None:
         raise ValueError("Coordinates are required.")
-    coordinates = np.ascontiguousarray(coordinates, dtype="float32")
     data["coordinates"] = Data(name="coordinates", array=coordinates)
     encoding["coordinates"] = {"field": "coordinates"}
 
     if cells is None:
         raise ValueError("Cells are required.")
-    cells = np.ascontiguousarray(cells, dtype="int32")
     data["cells"] = Data(name="cells", array=cells)
     encoding["cells"] = {"field": "cells"}
 
     # Optionally add cell ordering
     if ordering is not None:
-        ordering = np.ascontiguousarray(ordering, dtype="int32")
         data["ordering"] = Data(name="ordering", array=ordering)
         encoding["ordering"] = {"field": "cells"}
 
     # Optionally add cell indicators
     if cell_indicators is not None:
-        cell_indicators = np.ascontiguousarray(cell_indicators, dtype="int32")
         data["cell_indicators"] = Data(name="cell_indicators", array=cell_indicators)
         encoding["cell_indicators"] = {"field": "cell_indicators"}
         encoding["cell_indicator_value"] = {"value": cell_indicator_value}
 
     # Optionally add density
     if density is not None:
-        density = np.ascontiguousarray(density, dtype="float32")
         data["density"] = Data(name="density", array=density)
         if density_range is None:
-            density_range = [np.min(density), np.max(density)]
+            density_range = [np.min(get_union_array(density)), np.max(get_union_array(density))]
         encoding["density"] = {"field": "density", "range": density_range}
 
         # Set lut if not provided
         if density_lut is None:
             density_lut = default_density_lut
-        density_lut = np.ascontiguousarray(density_lut, dtype="float32")
         data["density_lut"] = Data(name="density_lut", array=density_lut)
         encoding["density_lut"] = {"field": "density_lut"}
 
     # Optionally add emission
     if emission is not None:
-        emission = np.ascontiguousarray(emission, dtype="float32")
         data["emission"] = Data(name="emission", array=emission)
         if emission_range is None:
-            emission_range = [np.min(emission), np.max(emission)]
+            emission_range = [np.min(get_union_array(emission)), np.max(get_union_array(emission))]
         encoding["emission"] = {"field": "emission", "range": emission_range}
 
         # Set lut if not provided
         if emission_lut is None:
             emission_lut = default_emission_lut
-        emission_lut = np.ascontiguousarray(emission_lut, dtype="float32")
         data["emission_lut"] = Data(name="emission_lut", array=emission_lut)
         encoding["emission_lut"] = {"field": "emission_lut"}
 
@@ -125,8 +118,8 @@ def render(coordinates, cells,
         # encoding["isovalues"] = {"range": [min, max], "resolution": 10, "scale": "linear"}
         # encoding["isovalues"] = {"range": [min, max], "resolution": 10, "scale": "log"}
         # encoding["isovalues"] = {"value": [v0, v1, v2, ...]}
-        isorange = [0.52 * emission_range[0] + 0.48 * emission_range[1],
-                    0.48 * emission_range[0] + 0.52 * emission_range[1]]
+        isorange = [0.52 * get_union_array(emission_range)[0] + 0.48 * get_union_array(emission_range)[1],
+                    0.48 * get_union_array(emission_range)[0] + 0.52 * get_union_array(emission_range)[1]]
         encoding["isorange"] = {"value": isorange}
 
     # Setup plot
