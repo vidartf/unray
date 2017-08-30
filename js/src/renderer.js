@@ -1,6 +1,6 @@
 'use strict';
 
-//import _ from 'underscore';
+import _ from 'underscore';
 
 import {
     extend2
@@ -42,9 +42,9 @@ const default_channels = {
     density_lut:     { association: "lut",             dtype: "float32", item_size: 1 },
     emission_lut:    { association: "lut",             dtype: "float32", item_size: 3 },
     cell_indicator_value: { association: "constant",  dtype: "int32",   item_size: 1 }, // int
-    constant_color:       { association: "constant",  dtype: "float32", item_size: 3 }, // color
+    emission_color:       { association: "constant",  dtype: "float32", item_size: 3 }, // color
+    extinction:           { association: "constant",  dtype: "float32", item_size: 1 }, // float
     isorange:             { association: "constant",  dtype: "float32", item_size: 2 }, // vec2
-    particle_area:        { association: "constant",  dtype: "float32", item_size: 1 }, // float
     //wireframe:       { enable: false, size: 0.001, color: "#000000",  opacity: 1.0, decay: 0.5 },
 };
 
@@ -60,9 +60,9 @@ const default_encoding = {
     density_lut:     { field: "density_lut" },
     emission_lut:    { field: "emission_lut" },
     cell_indicator_value: { value: 1 },
-    constant_color:       { value: new THREE.Color(0.8, 0.8, 0.8) },
+    emission_color:       { value: new THREE.Color(0.8, 0.8, 0.8) },
+    extinction:           { value: 1.0 },
     isorange:             { value: new THREE.Vector2(0.2, 0.8) },
-    particle_area:        { value: 1.0 },
 };
 
 
@@ -663,416 +663,480 @@ function sort_cells(ordering, cells, coordinates, camera_position, view_directio
 
 function default_uniforms() {
     // Fill uniforms dict with dummy values
-    return {
-        // Time and oscillators (updated in update_time())
-        u_time: { value: 0.0 },
-        u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0) },
-
-        // Camera uniforms (updated in update_perspective(), threejs provides cameraPosition)
-        u_view_direction: { value: new THREE.Vector3(0, 0, 1) },
-
-        // Light uniforms
-        u_light_floor: { value: 0.5 },
-
-        // Input constants (u_foo is updated in upload() based on
-        // encoding.foo.value, but only if foo is present in channels,
-        // with default value set in the default encoding)
-        u_cell_indicator_value: { value: 1 },
-
-        u_constant_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
-
-        u_exposure: { value: 1.0 },
-
-        u_wireframe_color: { value: new THREE.Color(0.1, 0.1, 0.1) },
-        u_wireframe_alpha: { value: 0.7 },
-        u_wireframe_size: { value: 0.001 },
-
-        u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
-
-        u_particle_area: { value: 1.0 },
-
-        // Input data ranges (u_foo_range is updated in upload() based on encoding.foo.range attribute)
-        // The 4 values are: [min, max, max-min, 1.0/(max-min) or 1]
-        u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
-        u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
-
-        // Texture dimensions (set in init() based on given mesh size)
-        u_cell_texture_shape: { value: [0, 0] },
-        u_vertex_texture_shape: { value: [0, 0] },
-
-        // Cell textures (updated in upload() based on encoding)
-        t_cells: { value: null },
-        t_cell_indicators: { value: null },
-
-        // Vertex textures (updated in upload() based on encoding)
-        t_coordinates: { value: null },
-        t_density: { value: null },
-        t_emission: { value: null },
-
-        // LUT textures (updated in upload() based on encoding)
-        t_density_lut: { value: null },
-        t_emission_lut: { value: null },
-        //t_indicator_lut: { value: null },
-        //t_isosurface_lut: { value: null },
+    const groups = {
+        time: {
+            u_time: { value: 0.0 },
+            u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0) },
+        },
+        view: {
+            u_local_view_direction: { value: new THREE.Vector3(0, 0, 1) },
+            u_local_camera_position: { value: new THREE.Vector3(0, 0, 0) },
+            u_mvp_matrix: { value: new THREE.Matrix4() },
+        },
+        light: {
+            u_emission_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
+            u_emission_intensity_range: { value: new THREE.Vector2(0.5, 1.0) },
+            u_exposure: { value: 1.0 },
+            u_extinction: { value: 1.0 },
+        },
+        wireframe: {
+            u_wireframe_color: { value: new THREE.Color(0.1, 0.1, 0.1) },
+            u_wireframe_alpha: { value: 0.7 },
+            u_wireframe_size: { value: 0.001 },
+        },
+        isosurface: {
+            u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
+        },
+        mesh: {
+            t_cells: { value: null },
+            t_coordinates: { value: null },
+            u_cell_texture_shape: { value: [0, 0] },
+            u_vertex_texture_shape: { value: [0, 0] },
+        },
+        indicators: {
+            // Integer indicator values
+            t_cell_indicators: { value: null },
+            // Value to enable
+            u_cell_indicator_value: { value: 1 },
+            // Color/toggle lookup table
+            // t_indicator_lut: { value: null },
+        },
+        density: {
+            // Function values
+            t_density: { value: null },
+            // Range [min, max, max-min, 1.0/(max-min) or 1]
+            u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+            // Scalar lookup table
+            t_density_lut: { value: null },
+        },
+        emission: {
+            // Function values
+            t_emission: { value: null },
+            // Range [min, max, max-min, 1.0/(max-min) or 1]
+            u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+            // Color lookup table
+            t_emission_lut: { value: null },
+        },
     };
+    const all = Object.assign({}, ...Object.values(groups));
+
+    return all;
 }
 
-class TetrahedralMeshRenderer {
-    constructor() {}
 
-    update_perspective(camera, geometry, material) {
-        // TODO: When using three.js scenegraph, probably need
-        // to distinguish better between model and world coordinates
-        // in various places
-        //camera.getWorldPosition(material.uniforms.u_camera_position.value);
+// TODO: Use this in prerender and improve sorting
+// when unsorted methods are working well
+function update_ordering(geometry, material) {
+    const u = material.uniforms;
 
-        const dir = material.uniforms.u_view_direction.value;
-        camera.getWorldDirection(dir);
+    // TODO: Benchmark use of reordering array vs reordering
+    //       cell data and uploading those larger buffers.
+    const dir = u.u_local_view_direction.value;
 
-        // TODO: Upload full MVP matrix here to uniforms
-        //       instead of multiplying in vertex shader
+    // Get cells and coordinates from texture data
+    const cells = u.t_cells.value.image.data;
+    const coordinates = u.t_coordinates.value.image.data;
 
-        // TODO: Enable and improve sorting when other methods are working
-        if (0) {
-            // TODO: Benchmark use of reordering array vs reordering
-            //       cell data and uploading those larger buffers.
+    // NB! Number of cells === ordering.array.length,
+    // !== cells.length / 4 which includes texture padding.
 
-            // Get cells and coordinates from texture data
-            const cells = material.uniforms.t_cells.value.image.data;
-            const coordinates = material.uniforms.t_coordinates.value.image.data;
+    // Compute cell reordering in place in geometry attribute array
+    const ordering = geometry.attributes.c_ordering;
+    sort_cells(ordering.array, cells, coordinates, dir);
+    ordering.needsUpdate = true;
+}
 
-            // NB! Number of cells === ordering.array.length,
-            // !== cells.length / 4 which includes texture padding.
+function create_geometry(sorted, cells, coordinates) {
+    // Assuming tetrahedral mesh
+    const num_tetrahedrons = cells.length / 4;
 
-            // Compute cell reordering in place in geometry attribute array
-            const ordering = geometry.attributes.c_ordering;
-            sort_cells(ordering.array, cells, coordinates, dir);
-            ordering.needsUpdate = true;
-        }
+    // Reorient tetrahedral cells (NB! this happens in place!)
+    // TODO: We want cells to be reoriented _once_ if they're
+    //       reused because this is a bit expensive
+    reorient_tetrahedron_cells(cells, coordinates);
+
+    // Configure instanced geometry, each tetrahedron is an instance
+    const geometry = create_instanced_tetrahedron_geometry(num_tetrahedrons);
+
+    // Setup cells of geometry (using textures or attributes)
+    if (sorted) {
+        // Need ordering, let ordering be instanced and read cells from texture
+        // Initialize ordering array with contiguous indices,
+        // stored as floats because webgl2 is required for integer attributes.
+        // When assigned a range of integers, the c_ordering instance attribute
+        // can be used as a replacement for gl_InstanceID which requires webgl2.
+        const attrib = create_cell_ordering_attribute(num_tetrahedrons);
+        geometry.addAttribute("c_ordering", attrib);
+    } else {
+        // Don't need ordering, pass cells as instanced buffer attribute instead
+        const attrib = create_cells_attribute(cells);
+        geometry.addAttribute("c_cells", attrib);
     }
 
-    update_time(time, geometry, material) {
-        material.uniforms.u_time.value = time;
-        for (let i=0; i<4; ++i) {
-            material.uniforms.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
-        }
-    }
+    // Compute bounding box and sphere and set on geometry so
+    // they become available to generic THREE.js code
+    geometry.boundingSphere = create_bounding_sphere(coordinates);
+    geometry.boundingBox = create_bounding_box(coordinates);
 
-    create_material(method, encoding, uniforms) {
-        // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
-        // TODO: May also add defines based on encoding if necessary
-        // if encoding specifies density or emission, add defines:
-        //     ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
-        //     ENABLE_DENSITY_BACK: 1,
-        const mp = method_properties[method];
-        const defines = mp.defines;
-        
-        const material_config = {
-            // Note: Assuming passing some unused uniforms here will work fine
-            // without too much performance penalty, hopefully this is ok
-            // as it allows us to share the uniforms dict between methods.
-            uniforms: uniforms,
-            vertexShader: vertex_shader,
-            fragmentShader: fragment_shader,
-            side: mp.side,
-            transparent: mp.transparent,
-            depthTest: true,
-            depthWrite: mp.depth_write,
-        };
+    return geometry;
+}
 
-        // Configure shader
-        const material = new THREE.ShaderMaterial(material_config);
-
-        // Configure blending
-        if (mp.blending === THREE.CustomBlending) {
-            material.blending = mp.blending;
-            material.blendEquation = mp.blend_equation;
-            material.blendSrc = mp.blend_src;
-            material.blendDst = mp.blend_dst;
-        }
-
-        // Not using the fog feature
-        material.fog = false;
-
-        // Apply method #defines to shaders
-        material.defines = defines;
-
-        // Some extensions need to be explicitly enabled
-        material.extensions.derivatives = true;
-
-        // How to use wireframe natively in THREE.js
-        // material.wireframe = true;
-        // material.wireframeLinewidth = 3;
-
-        return material;
-    }
-
-    allocate(method, encoding, data, uniforms) {
-        // The current implementation assumes:
-        // - Each channel has only one possible association
-
-        const mp = method_properties[method];
-
-        const channels = mp.channels;
-
-        // Copy and override defaults with provided values
-        encoding = extend2(mp.default_encoding, encoding);
-
-        const cell_texture_shape = uniforms.u_cell_texture_shape.value;
-        const vertex_texture_shape = uniforms.u_vertex_texture_shape.value;
-
-        const uniform_prefix = {
-            constant: "u_",
-            vertex: "t_",
-            cell: "t_",
-            lut: "t_"
-        };
-
-        // Process all passed channel
-        for (let channel_name in channels) {
-            // Get channel description
-            const channel = channels[channel_name];
-            if (channel === undefined) {
-                console.error(`Channel ${channel_name} is missing description.`);
-                continue;
-            }
-
-            // Get encoding for this channel
-            const enc = encoding[channel_name];
-            if (enc === undefined) {
-                console.error(`No encoding found for channel ${channel_name}.`);
-                continue;
-            }
-
-            // Default association in channel, can override in encoding
-            const association = enc.association || channel.association;
-            const uniform_name = uniform_prefix[association] + channel_name;
-            const uniform = uniforms[uniform_name];
-
-            if (uniform && !uniform.value) {
-                switch (association) {
-                case "constant":
-                    // TODO: Allocating uniform shared between methods using
-                    // channel data which may conceptually differe between method,
-                    // not the best possible design
-                    uniform.value = allocate_value(channel.item_size);
-                    break;
-                case "vertex":
-                    uniform.value = allocate_array_texture(
-                        channel.dtype, channel.item_size,
-                        vertex_texture_shape);
-                    break;
-                case "cell":
-                    // Maybe we want to allocate or allow allocation for both the sorted and unsorted case,
-                    // to quickly switch between methods e.g. during camera rotation.
-                    uniform.value = allocate_array_texture(
-                        channel.dtype, channel.item_size,
-                        cell_texture_shape);
-                    break;
-                    // TODO: Currently always placing cell data as textures,
-                    // update this for cell data as instance attributes when needed.
-                    // Shaders should in principle be ready for this by undefining ENABLE_CELL_ORDERING
-
-                    // FIXME: Design issue: creating the geometry depends on the
-                    // InstancedBufferAttribute being allocated already which
-                    // depends on the data which hasn't necessarily been set yet
-                    // var upload_as_instanced_buffer = false;
-                    // if (upload_as_instanced_buffer && new_value) {
-                    //     let attrib = this.attributes["c_" + channel_name];
-                    //     if (!attrib) {
-                    //         // Allocate instanced buffer attribute
-                    //         // TODO: Should we copy the new_value here?
-                    //         attrib = new THREE.InstancedBufferAttribute(new_value, channel.item_size, 1);
-                    //         //attrib.setDynamic(true);
-                    //         this.attributes["c_" + channel_name] = attrib;
-                    //     } else {
-                    //         // Update contents of instanced buffer attribute
-                    //         attrib.array.set(new_value);
-                    //         attrib.needsUpdate = true;
-                    //     }
-                    // }
-                case "lut":
-                    break;
-                default:
-                    console.error(`Unknown association ${association}.`);
-                }
-            }
-        }
-    }
-
-    // Upload data, assuming method has been configured
-    upload(method, encoding, data, uniforms) {
-        // The current implementation assumes:
-        // - Each channel has only one possible association
-
-        const mp = method_properties[method];
-
-        const channels = mp.channels;
-
-        // Copy and override defaults with provided values
-        encoding = extend2(mp.default_encoding, encoding);
-
-        const uniform_prefix = {
-            constant: "u_",
-            vertex: "t_",
-            cell: "t_",
-            lut: "t_"
-        };
-
-        // Process all channels
-        for (let channel_name in channels) {
-            // Get channel description
-            const channel = channels[channel_name];
-            if (channel === undefined) {
-                console.warn(`Channel ${channel_name} is missing description.`);
-                continue;
-            }
-
-            // Get encoding for this channel
-            const enc = encoding[channel_name];
-            if (enc === undefined) {
-                console.warn(`No encoding found for channel ${channel_name}.`);
-                continue;
-            }
-
-            // Get new data value either from data or from encoding
-            const new_value = enc.field ? data[enc.field]: enc.value;
-            if (new_value === undefined) {
-                console.log(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
-                continue;
-            }
-
-            // Default association in channel, can override in encoding
-            // (TODO: The idea here was to be able to select vertex/cell
-            // association for fields, figure out a better design for that)
-            const association = enc.association || channel.association;
-            const uniform_name = uniform_prefix[association] + channel_name;
+function create_material(method, encoding, uniforms) {
+    // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
+    // TODO: May also add defines based on encoding if necessary
+    // if encoding specifies density or emission, add defines:
+    //     ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
+    //     ENABLE_DENSITY_BACK: 1,
+    const mp = method_properties[method];
+    const defines = mp.defines;
     
+    const material_config = {
+        // Note: Assuming passing some unused uniforms here will work fine
+        // without too much performance penalty, hopefully this is ok
+        // as it allows us to share the uniforms dict between methods.
+        uniforms: uniforms,
+        vertexShader: vertex_shader,
+        fragmentShader: fragment_shader,
+        side: mp.side,
+        transparent: mp.transparent,
+        depthTest: true,
+        depthWrite: mp.depth_write,
+    };
+
+    // Configure shader
+    const material = new THREE.ShaderMaterial(material_config);
+
+    // Configure blending
+    if (mp.blending === THREE.CustomBlending) {
+        material.blending = mp.blending;
+        material.blendEquation = mp.blend_equation;
+        material.blendSrc = mp.blend_src;
+        material.blendDst = mp.blend_dst;
+    }
+
+    // Not using the fog feature
+    material.fog = false;
+
+    // Apply method #defines to shaders
+    material.defines = defines;
+
+    // Some extensions need to be explicitly enabled
+    material.extensions.derivatives = true;
+
+    // How to use wireframe natively in THREE.js
+    // material.wireframe = true;
+    // material.wireframeLinewidth = 3;
+
+    return material;
+}
+
+function allocate_textures_and_buffers(method, encoding, data, uniforms) {
+    // The current implementation assumes:
+    // - Each channel has only one possible association
+
+    const mp = method_properties[method];
+
+    const channels = mp.channels;
+
+    // Copy and override defaults with provided values
+    encoding = extend2(mp.default_encoding, encoding);
+
+    const cell_texture_shape = uniforms.u_cell_texture_shape.value;
+    const vertex_texture_shape = uniforms.u_vertex_texture_shape.value;
+
+    const uniform_prefix = {
+        constant: "u_",
+        vertex: "t_",
+        cell: "t_",
+        lut: "t_"
+    };
+
+    // Process all passed channel
+    for (let channel_name in channels) {
+        // Get channel description
+        const channel = channels[channel_name];
+        if (channel === undefined) {
+            console.error(`Channel ${channel_name} is missing description.`);
+            continue;
+        }
+
+        // Get encoding for this channel
+        const enc = encoding[channel_name];
+        if (enc === undefined) {
+            console.error(`No encoding found for channel ${channel_name}.`);
+            continue;
+        }
+
+        // Default association in channel, can override in encoding
+        const association = enc.association || channel.association;
+        const uniform_name = uniform_prefix[association] + channel_name;
+        const uniform = uniforms[uniform_name];
+
+        if (uniform && !uniform.value) {
             switch (association) {
             case "constant":
-                // TODO: Revisit specification of uniform value types in encoding/channels/data
-                update_uniform_value(uniforms[uniform_name], new_value);
+                // TODO: Allocating uniform shared between methods using
+                // channel data which may conceptually differe between method,
+                // not the best possible design
+                uniform.value = allocate_value(channel.item_size);
                 break;
             case "vertex":
-                update_array_texture(uniforms[uniform_name].value, new_value);
+                uniform.value = allocate_array_texture(
+                    channel.dtype, channel.item_size,
+                    vertex_texture_shape);
                 break;
             case "cell":
-                //if (sorted) {
-                update_array_texture(uniforms[uniform_name].value, new_value);
-                //} else {
-                //     update instance buffer  // FIXME: See allocate()
-                //}
+                // Maybe we want to allocate or allow allocation for both the sorted and unsorted case,
+                // to quickly switch between methods e.g. during camera rotation.
+                uniform.value = allocate_array_texture(
+                    channel.dtype, channel.item_size,
+                    cell_texture_shape);
                 break;
+                // TODO: Currently always placing cell data as textures,
+                // update this for cell data as instance attributes when needed.
+                // Shaders should in principle be ready for this by undefining ENABLE_CELL_ORDERING
+
+                // FIXME: Design issue: creating the geometry depends on the
+                // InstancedBufferAttribute being allocated already which
+                // depends on the data which hasn't necessarily been set yet
+                // var upload_as_instanced_buffer = false;
+                // if (upload_as_instanced_buffer && new_value) {
+                //     let attrib = this.attributes["c_" + channel_name];
+                //     if (!attrib) {
+                //         // Allocate instanced buffer attribute
+                //         // TODO: Should we copy the new_value here?
+                //         attrib = new THREE.InstancedBufferAttribute(new_value, channel.item_size, 1);
+                //         //attrib.setDynamic(true);
+                //         this.attributes["c_" + channel_name] = attrib;
+                //     } else {
+                //         // Update contents of instanced buffer attribute
+                //         attrib.array.set(new_value);
+                //         attrib.needsUpdate = true;
+                //     }
+                // }
             case "lut":
-                update_lut(uniforms[uniform_name], new_value, channel.item_size, channel.dtype);
                 break;
             default:
-                console.warn("unknown association " + association);
+                console.error(`Unknown association ${association}.`);
             }
+        }
+    }
+}
 
-            // Update associated data range
-            if (enc.range !== undefined) {
-                let newrange = null;
-                if (enc.range === "auto") {
-                    newrange = compute_range(new_value);
-                } else  {
-                    newrange = enc.range;
-                }
-                if (newrange !== null) {
-                    newrange = extended_range(...newrange);
-                    const range_name = "u_" + channel_name + "_range";
-                    if (uniforms.hasOwnProperty(range_name)) {
-                        uniforms[range_name].value.set(...newrange);
-                    }
+// Upload data, assuming method has been configured
+function upload_data(method, encoding, data, uniforms) {
+    // The current implementation assumes:
+    // - Each channel has only one possible association
+
+    const mp = method_properties[method];
+
+    const channels = mp.channels;
+
+    // Copy and override defaults with provided values
+    encoding = extend2(mp.default_encoding, encoding);
+
+    const uniform_prefix = {
+        constant: "u_",
+        vertex: "t_",
+        cell: "t_",
+        lut: "t_"
+    };
+
+    // Process all channels
+    for (let channel_name in channels) {
+        // Get channel description
+        const channel = channels[channel_name];
+        if (channel === undefined) {
+            console.warn(`Channel ${channel_name} is missing description.`);
+            continue;
+        }
+
+        // Get encoding for this channel
+        const enc = encoding[channel_name];
+        if (enc === undefined) {
+            console.warn(`No encoding found for channel ${channel_name}.`);
+            continue;
+        }
+
+        // Get new data value either from data or from encoding
+        const new_value = enc.field ? data[enc.field]: enc.value;
+        if (new_value === undefined) {
+            console.log(`No data found for field ${enc.field} encoded for channel ${channel_name}.`);
+            continue;
+        }
+
+        // Default association in channel, can override in encoding
+        // (TODO: The idea here was to be able to select vertex/cell
+        // association for fields, figure out a better design for that)
+        const association = enc.association || channel.association;
+        const uniform_name = uniform_prefix[association] + channel_name;
+
+        switch (association) {
+        case "constant":
+            // TODO: Revisit specification of uniform value types in encoding/channels/data
+            update_uniform_value(uniforms[uniform_name], new_value);
+            break;
+        case "vertex":
+            update_array_texture(uniforms[uniform_name].value, new_value);
+            break;
+        case "cell":
+            //if (sorted) {
+            update_array_texture(uniforms[uniform_name].value, new_value);
+            //} else {
+            //     update instance buffer  // FIXME: See allocate()
+            //}
+            break;
+        case "lut":
+            update_lut(uniforms[uniform_name], new_value, channel.item_size, channel.dtype);
+            break;
+        default:
+            console.warn("unknown association " + association);
+        }
+
+        // Update associated data range
+        if (enc.range !== undefined) {
+            let newrange = null;
+            if (enc.range === "auto") {
+                newrange = compute_range(new_value);
+            } else  {
+                newrange = enc.range;
+            }
+            if (newrange !== null) {
+                newrange = extended_range(...newrange);
+                const range_name = "u_" + channel_name + "_range";
+                if (uniforms.hasOwnProperty(range_name)) {
+                    uniforms[range_name].value.set(...newrange);
                 }
             }
         }
     }
+}
 
-    create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices) {
-        // Initialize new set of uniforms
-        const uniforms = default_uniforms();
+function create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices) {
+    // Initialize new set of uniforms
+    const uniforms = default_uniforms();
 
-        // Compute suitable 2D texture shapes large enough
-        // to hold this number of values
-        const cell_texture_shape = compute_texture_shape(num_tetrahedrons);
-        const vertex_texture_shape = compute_texture_shape(num_vertices);
+    // Compute suitable 2D texture shapes large enough
+    // to hold this number of values
+    const cell_texture_shape = compute_texture_shape(num_tetrahedrons);
+    const vertex_texture_shape = compute_texture_shape(num_vertices);
 
-        // Store in uniforms
-        [...uniforms.u_cell_texture_shape.value] = cell_texture_shape;
-        [...uniforms.u_vertex_texture_shape.value] = vertex_texture_shape;
+    // Store in uniforms
+    [...uniforms.u_cell_texture_shape.value] = cell_texture_shape;
+    [...uniforms.u_vertex_texture_shape.value] = vertex_texture_shape;
 
-        // Allocate various textures and buffers (needs the shapes assigned above)
-        // (NB! mutates uniforms)
-        this.allocate(method, encoding, data, uniforms);
+    // Allocate various textures and buffers (needs the shapes assigned above)
+    // (NB! mutates uniforms)
+    allocate_textures_and_buffers(method, encoding, data, uniforms);
 
-        // Upload more data
-        // (NB! mutates uniforms)
-        this.upload(method, encoding, data, uniforms);
+    // Upload more data
+    // (NB! mutates uniforms)
+    upload_data(method, encoding, data, uniforms);
 
-        return uniforms;
+    return uniforms;
+}
+
+function prerender_update(renderer, scene, camera, geometry, material, group, mesh) {
+    //console.log("In prerender_update", {renderer, scene, camera, geometry, material, group, mesh});
+    console.log("In prerender_update", camera.getWorldPosition());
+
+    // Just in time updates of uniform values
+    const u = material.uniforms;
+
+    // FIXME: Get actual time from some start point in seconds,
+    // or make it a parameter to be controlled from the outside
+    const time = 0.0;
+    u.u_time.value = time;
+
+    for (let i=0; i<4; ++i) {
+        u.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
     }
 
-    create_geometry(sorted, cells, coordinates) {
-        // Assuming tetrahedral mesh
-        const num_tetrahedrons = cells.length / 4;
+    // TODO: Are all these up to date here? Need to call any update functions?
+    // mesh.matrixWorld
+    // camera.matrixWorldInverse
+    // camera.projectionMatrix
 
-        // Reorient tetrahedral cells (NB! this happens in place!)
-        // TODO: We want cells to be reoriented _once_ if they're
-        //       reused because this is a bit expensive
-        reorient_tetrahedron_cells(cells, coordinates);
+    // Get and precompute some transforms
+    const M = mesh.matrixWorld;  // maps from object space to world space
+    const V = camera.matrixWorldInverse; // maps from world space to camera space
+    const P = camera.projectionMatrix; // maps from camera space to clip coordinates
 
-        // Configure instanced geometry, each tetrahedron is an instance
-        const geometry = create_instanced_tetrahedron_geometry(num_tetrahedrons);
+    const Minv = new THREE.Matrix4(); // maps from world space to object space
+    Minv.getInverse(M);
+    // const Vinv = new THREE.Matrix4(); // maps from camera space to world space
+    // Vinv.getInverse(V);
+    // const MVinv = new THREE.Matrix4(); // maps from camera space to object space
+    // MVinv.getInverse(MV);
 
-        // Setup cells of geometry (using textures or attributes)
-        if (sorted) {
-            // Need ordering, let ordering be instanced and read cells from texture
-            // Initialize ordering array with contiguous indices,
-            // stored as floats because webgl2 is required for integer attributes.
-            // When assigned a range of integers, the c_ordering instance attribute
-            // can be used as a replacement for gl_InstanceID which requires webgl2.
-            const attrib = create_cell_ordering_attribute(num_tetrahedrons);
-            geometry.addAttribute("c_ordering", attrib);
-        } else {
-            // Don't need ordering, pass cells as instanced buffer attribute instead
-            const attrib = create_cells_attribute(cells);
-            geometry.addAttribute("c_cells", attrib);
-        }
+    // Transform camera direction from world coordinates to object space
+    // (only used for orthographic projection)
+    const local_view_direction = u.u_local_view_direction.value;
+    camera.getWorldDirection(local_view_direction);
+    local_view_direction.applyMatrix4(Minv); // map from world space to object space
 
-        // Compute bounding box and sphere and set on geometry so
-        // they become available to generic THREE.js code
-        geometry.boundingSphere = create_bounding_sphere(coordinates);
-        geometry.boundingBox = create_bounding_box(coordinates);
+    // Transform camera position from world coordinates to object space
+    const local_camera_position = u.u_local_camera_position.value;
+    camera.getWorldPosition(local_camera_position);
+    local_camera_position.applyMatrix4(Minv); // map from world space to object space
 
-        return geometry;
-    }
+    // Compute entire MVP matrix
+    const MV = new THREE.Matrix4(); // maps from object space to camera space
+    MV.multiplyMatrices(V, M);
+    const MVP = u.u_mvp_matrix.value; // maps from object space to clip space
+    MVP.multiplyMatrices(P, MV);
+}
 
-    create_mesh(method, encoding, data) {
-        // Tetrahedral mesh data is required and assumed to be present at this point
-        const cells = data[encoding.cells.field];
-        const coordinates = data[encoding.coordinates.field];
-        const num_vertices = coordinates.length / 3;
-        const num_tetrahedrons = cells.length / 4;
+function create_mesh(method, encoding, data) {
+    // Tetrahedral mesh data is required and assumed to be present at this point
+    const cells = data[encoding.cells.field];
+    const coordinates = data[encoding.coordinates.field];
+    const num_vertices = coordinates.length / 3;
+    const num_tetrahedrons = cells.length / 4;
 
-        // Initialize geometry
-        // FIXME: Enable the non-sorted branch
-        const sorted = true || method_properties[method].sorted;
-        const geometry = this.create_geometry(sorted, cells, coordinates);
+    // Initialize geometry
+    // FIXME: Enable the non-sorted branch
+    const sorted = true || method_properties[method].sorted;
+    const geometry = create_geometry(sorted, cells, coordinates);
 
-        // Initialize uniforms, including textures
-        const uniforms = this.create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices);
+    // Initialize uniforms, including textures
+    const uniforms = create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices);
 
-        // Configure material (shader)
-        const material = this.create_material(method, encoding, uniforms);
+    // Configure material (shader)
+    const material = create_material(method, encoding, uniforms);
 
-        // Finally we have a Mesh to render for this method
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.setDrawMode(THREE.TriangleStripDrawMode);
-        return mesh;
-    }
-};
+    // Finally we have a Mesh to render for this method
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.setDrawMode(THREE.TriangleStripDrawMode);
 
+    mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+        prerender_update(renderer, scene, camera, geometry, material, group, mesh);
+    };
+
+    // If needed, we can attach properties to the mesh.userData object:
+    //Object.assign(mesh.userData, { method, encoding });
+
+    return mesh;
+}
+
+function add_debugging_geometries(root, mesh) {
+    // Add a bounding sphere representation to root for debugging
+    // root.add(create_bounding_sphere_geometry(mesh.geometry.boundingSphere, 1.1));
+
+    // Add a bounding box representation to root for debugging
+    // root.add(create_bounding_box_geometry(mesh.geometry.boundingBox, 1.1));
+
+    // Add a bounding box midplane representation to root for debugging
+    // root.add(create_bounding_box_midplanes_geometry(mesh.geometry.boundingBox, 1.1));
+
+    // Add a bounding box wireframe representation to root for debugging
+    root.add(create_bounding_box_axis_geometry(mesh.geometry.boundingBox, 1.1));
+
+    // Add a sphere representation of center for debugging
+    // const sphere = mesh.geometry.boundingSphere.clone();
+    // sphere.radius *= 0.05;
+    // root.add(create_bounding_sphere_geometry(sphere));
+}
 
 class UnrayStateWrapper {
     init(root, method, encoding, data) {
@@ -1082,55 +1146,18 @@ class UnrayStateWrapper {
         //       Alternatively, could add a background box of the right color.
         this.bgcolor = method_properties[method].background || new THREE.Color(1, 1, 1);
 
+        const mesh = create_mesh(method, encoding, data);
+
+        root.add(mesh);
+
         this.root = root;
-        this.tetrenderer = new TetrahedralMeshRenderer();
-
-
-        const mesh = this.tetrenderer.create_mesh(method, encoding, data);
-        mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
-            // FIXME: Set camera and time uniforms directly in material.uniforms here
-            console.log("Calling prerender");
-            this.prerender(camera, geometry, material);
-        };
-        this.root.add(mesh);
-
-
-        // Add a bounding sphere representation to root for debugging
-        if (0) {
-            this.root.add(create_bounding_sphere_geometry(mesh.geometry.boundingSphere, 1.1));
-        }
-        // Add a bounding box representation to root for debugging
-        if (0) {
-            this.root.add(create_bounding_box_geometry(mesh.geometry.boundingBox, 1.1));
-        }
-        // Add a bounding box midplane representation to root for debugging
-        if (0) {
-            this.root.add(create_bounding_box_midplanes_geometry(mesh.geometry.boundingBox, 1.1));
-        }
-        // Add a bounding box wireframe representation to root for debugging
-        if (1) {
-            this.root.add(create_bounding_box_axis_geometry(mesh.geometry.boundingBox, 1.1));
-        }
-        // Add a sphere representation of center for debugging
-        if (0) {
-            const sphere = mesh.geometry.boundingSphere.clone();
-            sphere.radius *= 0.05;
-            this.root.add(create_bounding_sphere_geometry(sphere));
-        }
+        add_debugging_geometries(root, mesh);
     }
 
     update(changed) {
         // for (let name in changed) {
         //     this.channel_update(name)(changed[name]);
         // }
-    }
-
-    // TODO: Alternative to update_time + update_perspective,
-    // to be called before doing renderer.render(scene, camera)
-    prerender(camera, geometry, material) {
-        const time = 0.0; // fixme
-        this.tetrenderer.update_time(time, geometry, material);
-        this.tetrenderer.update_perspective(camera, geometry, material);
     }
 
     // Select method-specific background color

@@ -19,11 +19,8 @@
 @import ./vicp-lib;
 
 
-/* Uniforms added by three.js, see
+/* For uniforms added by three.js, see
 https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
-
-uniform mat4 viewMatrix;
-uniform vec3 cameraPosition;
 */
     // Copied from THREE.js logbufdepth_pars_fragment.glsl
 #ifdef USE_LOGDEPTHBUF
@@ -106,19 +103,17 @@ uniform vec4 u_oscillators;
 
 
 // Custom camera uniforms
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-#else
-uniform vec3 u_view_direction;
+uniform mat4 u_mvp_matrix;
+uniform vec3 u_local_camera_position;
+#ifndef ENABLE_PERSPECTIVE_PROJECTION
+uniform vec3 u_local_view_direction;
 #endif
 
 // Custom light uniforms
 #ifdef ENABLE_SURFACE_LIGHT
-uniform float u_light_floor;
+uniform vec2 u_emission_intensity_range;  // [min, max]
 #endif
-
-
-// Input data uniforms
-uniform vec3 u_constant_color;
+uniform vec3 u_emission_color;
 uniform float u_exposure;
 
 #ifdef ENABLE_WIREFRAME
@@ -132,7 +127,7 @@ uniform vec2 u_isorange;
 #endif
 
 #if defined(ENABLE_XRAY_MODEL) || defined(ENABLE_VOLUME_MODEL)
-uniform float u_particle_area;  // TODO: Use u_exposure instead?
+uniform float u_extinction;
 #endif
 
 // #ifdef ENABLE_CELL_INDICATORS
@@ -225,9 +220,9 @@ void main()
 
     // We need the view direction below
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
-    vec3 view_direction = normalize(position - cameraPosition);
+    vec3 view_direction = normalize(position - u_local_camera_position);
 #else
-    vec3 view_direction = u_view_direction;
+    vec3 view_direction = u_local_view_direction;
 #endif
 
 
@@ -246,7 +241,8 @@ void main()
 #endif
 
 
-#if defined(ENABLE_DEPTH) && defined(ENABLE_PERSPECTIVE_PROJECTION)
+#ifdef ENABLE_DEPTH
+  #ifdef ENABLE_PERSPECTIVE_PROJECTION
     // Initialize to a too large value
     float depth = 1000.0 * v_max_depth;
     bool touched = false;
@@ -276,14 +272,14 @@ void main()
         depth = 0.0;
     }
     depth = clamp(depth, 0.0, v_max_depth);
-#endif
 
-
-#if defined(ENABLE_DEPTH) && !defined(ENABLE_PERSPECTIVE_PROJECTION)
-    // Find which faces are back faces
-    bvec4 is_back_face = lessThan(v_facing, vec4(-0.5));
-    vec4 ray_lengths = v_ray_lengths;
-    float depth = compute_depth(ray_lengths, v_barycentric_coordinates, is_back_face, v_max_depth);
+  #else
+    // !defined(ENABLE_PERSPECTIVE_PROJECTION)
+    float depth = compute_depth(
+        v_ray_lengths, v_barycentric_coordinates,
+        lessThan(v_facing, vec4(-0.5)), v_max_depth
+        );
+  #endif
 #endif
 
 
@@ -297,27 +293,24 @@ void main()
 #ifdef ENABLE_DENSITY
     float scaled_density = (v_density - u_density_range.x) * u_density_range.w;
     float mapped_density = texture2D(t_density_lut, vec2(scaled_density, 0.5)).a;
-#endif
-
-#ifdef ENABLE_EMISSION
-    float scaled_emission = (v_emission - u_emission_range.x) * u_emission_range.w;
-    vec3 mapped_emission = texture2D(t_emission_lut, vec2(scaled_emission, 0.5)).xyz;
-#endif
-
-
-#ifdef ENABLE_DENSITY_BACK
+  #ifdef ENABLE_DENSITY_BACK
     // TODO: With constant view direction,
     //    dot(v_density_gradient, view_direction)
     // is also constant and can be made a flat varying
     float density_back = v_density + depth * dot(v_density_gradient, view_direction);
     float scaled_density_back = (density_back - u_density_range.x) * u_density_range.w;
     float mapped_density_back = texture2D(t_density_lut, vec2(scaled_density_back, 0.5)).a;
+  #endif
 #endif
 
-#ifdef ENABLE_EMISSION_BACK
+#ifdef ENABLE_EMISSION
+    float scaled_emission = (v_emission - u_emission_range.x) * u_emission_range.w;
+    vec3 mapped_emission = texture2D(t_emission_lut, vec2(scaled_emission, 0.5)).xyz;
+  #ifdef ENABLE_EMISSION_BACK
     float emission_back = v_emission + depth * dot(v_emission_gradient, view_direction);
     float scaled_emission_back = (emission_back - u_emission_range.x) * u_emission_range.w;
     vec3 mapped_emission_back = texture2D(t_emission_lut, vec2(scaled_emission_back, 0.5)).xyz;
+  #endif
 #endif
 
 
@@ -330,25 +323,24 @@ void main()
     //       hue, saturation, luminance, noise texture intensity
 
 
-#ifdef ENABLE_DEBUG_MODEL
-    vec3 C = vec3(1.0, 0.5, 0.5);
-    float a = 1.0;
-#endif
-
-
 #ifdef ENABLE_SURFACE_MODEL
+    // Select emission color
     #if defined(ENABLE_EMISSION)
-    vec3 C = mapped_emission;  // CHECKME
+    vec3 C = mapped_emission;
     #elif defined(ENABLE_DENSITY)
-    vec3 C = mapped_density * u_constant_color;  // CHECKME
+    vec3 C = u_emission_color * mapped_density;
     #else
-    vec3 C = u_constant_color;  // CHECKME
+    vec3 C = u_emission_color;
     #endif
 
-    // Apply simple flat shading model
+    // TODO: Get proper light terms and parameter names in here
   #if defined(ENABLE_SURFACE_LIGHT)
     vec3 surface_normal = facet_plane.xyz;
-    C *= u_light_floor + (1.0 - u_light_floor) * abs(dot(surface_normal, view_direction)); // CHECKME
+    float cos_V_N = max(0.0, -dot(surface_normal, view_direction));
+
+    // Apply shading to emission color
+    float k_emit = mix(u_emission_intensity_range.x, u_emission_intensity_range.y, cos_V_N);
+    C *= k_emit;
   #endif
 
     // TODO: Could modulate surface_scaling or color components with
@@ -435,8 +427,8 @@ void main()
   #endif
 
     // Magically chosen tolerance for avoiding edge artifacts on isosurfaces
-    float tolerance = mix(0.001, 0.05, clamp(0.0, 1.0, maxv(bc_width)));
-    //float tolerance = mix(0.0001, 0.03, clamp(0.0, 1.0, midv(bc_width)));
+    float tolerance = mix(0.001, 0.05, clamp(maxv(bc_width), 0.0, 1.0));
+    //float tolerance = mix(0.0001, 0.03, clamp(midv(bc_width), 0.0, 1.0));
     //float tolerance = 0.03;  // TODO: Make this a uniform
 
   #if defined(USING_ISOSURFACE_MODE_SINGLE)
@@ -471,20 +463,27 @@ void main()
   #if defined(ENABLE_EMISSION_BACK)
     vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz; // CHECKME
   #elif defined(ENABLE_DENSITY_BACK)
-    vec3 C = u_constant_color * texture2D(t_density_lut, vec2(scaled_value, 0.5)).a; // CHECKME
+    vec3 C = u_emission_color * texture2D(t_density_lut, vec2(scaled_value, 0.5)).a; // CHECKME
   #endif
 
-    // Apply simple flat shading model
+
+    // Apply some shading
   #if defined(ENABLE_SURFACE_LIGHT) && (defined(ENABLE_EMISSION) || defined(ENABLE_DENSITY))
+    // Gradient of source function is parallel to the normal of the isosurface
     #if defined(ENABLE_EMISSION)
-    vec3 surface_normal = normalize(v_emission_gradient);  // CHECKME
+    vec3 surface_normal = normalize(v_emission_gradient);
     #elif defined(ENABLE_DENSITY)
-    vec3 surface_normal = normalize(v_density_gradient);  // CHECKME
+    vec3 surface_normal = normalize(v_density_gradient);
     #endif
-    C *= u_light_floor + (1.0 - u_light_floor) * abs(dot(surface_normal, view_direction)); // CHECKME
+    // Using abs to ignore which side we see isosurface from
+    float cos_V_N = abs(dot(surface_normal, view_direction));
+
+    // Apply shading to emission color
+    float k_emit = mix(u_emission_intensity_range.x, u_emission_intensity_range.y, cos_V_N);
+    C *= k_emit;
   #endif
 
-    // Opaque since isosurface is contained in [back, front]
+    // Opaque since isosurface is contained in [back, front] unless discarded
     float a = 1.0;
 #endif
 
@@ -496,7 +495,7 @@ void main()
     float emission_view_derivative = (emission - emission_back) / depth;
     float gamma = emission_view_derivative / (emission_view_derivative + 1.0);
 
-    vec3 C = u_constant_color * gamma;
+    vec3 C = u_emission_color * gamma;
 
     // Always opaque
     float a = 1.0;
@@ -524,7 +523,7 @@ void main()
     // rho *= abs((2.0 + u_oscillators[1]) / 3.0);
 
     // Compute transparency (NB! this is 1-opacity)
-    float a = exp(-depth * u_particle_area * rho);
+    float a = exp(-depth * u_extinction * rho);
 
     // This must be zero for no emission to occur, i.e.
     // all color comes from the background and is attenuated by 1-a
@@ -544,9 +543,9 @@ void main()
     #elif defined(ENABLE_EMISSION)
     vec3 C = mapped_emission;  // CHECKME
     #elif defined(ENABLE_DENSITY_BACK)
-    vec3 C = u_constant_color * max(mapped_density, mapped_density_back);  // CHECKME
+    vec3 C = u_emission_color * max(mapped_density, mapped_density_back);  // CHECKME
     #elif defined(ENABLE_DENSITY)
-    vec3 C = u_constant_color * mapped_density;  // CHECKME
+    vec3 C = u_emission_color * mapped_density;  // CHECKME
     #else
     compile_error();  // Max model needs emission or density
     #endif
@@ -568,9 +567,9 @@ void main()
     #elif defined(ENABLE_EMISSION)
     vec3 C = mapped_emission;  // CHECKME
     #elif defined(ENABLE_DENSITY_BACK)
-    vec3 C = u_constant_color * min(mapped_density, mapped_density_back);  // CHECKME
+    vec3 C = u_emission_color * min(mapped_density, mapped_density_back);  // CHECKME
     #elif defined(ENABLE_DENSITY)
-    vec3 C = u_constant_color * mapped_density;  // CHECKME
+    vec3 C = u_emission_color * mapped_density;  // CHECKME
     #else
     compile_error();  // Max model needs emission or density
     #endif
@@ -589,9 +588,9 @@ void main()
     #elif defined(ENABLE_EMISSION)
     vec3 C = scale * mapped_emission; // CHECKME
     #elif defined(ENABLE_DENSITY_BACK)
-    vec3 C = u_constant_color * (scale * mix(mapped_density, mapped_density_back, 0.5)); // CHECKME
+    vec3 C = u_emission_color * (scale * mix(mapped_density, mapped_density_back, 0.5)); // CHECKME
     #elif defined(ENABLE_DENSITY)
-    vec3 C = u_constant_color * (scale * mapped_density); // CHECKME
+    vec3 C = u_emission_color * (scale * mapped_density); // CHECKME
     #else
     compile_error();  // Volume model requires emission
     #endif
@@ -625,7 +624,7 @@ void main()
 
     // Evaluate ray integral, use in combination
     // with blend equation: RGB_src * A_dst + RGB_dst
-    float a = 1.0 - exp(-depth * u_particle_area * rho); // CHECKME
+    float a = 1.0 - exp(-depth * u_extinction * rho); // CHECKME
     vec3 C = a * L;
 #endif
 
@@ -646,7 +645,7 @@ void main()
                       + sorted_edge_closeness[1]*sorted_edge_closeness[1];
 
     // 1 at near plane, 0 at infinity
-    //float proximity = clamp(0.0, 1.0, gl_FragColor.w);
+    //float proximity = clamp(gl_FragColor.w, 0.0, 1.0);
 
     // Mix edge color into background
     C = mix(u_wireframe_color, C, mix(1.0, edge_factor, u_wireframe_alpha));
@@ -670,13 +669,29 @@ void main()
     }
 #endif
 
+
+// TODO: Can this type of check be used for unit testing?
+// Shows facet plane is correctly computed
+// #ifdef ENABLE_FACET_PLANE
+//     C.rgb = 0.5 * facet_plane.xyz + vec3(0.5);
+// #endif
+
+// Shows view direction is correctly computed
+// #ifdef ENABLE_FACET_PLANE
+//     bool front = -dot(view_direction, facet_plane.xyz) > 0.0;
+//     C.rgb = vec3(float(front), 0.0, float(!front));
+// #endif
+
+
     // Record result. Note that this will fail to compile
-    // if C and a are not defined correctly above, providing a
-    // small but significant safeguard towards errors in the
-    // ifdef landscape above.
+    // if C and a are not defined correctly above, providing
+    // a small but useful safeguard towards errors in the
+    // somewhat hard to follow "ifdef landscape" above.
     gl_FragColor = vec4(C, a);
 
-    // Copied from THREE.js logbufdepth_fragment.glsl
+
+    // Adjust fragment depth when using logarithmic buffer
+    // (Copied from THREE.js logbufdepth_fragment.glsl)
 #if defined(USE_LOGDEPTHBUF) && defined(USE_LOGDEPTHBUF_EXT)
 	gl_FragDepthEXT = log2(vFragDepth) * logDepthBufFC * 0.5;
 #endif

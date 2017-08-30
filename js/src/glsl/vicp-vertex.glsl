@@ -15,26 +15,8 @@
 @import ./vicp-lib;
 
 
-/* Uniforms added by three.js, see
+/* For uniforms added by three.js, see
 https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
-
-// = object.matrixWorld
-uniform mat4 modelMatrix;
-
-// = camera.matrixWorldInverse * object.matrixWorld
-uniform mat4 modelViewMatrix;
-
-// = camera.projectionMatrix
-uniform mat4 projectionMatrix;
-
-// = camera.matrixWorldInverse
-uniform mat4 viewMatrix;
-
-// = inverse transpose of modelViewMatrix
-uniform mat3 normalMatrix;
-
-// = camera position in world space
-uniform vec3 cameraPosition;
 */
     // Copied from THREE.js logbufdepth_pars_fragment.glsl
 #ifdef USE_LOGDEPTHBUF
@@ -142,8 +124,11 @@ uniform vec3 cameraPosition;
 // uniform vec4 u_oscillators;
 
 // Custom camera uniforms
-uniform vec3 u_view_direction;
-
+uniform mat4 u_mvp_matrix;
+uniform vec3 u_local_camera_position;
+#ifndef ENABLE_PERSPECTIVE_PROJECTION
+uniform vec3 u_local_view_direction;
+#endif
 
 // Input data uniforms
 
@@ -452,10 +437,11 @@ void main()
 
     // Compute direction from each vertex towards camera
     vec3 vertex_to_camera[4];
-    vertex_to_camera[0] = normalize(cameraPosition - coordinates[0]);
-    vertex_to_camera[1] = normalize(cameraPosition - coordinates[1]);
-    vertex_to_camera[2] = normalize(cameraPosition - coordinates[2]);
-    vertex_to_camera[3] = normalize(cameraPosition - coordinates[3]);
+
+    vertex_to_camera[0] = normalize(u_local_camera_position - coordinates[0]);
+    vertex_to_camera[1] = normalize(u_local_camera_position - coordinates[1]);
+    vertex_to_camera[2] = normalize(u_local_camera_position - coordinates[2]);
+    vertex_to_camera[3] = normalize(u_local_camera_position - coordinates[3]);
 
     // Compute the normal vector of the tetrahedon face opposing vertex i
     // vec3 edge_a = x2 - x1;
@@ -612,7 +598,7 @@ void main()
     // FIXME: This doesn't set v_facing and hasn't been tested
     // in a little while. To set v_facing, normals on all faces are needed?
 
-    vec3 view_direction = u_view_direction;
+    vec3 view_direction = u_local_view_direction;
 
     // The vertex attribute local_vertices[1..3] is carefully
     // chosen to be ccw winded seen from outside the tetrahedron
@@ -648,11 +634,9 @@ void main()
 #endif
 
 
-    // TODO: Get this matrix as a uniform
-    mat4 MVP = projectionMatrix * modelViewMatrix;
-
     // Map model coordinate to clip space
-    gl_Position = MVP * vec4(v_model_position, 1.0);
+    gl_Position = u_mvp_matrix * vec4(v_model_position, 1.0);
+
 
     // Copied from THREE.js logbufdepth_vertex.glsl
 #ifdef USE_LOGDEPTHBUF
