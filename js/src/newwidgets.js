@@ -60,7 +60,7 @@ class ColorFieldModel extends widgets.WidgetModel {
             version.module_defaults, {
             _model_name : 'ColorFieldModel',
             field: null,
-            lit: null,
+            lut: null,
         });
     }
 }
