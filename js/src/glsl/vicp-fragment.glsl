@@ -101,29 +101,38 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 uniform float u_time;
 uniform vec4 u_oscillators;
 
-
 // Custom camera uniforms
-uniform mat4 u_mvp_matrix;
+//uniform mat4 u_mvp_matrix;
+#ifdef ENABLE_PERSPECTIVE_PROJECTION
 uniform vec3 u_local_camera_position;
-#ifndef ENABLE_PERSPECTIVE_PROJECTION
+#else
 uniform vec3 u_local_view_direction;
 #endif
 
 // Custom light uniforms
+uniform vec3 u_emission_color;
 #ifdef ENABLE_SURFACE_LIGHT
 uniform vec2 u_emission_intensity_range;  // [min, max]
 #endif
-uniform vec3 u_emission_color;
+#ifdef ENABLE_SUM_MODEL
 uniform float u_exposure;
+#endif
 
 #ifdef ENABLE_WIREFRAME
 uniform vec3 u_wireframe_color;
 uniform float u_wireframe_alpha;
 uniform float u_wireframe_size;
+uniform float u_wireframe_decay;
 #endif
 
 #ifdef ENABLE_ISOSURFACE_MODEL
-uniform vec2 u_isorange;
+uniform vec2 u_volume_interval;
+// Isovalue for surface n = 0
+uniform float u_isovalue;
+// Isovalue spacing for multiple surface
+uniform float u_isovalue_spacing;
+// Time period for sweep modes
+uniform float u_isovalue_sweep_period;
 #endif
 
 #if defined(ENABLE_XRAY_MODEL) || defined(ENABLE_VOLUME_MODEL)
@@ -136,17 +145,11 @@ uniform float u_extinction;
 
 #ifdef ENABLE_DENSITY
 uniform vec4 u_density_range;
-#endif
-#ifdef ENABLE_EMISSION
-uniform vec4 u_emission_range;
-#endif
-
-
-// LUT textures
-#ifdef ENABLE_DENSITY
 uniform sampler2D t_density_lut;
 #endif
+
 #ifdef ENABLE_EMISSION
+uniform vec4 u_emission_range;
 uniform sampler2D t_emission_lut;
 #endif
 
@@ -370,24 +373,22 @@ void main()
 
     // TODO: Revamp this code
 #ifdef ENABLE_INTERVAL_VOLUME_MODEL
-    vec2 isorange = u_isorange;  // TODO: Rename to u_volume_interval
+    bool front_in_range = u_volume_interval.x <= front && front <= u_volume_interval.y;
+    bool back_in_range = u_volume_interval.x <= back && back <= u_volume_interval.y;
 
-    bool front_in_range = isorange.x <= front && front <= isorange.y;
-    bool back_in_range = isorange.x <= back && back <= isorange.y;
-
-    // If values are not in isorange, discard this fragment
+    // If values are not in interval, discard this fragment
     if (!(front_in_range || back_in_range)) {
         discard;
     }
 
-    // Select isorange value closest to camera
+    // Select interval value closest to camera
     float value;
     if (front_in_range) {
         value = front;
     } else if (front > back) {
-        value = isorange.y;
+        value = u_volume_interval.y;
     } else {
-        value = isorange.x;
+        value = u_volume_interval.x;
     }
 #endif
 
@@ -406,27 +407,8 @@ void main()
     compile_error();  // Isosurface needs front and back values
     #endif
 
-    // FIXME add uniforms
-    // Isovalue for surface n = 0
-    //uniform float u_isovalue;
-    // Isovalue spacing for multiple surface
-    //uniform float u_isosurface_spacing;
-    // Time period for sweep modes
-    //uniform float u_sweep_period;
-
-    // FIXME set these uniform defaults in js or python code
-    float u_isovalue = 0.5 * (value_range.x + value_range.y);
-    float u_sweep_period = 2.0;
-  #if !defined(USING_ISOSURFACE_MODE_SINGLE)
-    float num_intervals = 10.0;
-    #if defined(USING_ISOSURFACE_MODE_LINEAR)
-    float u_isosurface_spacing = (1.0 / num_intervals) * (value_range.y - value_range.x);
-    #elif defined(USING_ISOSURFACE_MODE_LOG)
-    float u_isosurface_spacing = pow(value_range.y / value_range.x, 1.0 / (num_intervals + 1.0));
-    #endif
-  #endif
-
     // Magically chosen tolerance for avoiding edge artifacts on isosurfaces
+    // FIXME: This used clamp incorrectly, check again how this behaves...
     float tolerance = mix(0.001, 0.05, clamp(maxv(bc_width), 0.0, 1.0));
     //float tolerance = mix(0.0001, 0.03, clamp(midv(bc_width), 0.0, 1.0));
     //float tolerance = 0.03;  // TODO: Make this a uniform
@@ -439,20 +421,27 @@ void main()
     }
   #elif defined(USING_ISOSURFACE_MODE_SWEEP)
     // Single surface variant, check if value is outside range of ray
-    float value = mix(value_range.x, value_range.y, fract(u_time / u_sweep_period));
+    float value = mix(value_range.x, value_range.y, fract(u_time / u_isovalue_sweep_period));
     if (is_outside_interval(value, back, front, tolerance)) {
         discard;
     }
   #elif defined(USING_ISOSURFACE_MODE_LINEAR)
     // Multiple surfaces spaced with fixed distance
     float value;
-    if (!find_isovalue_linear_spacing(value, back, front, u_isovalue, u_isosurface_spacing, tolerance)) {
+    if (!find_isovalue_linear_spacing(value, back, front, u_isovalue, u_isovalue_spacing, tolerance)) {
         discard;
     }
   #elif defined(USING_ISOSURFACE_MODE_LOG)
     // Multiple surfaces spaced with fixed ratio
     float value;
-    if (!find_isovalue_log_spacing(value, back, front, u_isovalue, u_isosurface_spacing, tolerance)) {
+    if (!find_isovalue_log_spacing(value, back, front, u_isovalue, u_isovalue_spacing, tolerance)) {
+        discard;
+    }
+  #elif defined(USING_ISOSURFACE_MODE_POWER)
+    // FIXME: Implement find_isovalue_power_spacing
+    // Multiple surfaces spaced with fixed ratio
+    float value;
+    if (!find_isovalue_power_spacing(value, back, front, u_isovalue, u_isovalue_spacing, tolerance)) {
         discard;
     }
   #endif
@@ -645,7 +634,8 @@ void main()
                       + sorted_edge_closeness[1]*sorted_edge_closeness[1];
 
     // 1 at near plane, 0 at infinity
-    //float proximity = clamp(gl_FragColor.w, 0.0, 1.0);
+    float proximity = clamp(gl_FragColor.w, 0.0, 1.0);
+    u_wireframe_decay;
 
     // Mix edge color into background
     C = mix(u_wireframe_color, C, mix(1.0, edge_factor, u_wireframe_alpha));

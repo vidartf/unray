@@ -419,6 +419,7 @@ void main()
 #endif
 #endif
 
+
 #if defined(ENABLE_PLANES)
     // TODO: v_planes can be precomputed
     // Note: This can be done in a separate preprocessing step,
@@ -434,14 +435,6 @@ void main()
     // faces[1] = ivec3(0, 3, 2);
     // faces[2] = ivec3(0, 1, 3);
     // faces[3] = ivec3(0, 2, 1);
-
-    // Compute direction from each vertex towards camera
-    vec3 vertex_to_camera[4];
-
-    vertex_to_camera[0] = normalize(u_local_camera_position - coordinates[0]);
-    vertex_to_camera[1] = normalize(u_local_camera_position - coordinates[1]);
-    vertex_to_camera[2] = normalize(u_local_camera_position - coordinates[2]);
-    vertex_to_camera[3] = normalize(u_local_camera_position - coordinates[3]);
 
     // Compute the normal vector of the tetrahedon face opposing vertex i
     // vec3 edge_a = x2 - x1;
@@ -479,6 +472,14 @@ void main()
 
 
 #if defined(ENABLE_DEPTH) && defined(ENABLE_PERSPECTIVE_PROJECTION)
+    // Compute direction from each vertex towards camera
+    vec3 vertex_to_camera[4];
+    vertex_to_camera[0] = normalize(u_local_camera_position - coordinates[0]);
+    vertex_to_camera[1] = normalize(u_local_camera_position - coordinates[1]);
+    vertex_to_camera[2] = normalize(u_local_camera_position - coordinates[2]);
+    vertex_to_camera[3] = normalize(u_local_camera_position - coordinates[3]);
+
+
     const float front_facing_eps = 1e-2;
     // bool front_facing;
 
@@ -501,7 +502,17 @@ void main()
     // v_facing[i] = front_facing ? +1.0 : -1.0;
 
     // TODO: Performance testing
-#if 0
+#if 1
+    for (int i = 0; i < 4; ++i) {
+        v_facing[i] = -1.0;
+        for (int j = 0; j < 4; ++j) {
+            if (j != i && dot(v_planes[i].xyz, vertex_to_camera[j]) >= -front_facing_eps) {
+                v_facing[i] = +1.0;
+                break;
+            }
+        }
+    }
+#elif 0
     bvec4 front_facing[4];
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -523,16 +534,6 @@ void main()
     }
     for (int i = 0; i < 4; ++i) {
         v_facing[i] = any(front_facing[i]) ? +1.0 : -1.0;
-    }
-#else
-    for (int i = 0; i < 4; ++i) {
-        v_facing[i] = -1.0;
-        for (int j = 0; j < 4; ++j) {
-            if (j != i && dot(v_planes[i].xyz, vertex_to_camera[j]) >= -front_facing_eps) {
-                v_facing[i] = +1.0;
-                break;
-            }
-        }
     }
 #endif
 

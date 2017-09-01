@@ -33,19 +33,22 @@ const THREE = window.THREE;
 
 // TODO: Improve and document channel specifications
 const default_channels = {
-    cells:           { association: "cell",            dtype: "int32",   item_size: 4 },
-    coordinates:     { association: "vertex",          dtype: "float32", item_size: 3 },
-    // ordering:       { association: "cell",            dtype: "int32",   item_size: 1 },
-    cell_indicators: { association: "cell",            dtype: "int32",   item_size: 1 },
-    density:         { association: "vertex",          dtype: "float32", item_size: 1 },
-    emission:        { association: "vertex",          dtype: "float32", item_size: 1 },
-    density_lut:     { association: "lut",             dtype: "float32", item_size: 1 },
-    emission_lut:    { association: "lut",             dtype: "float32", item_size: 3 },
+    cells:                { association: "cell",            dtype: "int32",   item_size: 4 },
+    coordinates:          { association: "vertex",          dtype: "float32", item_size: 3 },
+    // ordering:          { association: "cell",            dtype: "int32",   item_size: 1 },
+
+    cell_indicators:      { association: "cell",            dtype: "int32",   item_size: 1 },
     cell_indicator_value: { association: "constant",  dtype: "int32",   item_size: 1 }, // int
+
+    emission:             { association: "vertex",          dtype: "float32", item_size: 1 },
+    emission_lut:         { association: "lut",             dtype: "float32", item_size: 3 },
     emission_color:       { association: "constant",  dtype: "float32", item_size: 3 }, // color
+
+    density:              { association: "vertex",          dtype: "float32", item_size: 1 },
+    density_lut:          { association: "lut",             dtype: "float32", item_size: 1 },
     extinction:           { association: "constant",  dtype: "float32", item_size: 1 }, // float
+
     isorange:             { association: "constant",  dtype: "float32", item_size: 2 }, // vec2
-    //wireframe:       { enable: false, size: 0.001, color: "#000000",  opacity: 1.0, decay: 0.5 },
 };
 
 // TODO: Improve and document encoding specifications, look at vega for ideas
@@ -54,17 +57,22 @@ const default_encoding = {
     cells:           { field: "cells" },
     coordinates:     { field: "coordinates" },
     // ordering:       { field: "ordering" },
+
     cell_indicators: { field: "cell_indicators" },
-    density:         { field: "density", range: "auto" },
-    emission:        { field: "emission", range: "auto" },
-    density_lut:     { field: "density_lut" },
-    emission_lut:    { field: "emission_lut" },
     cell_indicator_value: { value: 1 },
+    
+    emission:        { field: "emission", range: "auto" },
+    emission_lut:    { field: "emission_lut" },
     emission_color:       { value: new THREE.Color(0.8, 0.8, 0.8) },
+
+    density:         { field: "density", range: "auto" },
+    density_lut:     { field: "density_lut" },
+
     extinction:           { value: 1.0 },
     isorange:             { value: new THREE.Vector2(0.2, 0.8) },
+    //wireframe:    { enable: false, size: 0.001, color: "#000000", opacity: 1.0, decay: 0.5 },
+    //isosurface:   { mode: "single", value: "auto", num_intervals: 0, spacing: 1.0, period: 3.0 }
 };
-
 
 
 // TODO: Define channels for all methods.
@@ -660,67 +668,111 @@ function sort_cells(ordering, cells, coordinates, camera_position, view_directio
     });
 }
 
+// Generate definitions like 'uniform vec3 u_foo;' for an
+// object containing types keyed by variable name { u_foo: "vec3" }
+function generate_declarations(gltypes, prefix) {
+    const definitions = Object.values(_.mapObject(gltypes,
+        (val, key) => `${prefix} ${val} ${key};`));
+    definitions.sort();
+    return definitions.join("\n");
+}
 
+// Construct a uniforms dict with default values
 function default_uniforms() {
-    // Fill uniforms dict with dummy values
-    const groups = {
+
+    // Utilities like these could make the defaults list more readable:
+    // const u_float = (value) => ({ value: value, gltype: "float" });
+    // const u_vec2 = (...values) => ({ value: new THREE.Vector2(...values), gltype: "vec2" });
+    // const u_vec3 = (...values) => ({ value: new THREE.Vector3(...values), gltype: "vec3" });
+    // const u_vec4 = (...values) => ({ value: new THREE.Vector4(...values), gltype: "vec4" });
+    // const u_int = (value) => ({ value: value, gltype: "int" });
+    // const u_ivec2 = (...values) => ({ value: new THREE.Vector2(...values), gltype: "ivec2" });
+    // const u_ivec3 = (...values) => ({ value: new THREE.Vector3(...values), gltype: "ivec3" });
+    // const u_ivec4 = (...values) => ({ value: new THREE.Vector4(...values), gltype: "ivec4" });
+
+    // Groups of uniforms that are set automatically by user
+    const automatic_groups = {
         time: {
-            u_time: { value: 0.0 },
-            u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0) },
+            u_time: { value: 0.0, gltype: "float" },
+            u_oscillators: { value: new THREE.Vector4(0.0, 0.0, 0.0, 0.0), gltype: "vec4" },
         },
         view: {
-            u_local_view_direction: { value: new THREE.Vector3(0, 0, 1) },
-            u_local_camera_position: { value: new THREE.Vector3(0, 0, 0) },
-            u_mvp_matrix: { value: new THREE.Matrix4() },
+            u_local_view_direction: { value: new THREE.Vector3(0, 0, 1), gltype: "vec3" },
+            u_local_camera_position: { value: new THREE.Vector3(0, 0, 0), gltype: "vec3" },
+            u_mvp_matrix: { value: new THREE.Matrix4(), gltype: "mat4" },
         },
-        light: {
-            u_emission_color: { value: new THREE.Color(0.8, 0.8, 0.8) },
-            u_emission_intensity_range: { value: new THREE.Vector2(0.5, 1.0) },
-            u_exposure: { value: 1.0 },
-            u_extinction: { value: 1.0 },
-        },
-        wireframe: {
-            u_wireframe_color: { value: new THREE.Color(0.1, 0.1, 0.1) },
-            u_wireframe_alpha: { value: 0.7 },
-            u_wireframe_size: { value: 0.001 },
-        },
-        isosurface: {
-            u_isorange: { value: new THREE.Vector2(0.0, 1.0) },
-        },
+    };
+    // Groups of uniforms set from user data
+    const user_data_groups = {
         mesh: {
-            t_cells: { value: null },
-            t_coordinates: { value: null },
-            u_cell_texture_shape: { value: [0, 0] },
-            u_vertex_texture_shape: { value: [0, 0] },
+            t_cells: { value: null, gltype: "sampler2D" },
+            t_coordinates: { value: null, gltype: "sampler2D" },
+            u_cell_texture_shape: { value: [0, 0], gltype: "ivec2" },
+            u_vertex_texture_shape: { value: [0, 0], gltype: "ivec2" },
         },
         indicators: {
             // Integer indicator values
-            t_cell_indicators: { value: null },
+            t_cell_indicators: { value: null, gltype: "sampler2D" },
             // Value to enable
-            u_cell_indicator_value: { value: 1 },
+            u_cell_indicator_value: { value: 1, gltype: "int" },
             // Color/toggle lookup table
-            // t_indicator_lut: { value: null },
+            // t_indicator_lut: { value: null, gltype: "sampler2D" },
+        },
+        light: {
+            u_emission_color: { value: new THREE.Color(0.8, 0.8, 0.8), gltype: "vec3" },
+            u_emission_intensity_range: { value: new THREE.Vector2(0.5, 1.0), gltype: "vec2" },
+            u_exposure: { value: 1.0, gltype: "float" },
+            u_extinction: { value: 1.0, gltype: "float" },
+        },
+        wireframe: {
+            u_wireframe_color: { value: new THREE.Color(0.1, 0.1, 0.1), gltype: "vec3" },
+            u_wireframe_alpha: { value: 0.7, gltype: "float" },
+            u_wireframe_size: { value: 0.001, gltype: "float" },
+            u_wireframe_decay: { value: 1.0, gltype: "float" },
+        },
+        interval: {
+            u_volume_interval: { value: new THREE.Vector2(0.0, 1.0), gltype: "vec2" },
+        },
+        isovalues: {
+            u_isovalue: { value: 0.0, gltype: "float" },
+            u_isovalue_spacing: { value: 0.0, gltype: "float" },
+            u_isovalue_sweep_period: { value: 3.0, gltype: "float" },
         },
         density: {
             // Function values
-            t_density: { value: null },
+            t_density: { value: null, gltype: "sampler2D" },
             // Range [min, max, max-min, 1.0/(max-min) or 1]
-            u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+            u_density_range: { value:  new THREE.Vector4(0.0, 1.0, 1.0, 1.0), gltype: "vec4" },
             // Scalar lookup table
-            t_density_lut: { value: null },
+            t_density_lut: { value: null, gltype: "sampler2D" },
         },
         emission: {
             // Function values
-            t_emission: { value: null },
+            t_emission: { value: null, gltype: "sampler2D" },
             // Range [min, max, max-min, 1.0/(max-min) or 1]
-            u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+            u_emission_range: { value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0), gltype: "vec4" },
             // Color lookup table
-            t_emission_lut: { value: null },
+            t_emission_lut: { value: null, gltype: "sampler2D" },
         },
     };
+
+    // Flatten groups to { u_foo: { value: 123, gltype: "float" } }
+    const groups = Object.assign({}, automatic_groups, user_data_groups);
     const all = Object.assign({}, ...Object.values(groups));
 
-    return all;
+    // Create uniforms dict with fresh copies of values
+    const values = _.mapObject(all, ({value}, key) => { return { value }; } );
+
+    // Extract types as { u_foo: "float" }
+    //const gltypes = _.mapObject(all, (val, key) => val.gltype);
+
+    // TODO: By adding more data here and appropriately selecting
+    // the relevant subset of uniforms, we can generate the definitions.
+    // Do we want to do that? Could simplify maintenance.
+    //console.log(generate_declarations(gltypes, "uniform"));
+    //console.log(generate_declarations(gltypes, "varying"));
+
+    return values;
 }
 
 
@@ -1008,6 +1060,28 @@ function upload_data(method, encoding, data, uniforms) {
                     uniforms[range_name].value.set(...newrange);
                 }
             }
+
+            // FIXME: Autoupdate values in a cleaner way
+            // if (method === "isosurface") {
+            //     const isovalue_enc = FIXME;
+            //     if (isovalue_enc.value === "auto") {
+            //         const value_range = newrange;
+            //         u.u_isovalue = 0.5 * (value_range[0] + value_range[1]);
+            //     }
+            //     if (isovalue_enc.spacing === "auto") {
+            //         const num_intervals = isovalue_enc.num_intervals;
+            //         let spacing = 0.0;
+            //         switch (isovalue_enc.mode) {
+            //         case "linear":
+            //             spacing = (1.0 / num_intervals) * (value_range[1] - value_range[0]);
+            //             break;
+            //         case "log":
+            //             spacing = Math.pow(value_range[1] / value_range[0], 1.0 / (num_intervals + 1.0));
+            //             break;
+            //         }
+            //         u.u_isovalue_spacing = spacing;
+            //     }
+            // }
         }
     }
 }

@@ -131,7 +131,7 @@ class IsoSurfacePlot(Plot):
 
 @register
 class XrayPlot(Plot):
-    """TODO: Document me."""
+    """An xray plot widget"""
     _model_name = Unicode('XrayPlotModel').tag(sync=True)
     density = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
     color = Instance(ColorConstant, allow_none=False).tag(sync=True, **widget_serialization)
