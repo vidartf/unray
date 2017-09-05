@@ -11,6 +11,12 @@ import {
 } from "./meshutils";
 
 import {
+    compute_range, extended_range, compute_texture_shape,
+    allocate_lut_texture, allocate_array_texture,
+    update_lut, update_array_texture
+} from "./threeutils";
+
+import {
     create_instanced_tetrahedron_geometry,
     create_cells_attribute,
     create_cell_ordering_attribute,
@@ -27,8 +33,8 @@ import {
     fragment_shader
 } from './shaders';
 
-import './threeimport';
-const THREE = window.THREE;
+import {THREE} from './threeimport';
+//const THREE = window.THREE;
 // console.log("THREE imported in renderer:", THREE);
 
 // TODO: Improve and document channel specifications
@@ -440,144 +446,6 @@ const method_properties = {
     },
 };
 
-function compute_range(array) {
-    let min = array[0];
-    let max = array[0];
-    for (let v of array) {
-        min = Math.min(min, v);
-        max = Math.max(max, v);
-    }
-    return [min, max];
-}
-
-function extended_range(min, max) {
-    let range = max - min;
-    let scale = range > 0.0 ? 1.0 / range : 1.0;
-    return [min, max, range, scale];
-}
-
-const compute_texture_shape = (() => {
-    const _texture_shapes = new Map();
-
-    function _compute_texture_shape(size) {
-        const shape = _texture_shapes.get(size);
-        if (shape) {
-            return shape;
-        }
-        if (size <= 0) {
-            throw { message: 'Expecting a positive size', size:size };
-        }
-        const width = Math.pow(2, Math.floor(Math.log2(size) / 2));
-        const height = Math.ceil(size / width);
-        return [width, height];
-    }
-
-    return _compute_texture_shape;
-})();
-
-const dtype2threetype = {
-    float32: THREE.FloatType,
-    uint32: THREE.UnsignedIntType,
-    uint16: THREE.UnsignedIntType,
-    uint8: THREE.UnsignedIntType,
-    int32: THREE.IntType,
-    int16: THREE.IntType,
-    int8: THREE.IntType,
-};
-
-// const dtype2arraytype = {
-//     float32: Float32Array,
-//     uint32: Uint32Array,
-//     uint16: Uint16Array,
-//     uint8: Uint8Array,
-//     int32: Int32Array,
-//     int16: Int16Array,
-//     int8: Int8Array,
-// };
-
-const dtype2threeformat = {
-    1: THREE.AlphaFormat,
-    3: THREE.RGBFormat,
-    4: THREE.RGBAFormat
-};
-
-function allocate_array_texture(dtype, item_size, texture_shape) {
-    const size = texture_shape[0] * texture_shape[1] * item_size;
-
-    // console.log("Allocating array texture with shape: ", texture_shape);
-
-    // Textures using Int32Array and Uint32Array require webgl2,
-    // so currently just ignoring the dtype during prototyping.
-    // Some redesign may be in order once the prototype is working,
-    // or maybe porting to webgl2.
-    // const arraytype = dtype2arraytype[dtype];
-    // const padded_data = new arraytype(size);
-    // const type = dtype2threetype[dtype];
-
-    const padded_data = new Float32Array(size);
-    const type = dtype2threetype["float32"];  // NB! See comment above
-
-    const format = dtype2threeformat[item_size];
-
-    const texture = new THREE.DataTexture(padded_data,
-        texture_shape[0], texture_shape[1],
-        format, type);
-
-    return texture;
-}
-
-function allocate_lut_texture(dtype, item_size, texture_shape) {
-    const size = texture_shape[0] * texture_shape[1] * item_size;
-
-    // Textures using Int32Array and Uint32Array require webgl2,
-    // so currently just ignoring the dtype during prototyping.
-    // Some redesign may be in order once the prototype is working,
-    // or maybe porting to webgl2.
-    // const arraytype = dtype2arraytype[dtype];
-    // const padded_data = new arraytype(size);
-    // const type = dtype2threetype[dtype];
-
-    const padded_data = new Float32Array(size);
-    const type = dtype2threetype["float32"];  // NB! See comment above
-
-    const format = dtype2threeformat[item_size];
-
-    const texture = new THREE.DataTexture(padded_data,
-        texture_shape[0], texture_shape[1],
-        format, type,
-        undefined,
-        THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping,
-        // TODO: Could make linear/nearest filtering of lut an encoding parameter
-        THREE.LinearFilter, THREE.LinearFilter);
-
-    return texture;
-}
-
-function update_array_texture(texture, data) {
-    try {
-        // Note that input data may be Int32Array or Uint32Array
-        // here while image.data is currently always Float32Array
-        // (see allocate_array_texture) because webgl doesn't support
-        // large integer textures, but this .set operation still works
-        // fine and doubles as type casting the data before uploading.
-        texture.image.data.set(data);
-    } catch(e) {
-        console.error("failed to update texture");
-    }
-    texture.needsUpdate = true;
-}
-
-function update_lut(uniform, new_value, item_size, dtype) {
-    const dim = new_value.length / item_size;
-    if (!uniform.value) {
-        uniform.value = allocate_lut_texture(dtype, item_size, [dim, 1]);
-    } else if (uniform.value.image.width !== dim) {
-        // TODO: Should we deallocate the gl texture via uniform.value somehow?
-        uniform.value = allocate_lut_texture(
-            dtype, item_size, [dim, 1]);
-    }
-    update_array_texture(uniform.value, new_value);
-}
 
 function allocate_value(item_size) {
     switch (item_size)

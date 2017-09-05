@@ -20,4 +20,4 @@ require('../node_modules/three/examples/js/controls/OrbitControls');
 // Export to rest of this package
 // export default THREE;
 
-module.exports = THREE;
+module.exports = { THREE };

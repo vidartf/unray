@@ -1,3 +1,14 @@
+"use strict";
+
+import {THREE} from './threeimport';
+
+import {ObjectManager} from "./object_manager";
+
+import {
+    compute_range, extended_range, compute_texture_shape,
+    allocate_lut_texture, allocate_array_texture,
+    update_lut, update_array_texture
+} from "./threeutils";
 
 
 // TODO: Improve and document encoding specifications
@@ -35,9 +46,11 @@ const default_encodings = create_default_encodings();
 // Build default encodings for each method
 function create_default_encodings() {
     // Reusable channel defaults
-    const mesh = {
-        cells_field: null,
-        points_field: null,
+    const cells = {
+        field: null,
+    };
+    const points = {
+        field: null,
     };
     const indicators = {
         field: null,
@@ -82,45 +95,71 @@ function create_default_encodings() {
 
     // Compose method defaults from channels
     const defenc = {
-        mesh: { mesh, indicators, wireframe, light },
-        surface: { mesh, indicators, wireframe, emission, light },
-        isosurface: { mesh, wireframe, isovalues },
-        xray: { mesh, indicators, density, extinction },
-        sum: { mesh, indicators, emission, exposure },
-        min: { mesh, indicators, density },
-        max: { mesh, indicators, density },
-        volume: { mesh, indicators, density, emission },
+        mesh: { cells, points, indicators, wireframe, light },
+        surface: { cells, points, indicators, wireframe, emission, light },
+        isosurface: { cells, points, wireframe, isovalues },
+        xray: { cells, points, indicators, density, extinction },
+        sum: { cells, points, indicators, emission, exposure },
+        min: { cells, points, indicators, density },
+        max: { cells, points, indicators, density },
+        volume: { cells, points, indicators, density, emission },
     };
 
     return defenc;
 }
 
 const channel_handlers = {
-    mesh: ({uniforms, defines}, desc, {data, manager}) => {
-        if (!desc.points_field) {
-            throw new Error("Missing required points field");
-        }
-        uniforms.u_vertex_texture_shape = { value: [...manager.vertex_texture_shape] };
-        uniforms.t_coordinates = manager.update_texture(desc.points_field, data[desc.points_field]);
-
-        // TODO: Splitting here is arguably better
-
-        if (!desc.cells_field) {
+    cells: ({uniforms, defines, attributes}, desc, {data, managers}) => {
+        if (!desc.field) {
             throw new Error("Missing required cells field");
         }
-        uniforms.u_cell_texture_shape = { value: [...manager.cell_texture_shape] };
-        uniforms.t_cells = manager.update_texture(desc.cells_field, data[desc.cells_field]);
-        // or attributes: c_cells, c_ordering
-        // attributes.c_cells = manager.update_buffer(desc.cells_field, data[desc.cells_field]);
-        // attributes.c_ordering = FIXME;
-    },
-    indicators: ({uniforms, defines}, desc) => {
-        uniforms.u_cell_indicator_value = { value: desc.value };
+        const key = desc.field;
+        const array = data[key];
 
-        const texture = manager.update_texture(desc.field, data[desc.field]); // FIXME:
-        uniforms.t_cell_indicators = { value: texture };
-        // or
-        // attributes.c_cell_indicators = manager.update_buffer(desc.field, data[desc.field]);
+        const num_tetrahedrons = array.length / 4;
+        const texture_shape = compute_texture_shape(num_tetrahedrons);
+
+        uniforms.u_cell_texture_shape = { value: [...texture_shape] };
+
+        const prev = uniforms.t_cells ? uniforms.t_cells.value : undefined;
+        const value = managers.array_texture.update(
+            key,
+            {array: array, dtype: "int32", item_size: 4, texture_shape: texture_shape},
+            prev);
+        uniforms.t_cells = { value };
+
+        if (0) {  // Use attributes if unsorted: c_cells, c_ordering
+            attributes.c_cells = managers.buffers.update(
+                desc.field, data[desc.field], attributes.c_cells);
+            // attributes.c_ordering = FIXME;
+        }
+    },
+    points: ({uniforms, defines}, desc, {data, managers}) => {
+        if (!desc.field) {
+            throw new Error("Missing required points field");
+        }
+        const key = desc.field;
+        const array = data[key];
+
+        const num_vertices = array.length / 3;
+        const texture_shape = compute_texture_shape(num_vertices);
+        uniforms.u_vertex_texture_shape = { value: [...texture_shape] };
+
+        const prev = uniforms.t_coordinates ? uniforms.t_coordinates.value: undefined;
+        const value = managers.array_texture.update(key,
+            {array: array, dtype: "float32", item_size: 3, texture_shape: texture_shape },
+            prev);
+        uniforms.t_coordinates = { value };
+    },
+    indicators: ({uniforms, defines, attributes}, desc, {data, managers}) => {
+        uniforms.u_cell_indicator_value = { value: desc.value };
+        const key = desc.field;
+        if (key) {
+            const array = data[key];
+            uniforms.t_cell_indicators = { value: managers.array_texture.update(key, array, uniforms.t_cell_indicators.value) };
+            // or
+            // attributes.c_cell_indicators = managers.buffers.update(key, array, attributes.c_cell_indicators);
+        }
     },
     wireframe: ({uniforms, defines}, desc) => {
         if (desc.enable) {
@@ -136,43 +175,63 @@ const channel_handlers = {
     light: ({uniforms, defines}, desc) => {
         uniforms.u_emission_intensity_range = { value: [...desc.emission_intensity_range] };
     },
-    density: ({uniforms, defines}, desc, {data, manager}) => {
-        if (desc.field) {
-            const texture = manager.update_texture(desc.field, data[desc.field]); // FIXME
-            uniforms.t_density = { value: texture };
+    density: ({uniforms, defines}, desc, {data, managers}) => {
+        const key = desc.field;
+        if (key) {
+            const array = data[key];
+            const num_vertices = array.length;
+            const texture_shape = compute_texture_shape(num_vertices);
+
+            const prev = uniforms.t_density ? uniforms.t_density.value : undefined;
+            const value = managers.array_texture.update(key,
+                {array: array, dtype: "float32", item_size: 1, texture_shape: texture_shape },
+                prev);
+            uniforms.t_density = { value };
             defines.ENABLE_DENSITY = 1;
             if (desc.space !== "P0") {
                 defines.ENABLE_DENSITY_BACK = 1;
             }
-        }
 
+            if (desc.range === "auto") {
+                uniforms.u_density_range = { value: compute_range(array) }; // FIXME
+            } else {
+                uniforms.u_density_range = { value: [...desc.range] };
+            }
+        }
         if (desc.lut_field) {
-            const lut = manager.update_lut_texture(desc.lut_field, data[desc.lut_field]); // FIXME
+            const lut = managers.lut_texture.update(desc.lut_field, data[desc.lut_field]); // FIXME
             uniforms.t_density_lut = { value: lut };
         }
-
-        if (desc.range === "auto") {
-            uniforms.u_density_range = { value: compute_range(data[desc.field]) }; // FIXME
-        } else {
-            uniforms.u_density_range = { value: [...desc.range] };
-        }
     },
-    emission: ({uniforms, defines}, desc, {data, manager}) => {
-        const texture = manager.update_texture(desc.field, data[desc.field]); // FIXME
-        uniforms.t_emission = { value: texture };
+    emission: ({uniforms, defines}, desc, {data, managers}) => {
+        const key = desc.field;
+        if (key) {
+            const array = data[key];
+            const num_vertices = array.length;
+            const texture_shape = compute_texture_shape(num_vertices);
+
+            const prev = uniforms.t_emission ? uniforms.t_emission.value : undefined;
+            const value = managers.array_texture.update(key,
+                {array: array, dtype: "float32", item_size: 1, texture_shape: texture_shape },
+                prev);
+            uniforms.t_emission = { value };
+            defines.ENABLE_EMISSION = 1;
+            if (desc.space !== "P0") {
+                defines.ENABLE_EMISSION_BACK = 1;
+            }
+            if (desc.range === "auto") {
+                uniforms.u_emission_range = { value: compute_range(array) }; // FIXME
+            } else {
+                uniforms.u_emission_range = { value: [...desc.range] };
+            }
+        }
 
         if (desc.lut_field) {
-            const lut = manager.update_lut_texture(desc.lut_field, data[desc.lut_field]); // FIXME
+            const lut = managers.lut_texture.update(desc.lut_field, data[desc.lut_field]); // FIXME
             uniforms.t_emission_lut = { value: lut };
         }
 
         uniforms.u_emission_color = { value: new THREE.Color(desc.color) };
-
-        if (desc.range === "auto") {
-            uniforms.u_emission_range = { value: compute_range(data[desc.field]) }; // FIXME
-        } else {
-            uniforms.u_emission_range = { value: [...desc.range] };
-        }
     },
     isovalues: ({uniforms, defines}, desc) => {
         uniforms.u_isovalue = { value: desc.value };
@@ -203,38 +262,56 @@ const channel_handlers = {
     },
 };
 
-function create_uniforms_and_defines(method, encoding, data, manager) {
-    // FIXME: pass in manager from outside
-    manager = {
-        cell_texture_shape: compute_texture_shape(num_tetrahedrons),
-        vertex_texture_shape: compute_texture_shape(num_vertices),
-        textures: {},
-        update_buffer(id, array) {
-            // FIXME
+
+// channel.dtype
+// channel.item_size
+// vertex_texture_shape
+// cell_texture_shape
+// Singleton managers for each object type
+const managers = {
+    array_texture: new ObjectManager(
+        // Create
+        ({array, dtype, item_size, texture_shape}) => {
+            const texture = allocate_array_texture(dtype, item_size, texture_shape);
+            update_array_texture(texture, array);
+            return texture;
         },
-        update_texture(id, array) {
-            // FIXME: Missing some info here to create and update textures properly
-            // FIXME: Consider weakmaps
-            let texture = this.textures[id];
-            if (texture) {
-                update_texture_values(texture, array); // FIXME
-            } else {
-                texture = create_texture(array); // FIXME
-                this.textures[id] = texture;
-            }
+        // Update
+        (texture, {array, dtype, item_size, texture_shape}) => {
+            update_array_texture(texture, array);
         },
-        update_lut_texture(id, array) {
-            // FIXME: Missing some info here to create and update textures properly
-            // FIXME: Consider weakmaps
-            let texture = this.textures[id];
-            if (texture) {
-                update_lut_texture_values(texture, array); // FIXME
-            } else {
-                texture = create_lut_texture(array); // FIXME
-                this.textures[id] = texture;
-            }
+    ),
+    lut_texture: new ObjectManager(
+        // Create
+        ({array, dtype, item_size, texture_shape}) => {
+            const texture = allocate_array_texture(dtype, item_size, texture_shape);
+            update_array_texture(texture, array);
+            return texture;
         },
-    };
+        // Update
+        (texture, {array, dtype, item_size}) => {
+            update_lut(texture, array, item_size, dtype);
+        },
+    ),
+    cells_buffer: new ObjectManager(
+        // Create
+        ({array, dtype, item_size}) => {
+            const buffer = new THREE.InstancedBufferAttribute(array, item_size, 1);
+            //buffer.setDynamic(true);
+            return buffer;
+        },
+        // Update
+        (buffer, {array, dtype, item_size}) => {
+            buffer.array.set(array);
+            buffer.needsUpdate = true;
+        }
+    ),
+};
+
+export
+function create_three_data(method, encoding, data) {
+    // const cell_texture_shape = compute_texture_shape(num_tetrahedrons);
+    // const vertex_texture_shape = compute_texture_shape(num_vertices);
 
     // Initialize new set of uniforms
     //const defaults = default_uniforms();
@@ -252,7 +329,7 @@ function create_uniforms_and_defines(method, encoding, data, manager) {
     }
 
     // Define initial default defines based on method
-    const defines = { ...default_defines[method] };
+    const defines = Object.assign({}, default_defines[method]);
     defines.ENABLE_CELL_ORDERING = 1;  // TODO: Avoid for unsorted methods
     defines.ENABLE_PERSPECTIVE_PROJECTION = 1;  // TODO: Determine based on camera type
 
@@ -261,14 +338,18 @@ function create_uniforms_and_defines(method, encoding, data, manager) {
         // FIXME: Add defaults for automatic uniform groups here
     };
 
+    const attributes = {
+        // FIXME: ?
+    };
+
     // State that the handlers shouldn't touch
-    const instate = {
-        method, encoding, data, manager, defaults
+    const in_state = {
+        method, encoding, data, managers //, defaults
     };
 
     // State that the handlers will modify in place
-    const outstate = {
-        uniforms, defines
+    const out_state = {
+        uniforms, defines, attributes
     };
 
     // Map channels to uniforms
@@ -276,8 +357,11 @@ function create_uniforms_and_defines(method, encoding, data, manager) {
         // This modifies uniforms in place
         const update_uniforms = channel_handlers[channel];
         const desc = encoding[channel];
-        update_uniforms(outstate, desc, instate);
+        if (!update_uniforms) {
+            throw new Error(`Missing channel handler for channel ${channel}`);
+        }
+        update_uniforms(out_state, desc, in_state);
     }
 
-    return { uniforms, defines };
+    return { uniforms, defines, attributes };
 }
