@@ -33,9 +33,10 @@ import {
     fragment_shader
 } from './shaders';
 
+import { method_configs, create_three_objects } from "./channels.js";
+
 import {THREE} from './threeimport';
-//const THREE = window.THREE;
-// console.log("THREE imported in renderer:", THREE);
+
 
 // TODO: Improve and document channel specifications
 const default_channels = {
@@ -96,354 +97,81 @@ const default_defines = {
 };
 
 
-const method_properties = {
-    blank: {
-    },
-    mesh: {
-        sorted: false,
-        transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
-
-        // Cells are oriented such that the front side
-        // should be visible, can safely cull the backside
-        side: THREE.FrontSide,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_SURFACE_MODEL: 1,
-            ENABLE_WIREFRAME: 1,
-            ENABLE_SURFACE_LIGHT: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    cells: {
-        sorted: false,
-        transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
-
-        // Cells are oriented such that the front side
-        // should be visible, can safely cull the backside
-        side: THREE.FrontSide,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_SURFACE_MODEL: 1,
-            ENABLE_EMISSION: 1,
-            // TODO: decide on meaning of indicator values
-            ENABLE_CELL_INDICATORS: 1, // TODO: Set this if the encoding channel has data
-            ENABLE_WIREFRAME: 1,
-            ENABLE_SURFACE_LIGHT: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    surface: {
-        sorted: false,
-        transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
-
-        // Cells are oriented such that the front side
-        // should be visible, can safely cull the backside
-        side: THREE.FrontSide,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_SURFACE_MODEL: 1,
-            ENABLE_EMISSION: 1,
-            ENABLE_SURFACE_LIGHT: 1,
-        }),
-        // select_defines: function(encoding) {
-        //     const defines = {};
-
-        //     defines.ENABLE_SURFACE_MODEL = 1;
-        //     defines.ENABLE_EMISSION = 1;
-
-        //     // Always need cell ordering array with
-        //     // webgl1 because gl_InstanceID is not available
-        //     defines.ENABLE_CELL_ORDERING = 1;
-
-        //     return defines;
-        // },
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    surface_depth: {
-        sorted: false,
-        transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
-
-        // Cells are oriented such that the front side
-        // should be visible, can safely cull the backside
-        side: THREE.FrontSide,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_SURFACE_DEPTH_MODEL: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    isosurface: {
-        sorted: false,
-        transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
-
-        // Cells are oriented such that the front side
-        // should be visible, can safely cull the backside
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        blend_src: THREE.SrcAlphaFactor,
-        blend_dst: THREE.OneMinusSrcAlphaFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_ISOSURFACE_MODEL: 1,
-            ENABLE_EMISSION: 1,
-            ENABLE_EMISSION_BACK: 1,
-            ENABLE_SURFACE_LIGHT: 1,
-            // FIXME: Configurable mode:
-            //USING_ISOSURFACE_MODE_LINEAR: 1,
-            //USING_ISOSURFACE_MODE_LOG: 1,
-            USING_ISOSURFACE_MODE_SINGLE: 1,
-            //USING_ISOSURFACE_MODE_SWEEP: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    max2: {
-        sorted: false,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a black background
-        background: new THREE.Color(0, 0, 0),
-
-        // Rendering front side only and taking max in shader
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.MaxEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_MAX_MODEL: 1,
-            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
-            ENABLE_EMISSION_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    max: {
-        sorted: false,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a black background
-        background: new THREE.Color(0, 0, 0),
-
-        // Rendering both sides automatically includes the
-        // backside boundary of the mesh at cost of doubling
-        // the number of faces.
-        side: THREE.DoubleSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.MaxEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_MAX_MODEL: 1,
-            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
-            // ENABLE_EMISSION_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    min2: {
-        sorted: false,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
-
-        // Rendering front side only and taking min in shader
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.MinEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_MIN_MODEL: 1,
-            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
-            ENABLE_EMISSION_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    min: {
-        sorted: false,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
-
-        // Rendering both sides automatically includes the
-        // backside boundary of the mesh at cost of doubling
-        // the number of faces.
-        side: THREE.DoubleSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.MinEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_MIN_MODEL: 1,
-            ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
-            // ENABLE_EMISSION_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    xray: {
-        sorted: false,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
-
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.SrcAlphaFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_XRAY_MODEL: 1,
-            ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
-            // ENABLE_DENSITY_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    xray2: {
-        sorted: false,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
-
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.SrcAlphaFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_XRAY_MODEL: 1,
-            ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
-            ENABLE_DENSITY_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    sum: {
-        sorted: false,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a black background
-        background: new THREE.Color(0, 0, 0),
-
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_SUM_MODEL: 1,
-            ENABLE_EMISSION: 1,        // TODO: It might make sense to use emission OR density here?
-            ENABLE_EMISSION_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
-    volume: {
-        sorted: true,
-        transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Any background is fine
-        background: undefined,
-
-        side: THREE.FrontSide,
-
-        blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneMinusSrcAlphaFactor,
-
-        defines: Object.assign({}, default_defines, {
-            ENABLE_VOLUME_MODEL: 1,
-            ENABLE_DENSITY: 1,      // TODO: All combinations of density/emission with/without backside are valid.
-            ENABLE_EMISSION: 1,
-            ENABLE_DENSITY_BACK: 1,
-            ENABLE_EMISSION_BACK: 1,
-        }),
-
-        channels: default_channels,
-        default_encoding: default_encoding,
-    },
+const method_defines = {
+    mesh: Object.assign({}, default_defines, {
+        ENABLE_SURFACE_MODEL: 1,
+        ENABLE_WIREFRAME: 1,
+        ENABLE_SURFACE_LIGHT: 1,
+    }),
+    cells: Object.assign({}, default_defines, {
+        ENABLE_SURFACE_MODEL: 1,
+        ENABLE_EMISSION: 1,
+        // TODO: decide on meaning of indicator values
+        ENABLE_CELL_INDICATORS: 1, // TODO: Set this if the encoding channel has data
+        ENABLE_WIREFRAME: 1,
+        ENABLE_SURFACE_LIGHT: 1,
+    }),
+    surface: Object.assign({}, default_defines, {
+        ENABLE_SURFACE_MODEL: 1,
+        ENABLE_EMISSION: 1,
+        ENABLE_SURFACE_LIGHT: 1,
+    }),
+    surface_depth: Object.assign({}, default_defines, {
+        ENABLE_SURFACE_DEPTH_MODEL: 1,
+    }),
+    isosurface: Object.assign({}, default_defines, {
+        ENABLE_ISOSURFACE_MODEL: 1,
+        ENABLE_EMISSION: 1,
+        ENABLE_EMISSION_BACK: 1,
+        ENABLE_SURFACE_LIGHT: 1,
+        // FIXME: Configurable mode:
+        //USING_ISOSURFACE_MODE_LINEAR: 1,
+        //USING_ISOSURFACE_MODE_LOG: 1,
+        USING_ISOSURFACE_MODE_SINGLE: 1,
+        //USING_ISOSURFACE_MODE_SWEEP: 1,
+    }),
+    max2: Object.assign({}, default_defines, {
+        ENABLE_MAX_MODEL: 1,
+        ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+        ENABLE_EMISSION_BACK: 1,
+    }),
+    max: Object.assign({}, default_defines, {
+        ENABLE_MAX_MODEL: 1,
+        ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+        // ENABLE_EMISSION_BACK: 1,
+    }),
+    min2: Object.assign({}, default_defines, {
+        ENABLE_MIN_MODEL: 1,
+        ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+        ENABLE_EMISSION_BACK: 1,
+    }),
+    min: Object.assign({}, default_defines, {
+        ENABLE_MIN_MODEL: 1,
+        ENABLE_EMISSION: 1, // TODO: It makes sense to use emission OR density here.
+        // ENABLE_EMISSION_BACK: 1,
+    }),
+    xray: Object.assign({}, default_defines, {
+        ENABLE_XRAY_MODEL: 1,
+        ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
+        // ENABLE_DENSITY_BACK: 1,
+    }),
+    xray2: Object.assign({}, default_defines, {
+        ENABLE_XRAY_MODEL: 1,
+        ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
+        ENABLE_DENSITY_BACK: 1,
+    }),
+    sum: Object.assign({}, default_defines, {
+        ENABLE_SUM_MODEL: 1,
+        ENABLE_EMISSION: 1,        // TODO: It might make sense to use emission OR density here?
+        ENABLE_EMISSION_BACK: 1,
+    }),
+    volume: Object.assign({}, default_defines, {
+        ENABLE_VOLUME_MODEL: 1,
+        ENABLE_DENSITY: 1,      // TODO: All combinations of density/emission with/without backside are valid.
+        ENABLE_EMISSION: 1,
+        ENABLE_DENSITY_BACK: 1,
+        ENABLE_EMISSION_BACK: 1,
+    }),
 };
 
 
@@ -701,15 +429,229 @@ function create_geometry(sorted, cells, coordinates) {
     return geometry;
 }
 
+export
+const method_configs = {
+    blank: {
+    },
+    mesh: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+    },
+    cells: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+    },
+    surface: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+    },
+    surface_depth: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+    },
+    isosurface: {
+        sorted: false,
+        transparent: false,
+        depth_test: true,
+        depth_write: true,
+
+        // Any background is fine
+        background: undefined,
+
+        // Cells are oriented such that the front side
+        // should be visible, can safely cull the backside
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        blend_src: THREE.SrcAlphaFactor,
+        blend_dst: THREE.OneMinusSrcAlphaFactor,
+    },
+    max2: {
+        sorted: false,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Must start with a black background
+        background: new THREE.Color(0, 0, 0),
+
+        // Rendering front side only and taking max in shader
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.MaxEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+    },
+    max: {
+        sorted: false,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Must start with a black background
+        background: new THREE.Color(0, 0, 0),
+
+        // Rendering both sides automatically includes the
+        // backside boundary of the mesh at cost of doubling
+        // the number of faces.
+        side: THREE.DoubleSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.MaxEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+    },
+    min2: {
+        sorted: false,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
+
+        // Rendering front side only and taking min in shader
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.MinEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+    },
+    min: {
+        sorted: false,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
+
+        // Rendering both sides automatically includes the
+        // backside boundary of the mesh at cost of doubling
+        // the number of faces.
+        side: THREE.DoubleSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.MinEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+    },
+    xray: {
+        sorted: false,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
+
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.SrcAlphaFactor,
+    },
+    xray2: {
+        sorted: false,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Must start with a white background
+        background: new THREE.Color(1, 1, 1),
+
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.SrcAlphaFactor,
+    },
+    sum: {
+        sorted: false,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Must start with a black background
+        background: new THREE.Color(0, 0, 0),
+
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneFactor,
+    },
+    volume: {
+        sorted: true,
+        transparent: true,
+        depth_test: false,
+        depth_write: false,
+
+        // Any background is fine
+        background: undefined,
+
+        side: THREE.FrontSide,
+
+        blending: THREE.CustomBlending,
+        blend_equation: THREE.AddEquation,
+        blend_src: THREE.OneFactor,
+        blend_dst: THREE.OneMinusSrcAlphaFactor,
+    },
+};
+
 function create_material(method, encoding, uniforms) {
     // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
     // TODO: May also add defines based on encoding if necessary
     // if encoding specifies density or emission, add defines:
     //     ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
     //     ENABLE_DENSITY_BACK: 1,
-    const mp = method_properties[method];
-    const defines = mp.defines;
-    
+    const config = method_configs[method];
+    const defines = method_defines[method];  // FIXME: Use new code to build defines
+
     const material_config = {
         // Note: Assuming passing some unused uniforms here will work fine
         // without too much performance penalty, hopefully this is ok
@@ -717,21 +659,21 @@ function create_material(method, encoding, uniforms) {
         uniforms: uniforms,
         vertexShader: vertex_shader,
         fragmentShader: fragment_shader,
-        side: mp.side,
-        transparent: mp.transparent,
+        side: config.side,
+        transparent: config.transparent,
         depthTest: true,
-        depthWrite: mp.depth_write,
+        depthWrite: config.depth_write,
     };
 
     // Configure shader
     const material = new THREE.ShaderMaterial(material_config);
 
     // Configure blending
-    if (mp.blending === THREE.CustomBlending) {
-        material.blending = mp.blending;
-        material.blendEquation = mp.blend_equation;
-        material.blendSrc = mp.blend_src;
-        material.blendDst = mp.blend_dst;
+    if (config.blending === THREE.CustomBlending) {
+        material.blending = config.blending;
+        material.blendEquation = config.blend_equation;
+        material.blendSrc = config.blend_src;
+        material.blendDst = config.blend_dst;
     }
 
     // Not using the fog feature
@@ -750,16 +692,14 @@ function create_material(method, encoding, uniforms) {
     return material;
 }
 
+// FIXME: Replace this with new code
 function allocate_textures_and_buffers(method, encoding, data, uniforms) {
     // The current implementation assumes:
     // - Each channel has only one possible association
-
-    const mp = method_properties[method];
-
-    const channels = mp.channels;
+    const channels = default_channels;
 
     // Copy and override defaults with provided values
-    encoding = extend2(mp.default_encoding, encoding);
+    encoding = extend2(default_encoding, encoding);
 
     const cell_texture_shape = uniforms.u_cell_texture_shape.value;
     const vertex_texture_shape = uniforms.u_vertex_texture_shape.value;
@@ -844,16 +784,14 @@ function allocate_textures_and_buffers(method, encoding, data, uniforms) {
 }
 
 // Upload data, assuming method has been configured
+// FIXME: Replace this with new code
 function upload_data(method, encoding, data, uniforms) {
     // The current implementation assumes:
     // - Each channel has only one possible association
-
-    const mp = method_properties[method];
-
-    const channels = mp.channels;
+    const channels = default_channels;
 
     // Copy and override defaults with provided values
-    encoding = extend2(mp.default_encoding, encoding);
+    encoding = extend2(default_encoding, encoding);
 
     const uniform_prefix = {
         constant: "u_",
@@ -1038,7 +976,7 @@ function create_mesh(method, encoding, data) {
 
     // Initialize geometry
     // FIXME: Enable the non-sorted branch
-    const sorted = true || method_properties[method].sorted;
+    const sorted = true || method_configs[method].sorted;
     const geometry = create_geometry(sorted, cells, coordinates);
 
     // Initialize uniforms, including textures
@@ -1086,7 +1024,7 @@ class UnrayStateWrapper {
         // TODO: How to deal with this when adding to larger scene?
         //       I guess it will be up to the user.
         //       Alternatively, could add a background box of the right color.
-        this.bgcolor = method_properties[method].background || new THREE.Color(1, 1, 1);
+        this.bgcolor = method_configs[method].background || new THREE.Color(1, 1, 1);
 
         const mesh = create_mesh(method, encoding, data);
 

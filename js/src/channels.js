@@ -262,7 +262,6 @@ const channel_handlers = {
     },
 };
 
-
 // channel.dtype
 // channel.item_size
 // vertex_texture_shape
@@ -316,11 +315,8 @@ function create_three_data(method, encoding, data) {
     // Initialize new set of uniforms
     //const defaults = default_uniforms();
 
-    // FIXME: Instead of default uniforms, create default encoding
+    // Combine encoding with fallback values from default_encoding
     const default_encoding = default_encodings[method];
-
-    // FIXME: Override default_encoding with encoding
-    //default_encoding
     const user_encoding = encoding;
     encoding = {};
     for (let channel in default_encoding) {
@@ -341,6 +337,9 @@ function create_three_data(method, encoding, data) {
     const attributes = {
         // FIXME: ?
     };
+
+    // Get basic configuration for a method
+    const config = method_configs[method];
 
     // State that the handlers shouldn't touch
     const in_state = {
