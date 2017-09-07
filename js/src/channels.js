@@ -10,6 +10,14 @@ import {
     update_lut, update_array_texture
 } from "./threeutils";
 
+function delete_undefined(obj) {
+    for (let key in obj) {
+        if (obj[key] === undefined) {
+            delete obj[key];
+        }
+    }
+    return obj;
+}
 
 // TODO: Improve and document encoding specifications
 // TODO: ENABLE_PERSPECTIVE_PROJECTION should be determined by camera, maybe use a uniform to toggle
@@ -49,7 +57,7 @@ function create_default_encodings() {
     const cells = {
         field: null,
     };
-    const points = {
+    const coordinates = {
         field: null,
     };
     const indicators = {
@@ -95,17 +103,31 @@ function create_default_encodings() {
 
     // Compose method defaults from channels
     const defenc = {
-        mesh: { cells, points, indicators, wireframe, light },
-        surface: { cells, points, indicators, wireframe, emission, light },
-        isosurface: { cells, points, wireframe, isovalues },
-        xray: { cells, points, indicators, density, extinction },
-        sum: { cells, points, indicators, emission, exposure },
-        min: { cells, points, indicators, density },
-        max: { cells, points, indicators, density },
-        volume: { cells, points, indicators, density, emission },
+        mesh: { cells, coordinates, indicators, wireframe, light },
+        surface: { cells, coordinates, indicators, wireframe, emission, light },
+        isosurface: { cells, coordinates, wireframe, isovalues },
+        xray: { cells, coordinates, indicators, density, extinction },
+        sum: { cells, coordinates, indicators, emission, exposure },
+        min: { cells, coordinates, indicators, density },
+        max: { cells, coordinates, indicators, density },
+        volume: { cells, coordinates, indicators, density, emission },
     };
 
     return defenc;
+}
+
+function update_range_uniform(uniforms, name, range, array) {
+    if (desc.range === undefined) {
+        delete uniforms[name];
+    } else {
+        let new_range = null;
+        if (desc.range === "auto") {
+            newrange = compute_range(array);
+        } else {
+            newrange = desc.range;
+        }
+        uniforms[name] = { value: extended_range(...newrange) };
+    }
 }
 
 const channel_handlers = {
@@ -134,9 +156,9 @@ const channel_handlers = {
             // attributes.c_ordering = FIXME;
         }
     },
-    points: ({uniforms, defines}, desc, {data, managers}) => {
+    coordinates: ({uniforms, defines}, desc, {data, managers}) => {
         if (!desc.field) {
-            throw new Error("Missing required points field");
+            throw new Error("Missing required coordinates field");
         }
         const key = desc.field;
         const array = data[key];
@@ -191,12 +213,7 @@ const channel_handlers = {
             if (desc.space !== "P0") {
                 defines.ENABLE_DENSITY_BACK = 1;
             }
-
-            if (desc.range === "auto") {
-                uniforms.u_density_range = { value: compute_range(array) }; // FIXME
-            } else {
-                uniforms.u_density_range = { value: [...desc.range] };
-            }
+            update_range_uniform(uniforms, "u_density_range", desc.range, array);
         }
         if (desc.lut_field) {
             const lut = managers.lut_texture.update(desc.lut_field, data[desc.lut_field]); // FIXME
@@ -219,18 +236,12 @@ const channel_handlers = {
             if (desc.space !== "P0") {
                 defines.ENABLE_EMISSION_BACK = 1;
             }
-            if (desc.range === "auto") {
-                uniforms.u_emission_range = { value: compute_range(array) }; // FIXME
-            } else {
-                uniforms.u_emission_range = { value: [...desc.range] };
-            }
+            update_range_uniform(uniforms, "u_emission_range", desc.range, array);
         }
-
         if (desc.lut_field) {
             const lut = managers.lut_texture.update(desc.lut_field, data[desc.lut_field]); // FIXME
             uniforms.t_emission_lut = { value: lut };
         }
-
         uniforms.u_emission_color = { value: new THREE.Color(desc.color) };
     },
     isovalues: ({uniforms, defines}, desc) => {
@@ -243,16 +254,17 @@ const channel_handlers = {
 
         if (desc.mode === "sweep") {
             uniforms.u_isovalue_sweep_period = { value: desc.period };
+        } else {
+            delete uniforms.u_isovalue_sweep_period;
         }
 
-        const mode2define = {
-            single: USING_ISOSURFACE_MODE_SINGLE,
-            sweep: USING_ISOSURFACE_MODE_SWEEP,
-            linear: USING_ISOSURFACE_MODE_LINEAR,
-            log: USING_ISOSURFACE_MODE_LOG,
-            power: USING_ISOSURFACE_MODE_POWER,
-        };
-        defines[mode2define[desc.mode]] = 1;
+        // TODO: Use a single define instead?
+        const match = (mode, name) => (name === mode ? 1: undefined);
+        defines.USING_ISOSURFACE_MODE_SINGLE = match(desc.mode, "single");
+        defines.USING_ISOSURFACE_MODE_SWEEP = match(desc.mode, "sweep");
+        defines.USING_ISOSURFACE_MODE_LINEAR = match(desc.mode, "linear");
+        defines.USING_ISOSURFACE_MODE_LOG = match(desc.mode, "log");
+        defines.USING_ISOSURFACE_MODE_POWER = match(desc.mode, "power");
     },
     extinction: ({uniforms, defines}, desc) => {
         uniforms.u_extinction = { value: desc.value };
@@ -338,9 +350,6 @@ function create_three_data(method, encoding, data) {
         // FIXME: ?
     };
 
-    // Get basic configuration for a method
-    const config = method_configs[method];
-
     // State that the handlers shouldn't touch
     const in_state = {
         method, encoding, data, managers //, defaults
@@ -361,6 +370,11 @@ function create_three_data(method, encoding, data) {
         }
         update_uniforms(out_state, desc, in_state);
     }
+
+    // Remove undefined attributes
+    delete_undefined(uniforms);
+    delete_undefined(defines);
+    delete_undefined(attributes);
 
     return { uniforms, defines, attributes };
 }

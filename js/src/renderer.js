@@ -33,7 +33,7 @@ import {
     fragment_shader
 } from './shaders';
 
-import { method_configs, create_three_objects } from "./channels.js";
+import { create_three_objects } from "./channels.js";
 
 import {THREE} from './threeimport';
 
@@ -403,22 +403,24 @@ function create_geometry(sorted, cells, coordinates) {
     //       reused because this is a bit expensive
     reorient_tetrahedron_cells(cells, coordinates);
 
-    // Configure instanced geometry, each tetrahedron is an instance
-    const geometry = create_instanced_tetrahedron_geometry(num_tetrahedrons);
-
     // Setup cells of geometry (using textures or attributes)
+    const attributes = {};
     if (sorted) {
         // Need ordering, let ordering be instanced and read cells from texture
         // Initialize ordering array with contiguous indices,
         // stored as floats because webgl2 is required for integer attributes.
         // When assigned a range of integers, the c_ordering instance attribute
         // can be used as a replacement for gl_InstanceID which requires webgl2.
-        const attrib = create_cell_ordering_attribute(num_tetrahedrons);
-        geometry.addAttribute("c_ordering", attrib);
+        attributes.c_ordering = create_cell_ordering_attribute(num_tetrahedrons);
     } else {
         // Don't need ordering, pass cells as instanced buffer attribute instead
-        const attrib = create_cells_attribute(cells);
-        geometry.addAttribute("c_cells", attrib);
+        attributes.c_cells = create_cells_attribute(cells);
+    }
+
+    // Configure instanced geometry, each tetrahedron is an instance
+    const geometry = create_instanced_tetrahedron_geometry(num_tetrahedrons);
+    for (let name in attributes) {
+        geometry.addAttribute(name, attributes[name]);
     }
 
     // Compute bounding box and sphere and set on geometry so
@@ -429,105 +431,89 @@ function create_geometry(sorted, cells, coordinates) {
     return geometry;
 }
 
-export
+const method_backgrounds = {
+    // Must start with a black background
+    max: new THREE.Color(0, 0, 0),
+    max2: new THREE.Color(0, 0, 0),
+    sum: new THREE.Color(0, 0, 0),
+
+    // Must start with a white background
+    min: new THREE.Color(1, 1, 1),
+    min2: new THREE.Color(1, 1, 1),
+    xray: new THREE.Color(1, 1, 1),
+    xray2: new THREE.Color(1, 1, 1),
+};
+
 const method_configs = {
     blank: {
     },
     mesh: {
-        sorted: false,
         transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
+        depthTest: true,
+        depthWrite: true,
 
         // Cells are oriented such that the front side
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
     },
     cells: {
-        sorted: false,
         transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
+        depthTest: true,
+        depthWrite: true,
 
         // Cells are oriented such that the front side
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
     },
     surface: {
-        sorted: false,
         transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
+        depthTest: true,
+        depthWrite: true,
 
         // Cells are oriented such that the front side
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
     },
     surface_depth: {
-        sorted: false,
         transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
+        depthTest: true,
+        depthWrite: true,
 
         // Cells are oriented such that the front side
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
     },
     isosurface: {
-        sorted: false,
         transparent: false,
-        depth_test: true,
-        depth_write: true,
-
-        // Any background is fine
-        background: undefined,
+        depthTest: true,
+        depthWrite: true,
 
         // Cells are oriented such that the front side
         // should be visible, can safely cull the backside
         side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        blend_src: THREE.SrcAlphaFactor,
-        blend_dst: THREE.OneMinusSrcAlphaFactor,
+        blendEquation: THREE.AddEquation,
+        blendSrc: THREE.SrcAlphaFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
     },
     max2: {
-        sorted: false,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a black background
-        background: new THREE.Color(0, 0, 0),
+        depthTest: true,
+        depthWrite: false,
 
         // Rendering front side only and taking max in shader
         side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.MaxEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
+        blendEquation: THREE.MaxEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneFactor,
     },
     max: {
-        sorted: false,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a black background
-        background: new THREE.Color(0, 0, 0),
+        depthTest: true,
+        depthWrite: false,
 
         // Rendering both sides automatically includes the
         // backside boundary of the mesh at cost of doubling
@@ -535,35 +521,27 @@ const method_configs = {
         side: THREE.DoubleSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.MaxEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
+        blendEquation: THREE.MaxEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneFactor,
     },
     min2: {
-        sorted: false,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
+        depthTest: true,
+        depthWrite: false,
 
         // Rendering front side only and taking min in shader
         side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.MinEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
+        blendEquation: THREE.MinEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneFactor,
     },
     min: {
-        sorted: false,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
+        depthTest: true,
+        depthWrite: false,
 
         // Rendering both sides automatically includes the
         // backside boundary of the mesh at cost of doubling
@@ -571,123 +549,77 @@ const method_configs = {
         side: THREE.DoubleSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.MinEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
+        blendEquation: THREE.MinEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneFactor,
     },
     xray: {
-        sorted: false,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
+        depthTest: true,
+        depthWrite: false,
 
         side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.SrcAlphaFactor,
+        blendEquation: THREE.AddEquation,
+        // blendEquation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.SrcAlphaFactor,
     },
     xray2: {
-        sorted: false,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a white background
-        background: new THREE.Color(1, 1, 1),
+        depthTest: true,
+        depthWrite: false,
 
         side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        // blend_equation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.SrcAlphaFactor,
+        blendEquation: THREE.AddEquation,
+        // blendEquation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.SrcAlphaFactor,
     },
     sum: {
-        sorted: false,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Must start with a black background
-        background: new THREE.Color(0, 0, 0),
+        depthTest: true,
+        depthWrite: false,
 
         side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneFactor,
+        blendEquation: THREE.AddEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneFactor,
     },
     volume: {
-        sorted: true,
         transparent: true,
-        depth_test: false,
-        depth_write: false,
-
-        // Any background is fine
-        background: undefined,
+        depthTest: true,
+        depthWrite: false,
 
         side: THREE.FrontSide,
 
         blending: THREE.CustomBlending,
-        blend_equation: THREE.AddEquation,
-        blend_src: THREE.OneFactor,
-        blend_dst: THREE.OneMinusSrcAlphaFactor,
+        blendEquation: THREE.AddEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
     },
 };
 
-function create_material(method, encoding, uniforms) {
-    // TODO: Force turning on depthTest if there's something else opaque in the scene like axes
-    // TODO: May also add defines based on encoding if necessary
-    // if encoding specifies density or emission, add defines:
-    //     ENABLE_DENSITY: 1,       // TODO: It might make sense to use emission OR density here? Maybe with per color channel blending.
-    //     ENABLE_DENSITY_BACK: 1,
-    const config = method_configs[method];
-    const defines = method_defines[method];  // FIXME: Use new code to build defines
-
+function create_material(method, encoding, uniforms, defines) {
     const material_config = {
-        // Note: Assuming passing some unused uniforms here will work fine
-        // without too much performance penalty, hopefully this is ok
-        // as it allows us to share the uniforms dict between methods.
         uniforms: uniforms,
+        defines: defines,
         vertexShader: vertex_shader,
         fragmentShader: fragment_shader,
-        side: config.side,
-        transparent: config.transparent,
-        depthTest: true,
-        depthWrite: config.depth_write,
+        fog: false,
     };
+    Object.assign(material_config, method_configs[method]);
 
     // Configure shader
     const material = new THREE.ShaderMaterial(material_config);
 
-    // Configure blending
-    if (config.blending === THREE.CustomBlending) {
-        material.blending = config.blending;
-        material.blendEquation = config.blend_equation;
-        material.blendSrc = config.blend_src;
-        material.blendDst = config.blend_dst;
-    }
-
-    // Not using the fog feature
-    material.fog = false;
-
-    // Apply method #defines to shaders
-    material.defines = defines;
-
     // Some extensions need to be explicitly enabled
     material.extensions.derivatives = true;
-
-    // How to use wireframe natively in THREE.js
-    // material.wireframe = true;
-    // material.wireframeLinewidth = 3;
 
     return material;
 }
@@ -971,19 +903,21 @@ function create_mesh(method, encoding, data) {
     // Tetrahedral mesh data is required and assumed to be present at this point
     const cells = data[encoding.cells.field];
     const coordinates = data[encoding.coordinates.field];
-    const num_vertices = coordinates.length / 3;
-    const num_tetrahedrons = cells.length / 4;
+    // const num_vertices = coordinates.length / 3;
+    // const num_tetrahedrons = cells.length / 4;
 
-    // Initialize geometry
-    // FIXME: Enable the non-sorted branch
-    const sorted = true || method_configs[method].sorted;
-    const geometry = create_geometry(sorted, cells, coordinates);
+    const sorted = true || method === "volume";  // FIXME: Enable the non-sorted branch
 
     // Initialize uniforms, including textures
-    const uniforms = create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices);
+    //const uniforms = create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices);
+    //const defines = method_defines[method];
+    const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
+
+    // Initialize geometry
+    const geometry = create_geometry(sorted, cells, coordinates);
 
     // Configure material (shader)
-    const material = create_material(method, encoding, uniforms);
+    const material = create_material(method, encoding, uniforms, defines);
 
     // Finally we have a Mesh to render for this method
     const mesh = new THREE.Mesh(geometry, material);
@@ -1024,7 +958,7 @@ class UnrayStateWrapper {
         // TODO: How to deal with this when adding to larger scene?
         //       I guess it will be up to the user.
         //       Alternatively, could add a background box of the right color.
-        this.bgcolor = method_configs[method].background || new THREE.Color(1, 1, 1);
+        this.bgcolor = method_backgrounds[method] || new THREE.Color(1, 1, 1);
 
         const mesh = create_mesh(method, encoding, data);
 

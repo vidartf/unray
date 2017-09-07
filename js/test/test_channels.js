@@ -9,7 +9,7 @@ describe('channels', function() {
         const method = "surface";
         const encoding = {
             cells: { field: "c123" },
-            points: { field: "p234" }
+            coordinates: { field: "p234" }
         };
         const data = {
             c123: new Int32Array([0,1,2,3]),
