@@ -10,6 +10,8 @@ import {
     update_lut, update_array_texture
 } from "./threeutils";
 
+import {default_automatic_uniforms} from "./uniforms";
+
 function delete_undefined(obj) {
     for (let key in obj) {
         if (obj[key] === undefined) {
@@ -117,15 +119,10 @@ function create_default_encodings() {
 }
 
 function update_range_uniform(uniforms, name, range, array) {
-    if (desc.range === undefined) {
+    if (range === undefined) {
         delete uniforms[name];
     } else {
-        let new_range = null;
-        if (desc.range === "auto") {
-            newrange = compute_range(array);
-        } else {
-            newrange = desc.range;
-        }
+        const newrange = range === "auto" ? compute_range(array) : range;
         uniforms[name] = { value: extended_range(...newrange) };
     }
 }
@@ -341,10 +338,8 @@ function create_three_data(method, encoding, data) {
     defines.ENABLE_CELL_ORDERING = 1;  // TODO: Avoid for unsorted methods
     defines.ENABLE_PERSPECTIVE_PROJECTION = 1;  // TODO: Determine based on camera type
 
-    // Initialize uniforms with texture dimensions
-    const uniforms = {
-        // FIXME: Add defaults for automatic uniform groups here
-    };
+    // Initialize uniforms that are set by time and view changes
+    const uniforms = default_automatic_uniforms();
 
     const attributes = {
         // FIXME: ?
