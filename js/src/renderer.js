@@ -1,14 +1,10 @@
-'use strict';
+"use strict";
 
-import _ from 'underscore';
+import _ from "underscore";
 
 import {
     extend2
-} from './utils.js';
-
-import {
-    reorient_tetrahedron_cells
-} from "./meshutils";
+} from "./utils.js";
 
 import {
     compute_range, extended_range, compute_texture_shape,
@@ -17,23 +13,19 @@ import {
 } from "./threeutils";
 
 import {
-    create_instanced_tetrahedron_geometry,
-    create_cells_attribute,
-    create_cell_ordering_attribute,
     create_bounding_sphere,
     create_bounding_box,
     create_bounding_sphere_geometry,
     create_bounding_box_geometry,
     create_bounding_box_axis_geometry,
     create_bounding_box_midplanes_geometry
-} from './geometry';
+} from "./boundinggeometry";
 
+import {create_three_data} from "./channels";
+import {create_geometry} from "./geometry";
 import {create_material} from "./material";
 
-import { default_uniforms } from "./uniforms"
-import { create_three_data } from "./channels";
-
-import {THREE} from './threeimport';
+import {THREE} from "./threeimport";
 
 function sort_cells(ordering, cells, coordinates, camera_position, view_direction) {
     /*
@@ -96,43 +88,6 @@ function update_ordering(geometry, material) {
     const ordering = geometry.attributes.c_ordering;
     sort_cells(ordering.array, cells, coordinates, dir);
     ordering.needsUpdate = true;
-}
-
-function create_geometry(sorted, cells, coordinates) {
-    // Assuming tetrahedral mesh
-    const num_tetrahedrons = cells.length / 4;
-
-    // Reorient tetrahedral cells (NB! this happens in place!)
-    // TODO: We want cells to be reoriented _once_ if they're
-    //       reused because this is a bit expensive
-    reorient_tetrahedron_cells(cells, coordinates);
-
-    // Setup cells of geometry (using textures or attributes)
-    const attributes = {};
-    if (sorted) {
-        // Need ordering, let ordering be instanced and read cells from texture
-        // Initialize ordering array with contiguous indices,
-        // stored as floats because webgl2 is required for integer attributes.
-        // When assigned a range of integers, the c_ordering instance attribute
-        // can be used as a replacement for gl_InstanceID which requires webgl2.
-        attributes.c_ordering = create_cell_ordering_attribute(num_tetrahedrons);
-    } else {
-        // Don't need ordering, pass cells as instanced buffer attribute instead
-        attributes.c_cells = create_cells_attribute(cells);
-    }
-
-    // Configure instanced geometry, each tetrahedron is an instance
-    const geometry = create_instanced_tetrahedron_geometry(num_tetrahedrons);
-    for (let name in attributes) {
-        geometry.addAttribute(name, attributes[name]);
-    }
-
-    // Compute bounding box and sphere and set on geometry so
-    // they become available to generic THREE.js code
-    geometry.boundingSphere = create_bounding_sphere(coordinates);
-    geometry.boundingBox = create_bounding_box(coordinates);
-
-    return geometry;
 }
 
 function prerender_update(renderer, scene, camera, geometry, material, group, mesh) {

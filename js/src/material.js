@@ -1,10 +1,8 @@
-'use strict';
+"use strict";
 
-import _ from 'underscore';
-
-import {THREE} from './threeimport';
-
-import {vertex_shader, fragment_shader} from './shaders';
+import _ from "underscore";
+import {THREE} from "./threeimport";
+import {vertex_shader, fragment_shader} from "./shaders";
 
 // Note: Cells are oriented such that the front side should be
 // visible, which means we either use FrontSide or DoubleSide.
@@ -21,133 +19,68 @@ const default_transparent = {
     transparent: true,
     depthTest: true,
     depthWrite: false,
+    blending: THREE.CustomBlending,
 };
 
+const default_minmax = Object.assign(default_transparent, {
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneFactor,
+});
+
 const method_configs = {
-    mesh: {
-        side: THREE.FrontSide,
-        transparent: false,
-        depthTest: true,
-        depthWrite: true,
-    },
-    cells: {
-        // Cells are oriented such that the front side
-        // should be visible, can safely cull the backside
-        side: THREE.FrontSide,
-        transparent: false,
-        depthTest: true,
-        depthWrite: true,
-    },
-    surface: {
-        side: THREE.FrontSide,
-        transparent: false,
-        depthTest: true,
-        depthWrite: true,
-    },
-    surface_depth: {
-        side: THREE.FrontSide,
-        transparent: false,
-        depthTest: true,
-        depthWrite: true,
-    },
-    isosurface: {
-        side: THREE.FrontSide,
-        transparent: false,
-        depthTest: true,
-        depthWrite: true,
-    },
-    max: {
+    // TODO: Merge these methods into one with different encodings
+    mesh: default_nontransparent,
+    cells: default_nontransparent,
+    surface: default_nontransparent,
+    surface_depth: default_nontransparent,
+
+    isosurface: default_nontransparent,
+    max: Object.assign(default_minmax, {
         // Rendering front and back sides means shaders can be
         // simpler at the cost of doubling the number of triangles.
         side: THREE.DoubleSide,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        blending: THREE.CustomBlending,
         blendEquation: THREE.MaxEquation,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneFactor,
-    },
-    max2: {
+    }),
+    max2: Object.assign(default_minmax, {
         // Rendering front side only and computing back
         // side value in shader, meaning more costly shader
         // computations but half as many triangles.
         side: THREE.FrontSide,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        blending: THREE.CustomBlending,
         blendEquation: THREE.MaxEquation,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneFactor,
-    },
-    min: {
+    }),
+    min: Object.assign(default_minmax, {
         // Rendering front and back sides means shaders can be
         // simpler at the cost of doubling the number of triangles.
         side: THREE.DoubleSide,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        blending: THREE.CustomBlending,
         blendEquation: THREE.MinEquation,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneFactor,
-    },
-    min2: {
+    }),
+    min2: Object.assign(default_minmax, {
         // Rendering front side only and computing back
         // side value in shader, meaning more costly shader
         // computations but half as many triangles.
         side: THREE.FrontSide,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        blending: THREE.CustomBlending,
         blendEquation: THREE.MinEquation,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneFactor,
-    },
-    xray: {
-        side: THREE.FrontSide,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        blending: THREE.CustomBlending,
+    }),
+    xray: Object.assign(default_transparent, {
         blendEquation: THREE.AddEquation,
-        // blendEquation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
         blendSrc: THREE.OneFactor,
         blendDst: THREE.SrcAlphaFactor,
-    },
-    xray2: {
-        side: THREE.FrontSide,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        blending: THREE.CustomBlending,
+    }),
+    xray2: Object.assign(default_transparent, {
         blendEquation: THREE.AddEquation,
-        // blendEquation: THREE.ReverseSubtractEquation, // dst - src  // TODO: Is there a way to use this for negative xray?
         blendSrc: THREE.OneFactor,
         blendDst: THREE.SrcAlphaFactor,
-    },
-    sum: {
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        side: THREE.FrontSide,
-        blending: THREE.CustomBlending,
+    }),
+    sum: Object.assign(default_transparent, {
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
         blendDst: THREE.OneFactor,
-    },
-    volume: {
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        side: THREE.FrontSide,
-        blending: THREE.CustomBlending,
+    }),
+    volume: Object.assign(default_transparent, {
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
         blendDst: THREE.OneMinusSrcAlphaFactor,
-    },
+    }),
 };
 
 export

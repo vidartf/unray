@@ -5,13 +5,17 @@ import {
 } from './utils.js';
 
 import {
-    compute_bounding_sphere,
-    compute_bounding_box
+    reorient_tetrahedron_cells
 } from "./meshutils";
 
-import './threeimport';
-const THREE = window.THREE;
+import {
+    create_bounding_sphere,
+    create_bounding_box,
+} from "./boundinggeometry";
 
+import {THREE} from "./threeimport";
+
+export
 function create_instanced_tetrahedron_geometry(num_tetrahedrons) {
     // This is the coordinates of our reference tetrahedron,
     // assumed a few places via face numbering etc.,
@@ -63,6 +67,7 @@ function create_instanced_tetrahedron_geometry(num_tetrahedrons) {
     return geometry;
 }
 
+export
 function create_cell_ordering_attribute(num_tetrahedrons) {
     const attrib = new THREE.InstancedBufferAttribute(
         arange(num_tetrahedrons), 1, 1
@@ -71,139 +76,47 @@ function create_cell_ordering_attribute(num_tetrahedrons) {
     return attrib;
 }
 
+export
 function create_cells_attribute(cells) {
     return new THREE.InstancedBufferAttribute(
         cells, 4, 1
     );
 }
 
+export
+function create_geometry(sorted, cells, coordinates) {
+    // Assuming tetrahedral mesh
+    const num_tetrahedrons = cells.length / 4;
 
-function create_bounding_sphere(coordinates) {
-    const bsphere = compute_bounding_sphere(coordinates);
-    return new THREE.Sphere(
-        new THREE.Vector3(...bsphere.center),
-        bsphere.radius
-    );
-}
+    // Reorient tetrahedral cells (NB! this happens in place!)
+    // TODO: We want cells to be reoriented _once_ if they're
+    //       reused because this is a bit expensive
+    reorient_tetrahedron_cells(cells, coordinates);
 
-function create_bounding_box(coordinates) {
-    const bbox = compute_bounding_box(coordinates);
-    // Possible alternative:
-    //geometry.boundingBox = new THREE.Box3();
-    //geometry.boundingBox.setFromArray(coordinates);
-    return new THREE.Box3(
-        new THREE.Vector3(...bbox.min),
-        new THREE.Vector3(...bbox.max)
-    );
-}
-
-function create_bounding_sphere_geometry(bsphere, scale=1.0, color=0xcccccc) {
-    const geometry = new THREE.SphereGeometry(bsphere.radius * scale, 32, 32);
-    const material = new THREE.MeshBasicMaterial({color});
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(bsphere.center);
-    return mesh;
-}
-
-function create_bounding_box_geometry(bbox, scale=1.0, color=0xcccccc) {
-    const dims = bbox.getSize().toArray().map(x => scale*x);
-
-    // Showing only backside faces avoids hiding the model
-    const side = THREE.BackSide;
-    const material = new THREE.MeshBasicMaterial({color, side});
-
-    const geometry = new THREE.BoxGeometry(...dims);
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(bbox.getCenter());
-
-    return mesh;
-}
-
-function create_bounding_box_midplanes_geometry(bbox, scale=1.0, color=0xcccccc) {
-    const dims = bbox.getSize().toArray().map(x => scale*x);
-
-    const range = [0, 1, 2];
-    const side = THREE.DoubleSide;
-    const colors = range.map(i => color & (0xff << (8*(2-i))));
-    const materials = colors.map(color =>
-        new THREE.MeshBasicMaterial({color, side})
-    );
-    const planes = range.map(i =>
-        new THREE.PlaneGeometry(dims[(i + 1) % 3], dims[(i + 2) % 3])
-    );
-    const meshes = range.map(i =>
-        new THREE.Mesh(planes[i], materials[i])
-    );
-    const angle = Math.PI / 2;
-    meshes[0].rotateY(angle);
-    meshes[0].rotateZ(angle);
-    meshes[1].rotateX(angle);
-    meshes[1].rotateZ(angle);
-    const group = new THREE.Group();
-    meshes.forEach(mesh => group.add(mesh));
-    group.position.copy(bbox.getCenter());
-    return group;
-}
-
-function bounding_box_corners(bbox, scale) {
-    const offset = bbox.getSize().toArray().map(x => 0.5*(scale-1.0)*x);
-    const u = bbox.min.toArray();
-    const v = bbox.max.toArray();
-    for (let i = 0; i < 3; ++i) {
-        u[i] -= offset[i];
-        v[i] += offset[i];
+    // Setup cells of geometry (using textures or attributes)
+    const attributes = {};
+    if (sorted) {
+        // Need ordering, let ordering be instanced and read cells from texture
+        // Initialize ordering array with contiguous indices,
+        // stored as floats because webgl2 is required for integer attributes.
+        // When assigned a range of integers, the c_ordering instance attribute
+        // can be used as a replacement for gl_InstanceID which requires webgl2.
+        attributes.c_ordering = create_cell_ordering_attribute(num_tetrahedrons);
+    } else {
+        // Don't need ordering, pass cells as instanced buffer attribute instead
+        attributes.c_cells = create_cells_attribute(cells);
     }
-    return [u, v];
-}
 
-function box_edge_vertices(u, v) {
-    // The four vertices of the y-z plane if x is fixed
-    const yz = [
-        [u[1], u[2]],
-        [u[1], v[2]],
-        [v[1], v[2]],
-        [v[1], u[2]],
-    ];
-    const points = [];
-    // Hold x fixed and push edges around yz side
-    for (let x of [u[0], v[0]]) {
-        for (let i = 0; i < 4; ++i) {
-            const j = (i + 1) & 3;
-            points.push(x, ...yz[i],
-                        x, ...yz[j]);
-        }
+    // Configure instanced geometry, each tetrahedron is an instance
+    const geometry = create_instanced_tetrahedron_geometry(num_tetrahedrons);
+    for (let name in attributes) {
+        geometry.addAttribute(name, attributes[name]);
     }
-    // Push edges from x=min to x=max for each yz vertex
-    for (let i = 0; i < 4; ++i) {
-        points.push(u[0], ...yz[i],
-                    v[0], ...yz[i]);
-    }
-    return new Float32Array(points);
-}
 
-function create_bounding_box_axis_geometry(bbox, scale=1.0, color=0x000000) {
-    const [u, v] = bounding_box_corners(bbox, scale);
-    const vertices = box_edge_vertices(u, v);
-    const geometry = new THREE.BufferGeometry();
-    geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
-    const material = new THREE.LineBasicMaterial({
-        color: color,
-        transparent: false,
-        depthTest: true,
-        depthWrite: true,
-        });
-    material.fog = true;
-    return new THREE.LineSegments(geometry, material);
-}
+    // Compute bounding box and sphere and set on geometry so
+    // they become available to generic THREE.js code
+    geometry.boundingSphere = create_bounding_sphere(coordinates);
+    geometry.boundingBox = create_bounding_box(coordinates);
 
-export {
-    create_instanced_tetrahedron_geometry,
-    create_cells_attribute,
-    create_cell_ordering_attribute,
-    create_bounding_sphere,
-    create_bounding_box,
-    create_bounding_sphere_geometry,
-    create_bounding_box_geometry,
-    create_bounding_box_axis_geometry,
-    create_bounding_box_midplanes_geometry
-};
+    return geometry;
+}
