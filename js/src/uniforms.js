@@ -4,16 +4,6 @@ import _ from 'underscore';
 
 import {THREE} from './threeimport';
 
-// Generate definitions like 'uniform vec3 u_foo;' for an
-// object containing types keyed by variable name { u_foo: "vec3" }
-export
-function generate_declarations(gltypes, prefix) {
-    const definitions = Object.values(_.mapObject(gltypes,
-        (val, key) => `${prefix} ${val} ${key};`));
-    definitions.sort();
-    return definitions.join("\n");
-}
-
 // Uniforms that are set automatically by user
 export
 function default_automatic_uniforms() {
@@ -118,4 +108,14 @@ function default_uniforms() {
     //console.log(generate_declarations(gltypes, "varying"));
 
     return values;
+}
+
+// Generate definitions like 'uniform vec3 u_foo;' for an
+// object containing types keyed by variable name { u_foo: "vec3" }
+export
+function generate_declarations(gltypes, prefix) {
+    const definitions = Object.values(_.mapObject(gltypes,
+        (val, key) => `${prefix} ${val} ${key};`));
+    definitions.sort();
+    return definitions.join("\n");
 }
