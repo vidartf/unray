@@ -69,18 +69,14 @@ function create_instanced_tetrahedron_geometry(num_tetrahedrons) {
 
 export
 function create_cell_ordering_attribute(num_tetrahedrons) {
-    const attrib = new THREE.InstancedBufferAttribute(
-        arange(num_tetrahedrons), 1, 1
-    );
+    const attrib = new THREE.InstancedBufferAttribute(arange(num_tetrahedrons), 1, 1);
     attrib.setDynamic(true);
     return attrib;
 }
 
 export
 function create_cells_attribute(cells) {
-    return new THREE.InstancedBufferAttribute(
-        cells, 4, 1
-    );
+    return new THREE.InstancedBufferAttribute(cells, 4, 1);
 }
 
 export

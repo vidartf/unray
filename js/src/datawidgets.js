@@ -1,10 +1,15 @@
 'use strict';
 
-import widgets from '@jupyter-widgets/base';
-import {data_union_serialization, getArrayFromUnion, listenToUnion} from 'jupyter-datawidgets';
+//import _ from 'underscore';
+
 import version from './version';
+import widgets from '@jupyter-widgets/base';
+import {
+    getArrayFromUnion, data_union_serialization, listenToUnion
+} from 'jupyter-datawidgets';
 
 
+export
 class MeshModel extends widgets.WidgetModel {
     defaults() {
         return Object.assign(super.defaults(), version.module_defaults, {
@@ -14,7 +19,6 @@ class MeshModel extends widgets.WidgetModel {
             points: null,  // ndarray
         });
     }
-
 
     createPropertiesArrays() {
         super.createPropertiesArrays();
@@ -44,8 +48,136 @@ MeshModel.serializers = Object.assign({},
 );
 
 
-// TODO: Add classes mirroring datawidgets.py here
+export
+class FieldModel extends widgets.WidgetModel {
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'FieldModel',
+            mesh: null,  // MeshModel
+            values: null,  // ndarray
+            space: 'P1',
+        });
+    }
+}
+FieldModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        mesh: { deserialize: widgets.unpack_models },
+        values: data_union_serialization,
+    }
+);
 
-export {
-    MeshModel,
-};
+
+export
+class IndicatorFieldModel extends widgets.WidgetModel {
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'IndicatorFieldModel',
+            mesh: null,  // MeshModel
+            values: null,  // ndarray
+            space: "I3",
+        });
+    }
+}
+IndicatorFieldModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        mesh: { deserialize: widgets.unpack_models },
+        values: data_union_serialization,
+    }
+);
+
+
+export
+class ArrayColorLUTModel extends widgets.WidgetModel {
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'ArrayColorLUTModel',
+            values: null,  // ndarray
+            space: 'rgb',
+        });
+    }
+}
+ArrayColorLUTModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        values: data_union_serialization,
+    }
+);
+
+
+export
+class NamedColorLUTModel extends widgets.WidgetModel {
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'NamedColorLUTModel',
+            name: 'viridis',
+        });
+    }
+}
+// NamedColorLUTModel.serializers = Object.assign({},
+//     widgets.WidgetModel.serializers,
+//     {
+//     }
+// );
+
+
+export
+class ColorConstantModel extends widgets.WidgetModel {
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'ColorConstantModel',
+            constant: '#888888',
+        });
+    }
+}
+// ColorConstantModel.serializers = Object.assign({},
+//     widgets.WidgetModel.serializers,
+//     {
+//     }
+// );
+
+
+export
+class ColorFieldModel extends widgets.WidgetModel {
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'ColorFieldModel',
+            field: null,  // FieldModel
+            lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
+        });
+    }
+}
+ColorFieldModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        field: { deserialize: widgets.unpack_models },
+        lut: { deserialize: widgets.unpack_models },
+    }
+);
+
+
+export
+class ColorIndicatorsModel extends widgets.WidgetModel {
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'ColorIndicatorsModel',
+            field: null,  // IndicatorFieldModel
+            lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
+        });
+    }
+}
+ColorIndicatorsModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        field: { deserialize: widgets.unpack_models },
+        lut: { deserialize: widgets.unpack_models },
+    }
+);

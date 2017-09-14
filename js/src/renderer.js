@@ -1,72 +1,17 @@
 "use strict";
 
 import _ from "underscore";
-
+import {THREE} from "./threeimport";
 import {
-    extend2
-} from "./utils.js";
-
-import {
-    compute_range, extended_range, compute_texture_shape,
-    allocate_lut_texture, allocate_array_texture,
-    update_lut, update_array_texture
-} from "./threeutils";
-
-import {
-    create_bounding_sphere,
-    create_bounding_box,
     create_bounding_sphere_geometry,
     create_bounding_box_geometry,
     create_bounding_box_axis_geometry,
     create_bounding_box_midplanes_geometry
 } from "./boundinggeometry";
-
 import {create_three_data} from "./channels";
 import {create_geometry} from "./geometry";
 import {create_material} from "./material";
-
-import {THREE} from "./threeimport";
-
-function sort_cells(ordering, cells, coordinates, camera_position, view_direction) {
-    /*
-    const num_tetrahedrons = cells.length / 4;
-    for (let i = 0; i < num_tetrahedrons; ++i) {
-        ordering[i] = i;
-    }
-    */
-
-    // TODO: Compute a better perspective dependent ordering using topology
-
-    // Naively sort by smallest distance to camera
-    ordering.sort((i, j) => {
-        const min_dist = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
-        const indices = [i, j];
-        for (let r = 0; r < 2; ++r) {
-            const local_vertices = cells[indices[r]]
-            for (let k = 0; k < 4; ++k) {
-                const offset = 3*local_vertices[k];
-                let dist = 0.0;
-                for (let s = 0; s < 3; ++s) {
-                    const dx = coordinates[offset+s] - camera_position[s];
-                    // With orthographic camera and constant view direction
-                    dist += view_direction[s] * dx;
-                    // With perspective camera, use only distance to camera
-                    //dist += dx*dx;
-                }
-                // Take distance from vertex with smallest distance
-                // (could also use midpoint)
-                min_dist[r] = Math.min(dist, min_dist[r]);
-            }
-        }
-        if (min_dist[0] === min_dist[1]) {
-            return 0;
-        } else if (min_dist[0] < min_dist[1]) {
-            return -1;
-        } else {
-            return +1;
-        }
-    });
-}
+import {sort_cells} from "./sorting";
 
 // TODO: Use this in prerender and improve sorting
 // when unsorted methods are working well
@@ -91,8 +36,8 @@ function update_ordering(geometry, material) {
 }
 
 function prerender_update(renderer, scene, camera, geometry, material, group, mesh) {
-    //console.log("In prerender_update", {renderer, scene, camera, geometry, material, group, mesh});
-    console.log("In prerender_update", camera.getWorldPosition());
+    // console.log("In prerender_update", {renderer, scene, camera, geometry, material, group, mesh});
+    // console.log("In prerender_update", camera.getWorldPosition());
 
     // Just in time updates of uniform values
     const u = material.uniforms;
@@ -143,19 +88,33 @@ function prerender_update(renderer, scene, camera, geometry, material, group, me
 
 function create_mesh(method, encoding, data) {
     // Tetrahedral mesh data is required and assumed to be present at this point
+    if (encoding.cells === undefined || encoding.cells.field === undefined) {
+        throw Error("Cannot create mesh, missing cells in the encoding.")
+    }
+    if (encoding.coordinates === undefined || encoding.coordinates.field === undefined) {
+        throw Error("Cannot create mesh, missing coordinates in the encoding.")
+    }
+
     const cells = data[encoding.cells.field];
     const coordinates = data[encoding.coordinates.field];
-    // const num_vertices = coordinates.length / 3;
-    // const num_tetrahedrons = cells.length / 4;
 
-    const sorted = true || method === "volume";  // FIXME: Enable the non-sorted branch
+    if (cells === undefined) {
+        throw Error("Cannot create mesh, missing cells in data.")
+    }
+    if (coordinates === undefined) {
+        throw Error("Cannot create mesh, missing coordinates in data.")
+    }
+
+    // Determine whether cells should be sorted based on view direction
+    // const sorted = method === "volume";
+    const sorted = true;  // FIXME: Enable the non-sorted branch
 
     // Initialize uniforms, including textures
-    //const uniforms = create_uniforms(method, encoding, data, num_tetrahedrons, num_vertices);
-    //const defines = method_defines[method];
     const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
 
     // Initialize geometry
+    // TODO: Currently not reusing cell attributes between models
+    // TODO: Currently computing bounding objects from coordinates for each geometry
     const geometry = create_geometry(sorted, cells, coordinates);
 
     // Configure material (shader)
@@ -175,7 +134,21 @@ function create_mesh(method, encoding, data) {
     return mesh;
 }
 
-function add_debugging_geometries(root, mesh) {
+function update_mesh(mesh, method, encoding, data) {
+    // Recompute uniforms and defines (this also updates texture values etc)
+    const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
+
+    // TODO: Update material
+    // (let three.js determine if recompilation is necessary)
+    mesh.material.uniforms = uniforms;
+    mesh.material.defines = defines;  // TODO: Does this override something it shouldn't?
+
+    // TODO: Is it necessary to update geometry? If attributes can change it is.
+}
+
+function create_debugging_geometries(mesh) {
+    const root = new THREE.Group();
+
     // Add a bounding sphere representation to root for debugging
     // root.add(create_bounding_sphere_geometry(mesh.geometry.boundingSphere, 1.1));
 
@@ -192,57 +165,63 @@ function add_debugging_geometries(root, mesh) {
     // const sphere = mesh.geometry.boundingSphere.clone();
     // sphere.radius *= 0.05;
     // root.add(create_bounding_sphere_geometry(sphere));
+
+    return root;
 }
 
+
 const method_backgrounds = {
-    // Must start with a black background
+    // These methods need a dark background
     max: new THREE.Color(0, 0, 0),
     max2: new THREE.Color(0, 0, 0),
     sum: new THREE.Color(0, 0, 0),
 
-    // Must start with a white background
+    // These methods need a bright background
     min: new THREE.Color(1, 1, 1),
     min2: new THREE.Color(1, 1, 1),
     xray: new THREE.Color(1, 1, 1),
     xray2: new THREE.Color(1, 1, 1),
 };
 
-class UnrayStateWrapper {
-    init(root, method, encoding, data) {
-        // Select method-specific background color
-        // TODO: How to deal with this when adding to larger scene?
-        //       I guess it will be up to the user.
-        //       Alternatively, could add a background box of the right color.
-        this.bgcolor = method_backgrounds[method] || new THREE.Color(1, 1, 1);
-
-        const mesh = create_mesh(method, encoding, data);
-
-        root.add(mesh);
-
-        this.root = root;
-        add_debugging_geometries(root, mesh);
-    }
-
-    update(changed) {
-        // for (let name in changed) {
-        //     this.channel_update(name)(changed[name]);
-        // }
-    }
-
-    // Select method-specific background color
-    // Currently called by figure, TODO: remove when using pythreejs renderer
-    get_bgcolor() {
-        return this.bgcolor;
-    }
-}
-
 export
-function create_unray_state(root, method, encoding, data) {
-    const state = new UnrayStateWrapper();
-    state.init(root, method, encoding, data);
-    // console.log("////////////////////////////////");
-    // console.log("Created unray state:");
-    // console.log(state);
-    // console.log("////////////////////////////////");
+function create_unray_state(root, method) {
+    const state = {
+        // Remember the root node (a THREE.Group instance) to modify our subscene
+        root: root,
+
+        // Method decides how to interpret encoding and data
+        method: method,
+
+        // Called once initial encoding and data is available
+        init(encoding, data) {
+            if (this.root.children.length !== 0) {
+                console.error("Expecting init called only once.");
+            }
+            const mesh = create_mesh(this.method, encoding, data);
+            this.root.add(mesh);
+            this.root.add(create_debugging_geometries(mesh));
+        },
+
+        // Called on later updates
+        update(encoding, data) {
+            if (this.root.children.length === 0) {
+                throw Error("Expecting init called once before calling update.");
+            }
+            // Find mesh (should be the first root node, make this more robust if needed)
+            const mesh = this.root.children[0];
+            update_mesh(mesh, this.method, encoding, data);
+        },
+
+        // Method specific suggestion for background color
+        bgcolor: method_backgrounds[method] || new THREE.Color(1, 1, 1),
+
+        // TODO: How to deal with background color when adding to larger scene?
+        //       Could add a background box of the right color.
+        //       Or render to a texture then do some postprocessing.
+        get_bgcolor() {
+            // TODO: Currently called by figure, can remove when using pythreejs renderer
+            return this.bgcolor;
+        }
+    };
     return state;
 }
