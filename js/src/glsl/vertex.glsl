@@ -12,7 +12,9 @@
 @import ./utils/inverse;
 @import ./utils/getitem;
 @import ./utils/minmax;
-@import ./vicp-lib;
+@import ./utils/uv;
+@import ./utils/grad;
+@import ./utils/place;
 
 
 /* For uniforms added by three.js, see
@@ -337,7 +339,6 @@ void main()
     // Compute 3x3 Jacobian matrix of the coordinate
     // field on a tetrahedron with given vertices,
     // assuming a certain reference coordinate system.
-    //mat3 Jinv = compute_Jinv(coordinates);
     mat3 Jinv = inverse(transpose(mat3(edge[2], edge[3], edge[1])));
 #endif
 

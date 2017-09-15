@@ -3,8 +3,8 @@
 import _ from "underscore";
 import * as THREE from "three";
 
-const vertexShader = require("./glsl/vicp-vertex.glsl");
-const fragmentShader = require("./glsl/vicp-fragment.glsl");
+const vertexShader = require("./glsl/vertex.glsl");
+const fragmentShader = require("./glsl/fragment.glsl");
 
 // Note: Cells are oriented such that the front side should be
 // visible, which means we either use FrontSide or DoubleSide.

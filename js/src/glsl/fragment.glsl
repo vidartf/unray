@@ -16,7 +16,6 @@
 @import ./utils/sorted;
 @import ./utils/depth;
 @import ./utils/isosurface;
-@import ./vicp-lib;
 
 
 /* For uniforms added by three.js, see
