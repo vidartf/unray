@@ -2,7 +2,9 @@
 
 import _ from "underscore";
 import * as THREE from "three";
-import {vertex_shader, fragment_shader} from "./shaders";
+
+const vertexShader = require("./glsl/vicp-vertex.glsl");
+const fragmentShader = require("./glsl/vicp-fragment.glsl");
 
 // Note: Cells are oriented such that the front side should be
 // visible, which means we either use FrontSide or DoubleSide.
@@ -86,12 +88,11 @@ const method_configs = {
 
 export
 function create_material(method, uniforms, defines) {
+    const fog = false;  // To enable fog, would need custom shader support
     const material_config = {
-        uniforms: uniforms,
-        defines: defines,
-        vertexShader: vertex_shader,
-        fragmentShader: fragment_shader,
-        fog: false,  // To enable fog, would need custom shader support
+        uniforms, defines,
+        vertexShader, fragmentShader,
+        fog
     };
     Object.assign(material_config, method_configs[method]);
 

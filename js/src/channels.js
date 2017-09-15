@@ -66,7 +66,7 @@ function __allocate_value(item_size) {
     case 16:
         return new THREE.Matrix4();
     default:
-        throw { message: 'Invalid item size', item_size: item_size };
+        throw { message: "Invalid item size", item_size: item_size };
     }
 }
 

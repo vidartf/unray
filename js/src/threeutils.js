@@ -23,7 +23,7 @@ function extended_range(min, max) {
 export
 function compute_texture_shape(size) {
     if (size <= 0) {
-        throw { message: 'Expecting a positive size', size: size };
+        throw Error(`Expecting a positive size ${size}`);
     }
     const width = Math.pow(2, Math.floor(Math.log2(size) / 2));
     const height = Math.ceil(size / width);

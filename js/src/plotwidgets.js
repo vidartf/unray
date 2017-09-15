@@ -7,7 +7,7 @@ import { getArrayFromUnion, data_union_serialization } from "jupyter-datawidgets
 
 //import _ from "underscore";
 
-import version from "./version";
+import { module_defaults } from "./version";
 import { create_plot_state } from "./plotstate";
 
 
@@ -79,7 +79,7 @@ class PlotModel extends BlackboxModel {
     }
 
     defaults() {
-        return Object.assign(super.defaults(), version.module_defaults);
+        return Object.assign(super.defaults(), module_defaults);
     }
 
     constructThreeObject() {

@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-import _ from 'underscore';
+import _ from "underscore";
 
 import * as THREE from "three";
 
@@ -110,7 +110,7 @@ function default_uniforms() {
     return values;
 }
 
-// Generate definitions like 'uniform vec3 u_foo;' for an
+// Generate definitions like "uniform vec3 u_foo;" for an
 // object containing types keyed by variable name { u_foo: "vec3" }
 export
 function generate_declarations(gltypes, prefix) {

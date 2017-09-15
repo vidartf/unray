@@ -6,12 +6,11 @@
 // url for the notebook is not known at build time and is therefore computed
 // dynamically.
 // eslint-disable-next-line no-undef
-__webpack_public_path__ = document.querySelector('body').getAttribute('data-base-url') + 'nbextensions/unray/';
+__webpack_public_path__ = document.querySelector("body").getAttribute("data-base-url") + "nbextensions/unray/";
 
-const version = require('../package.json').version;
+// Export the npm package version number
+export const version = require("../package.json").version;
 
-// Export widget models and views, and the npm package version number.
-module.exports = Object.assign({},
-    require('./allwidgets'),
-    {version}
-);
+// Export widget models and views
+export * from "./datawidgets";
+export * from "./plotwidgets";

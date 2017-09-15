@@ -1,12 +1,12 @@
-'use strict';
+"use strict";
 
-//import _ from 'underscore';
+//import _ from "underscore";
 
-import version from './version';
-import widgets from '@jupyter-widgets/base';
+import { module_defaults } from "./version";
+import widgets from "@jupyter-widgets/base";
 import {
     getArrayFromUnion, data_union_serialization, listenToUnion
-} from 'jupyter-datawidgets';
+} from "jupyter-datawidgets";
 
 
 export
@@ -14,8 +14,8 @@ class MeshModel extends widgets.WidgetModel {
     get is_Mesh() { return true; }
 
     defaults() {
-        return Object.assign(super.defaults(), version.module_defaults, {
-            _model_name : 'MeshModel',
+        return Object.assign(super.defaults(), module_defaults, {
+            _model_name : "MeshModel",
             auto_orient: true,
             cells: null,  // ndarray
             points: null,  // ndarray
@@ -28,7 +28,7 @@ class MeshModel extends widgets.WidgetModel {
         // This will ensure changes to the data in these trigger a change event
         // regardless of whether they are arrays or datawidgets:
         // The change events will trigger a rerender when object is added to scene
-        this.datawidget_properties.push('cells', 'points');
+        this.datawidget_properties.push("cells", "points");
     }
 
     onChange(model, options) {
@@ -56,11 +56,11 @@ class FieldModel extends widgets.WidgetModel {
 
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'FieldModel',
+            module_defaults, {
+            _model_name : "FieldModel",
             mesh: null,  // MeshModel
             values: null,  // ndarray
-            space: 'P1',
+            space: "P1",
         });
     }
 }
@@ -79,8 +79,8 @@ class IndicatorFieldModel extends widgets.WidgetModel {
 
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'IndicatorFieldModel',
+            module_defaults, {
+            _model_name : "IndicatorFieldModel",
             mesh: null,  // MeshModel
             values: null,  // ndarray
             space: "I3",
@@ -102,8 +102,8 @@ class WireframeParamsModel extends widgets.WidgetModel {
 
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'WireframeParamsModel',
+            module_defaults, {
+            _model_name : "WireframeParamsModel",
 
             enable: true,
             size: 0.001,
@@ -121,10 +121,10 @@ class ArrayColorLUTModel extends widgets.WidgetModel {
 
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'ArrayColorLUTModel',
+            module_defaults, {
+            _model_name : "ArrayColorLUTModel",
             values: null,  // ndarray
-            space: 'rgb',
+            space: "rgb",
         });
     }
 }
@@ -142,9 +142,9 @@ class NamedColorLUTModel extends widgets.WidgetModel {
 
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'NamedColorLUTModel',
-            name: 'viridis',
+            module_defaults, {
+            _model_name : "NamedColorLUTModel",
+            name: "viridis",
         });
     }
 }
@@ -161,9 +161,9 @@ class ColorConstantModel extends widgets.WidgetModel {
     
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'ColorConstantModel',
-            constant: '#888888',
+            module_defaults, {
+            _model_name : "ColorConstantModel",
+            constant: "#888888",
         });
     }
 }
@@ -180,8 +180,8 @@ class ColorFieldModel extends widgets.WidgetModel {
 
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'ColorFieldModel',
+            module_defaults, {
+            _model_name : "ColorFieldModel",
             field: null,  // FieldModel
             lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
         });
@@ -202,8 +202,8 @@ class ColorIndicatorsModel extends widgets.WidgetModel {
 
     defaults() {
         return Object.assign(super.defaults(),
-            version.module_defaults, {
-            _model_name : 'ColorIndicatorsModel',
+            module_defaults, {
+            _model_name : "ColorIndicatorsModel",
             field: null,  // IndicatorFieldModel
             lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
         });
