@@ -1,7 +1,7 @@
 "use strict";
 
 import _ from "underscore";
-import {THREE} from "./threeimport";
+import * as THREE from "three";
 import {vertex_shader, fragment_shader} from "./shaders";
 
 // Note: Cells are oriented such that the front side should be
@@ -9,6 +9,7 @@ import {vertex_shader, fragment_shader} from "./shaders";
 
 const default_nontransparent = {
     side: THREE.FrontSide,
+    //side: THREE.DoubleSide,
     transparent: false,
     depthTest: true,
     depthWrite: true,

@@ -1,8 +1,9 @@
-'use strict';
+"use strict";
 
-import { zip } from 'underscore';
+import { zip } from "underscore";
 
 // Compute bounding box of a set of 3D points in a flat array
+export
 function compute_bounding_box(points=new Float32Array([])) {
     // Find bounding box
     let min = points.slice(0, 3);
@@ -49,18 +50,20 @@ function compute_radius(points=new Float32Array([]), center=[0, 0, 0]) {
 }
 
 // Estimate smallest sphere containing all points
+export
 function compute_bounding_sphere(points=new Float32Array([])) {
     const center = compute_center(points);
     const radius = compute_radius(points, center);
     return {center, radius};
 }
 
-// Reorient tetrahedron cells such that det(J) is positive
-// by swapping the last two indices in each cell if necessary
-function reorient_tetrahedron_cells(cells, vertices) {
+// Compute orientation of tetrahedron cells represented by sign of det(J)
+export
+function compute_tetrahedron_cell_orientations(cells, vertices) {
     const c = cells;
     const v = vertices;
     const num_cells = cells.length / 4;
+    const reorient = new Uint8Array(num_cells);
     for (let i = 0; i < num_cells; ++i) {
         // Vertex index preprocessing for this cell
         const j = 4*i;
@@ -78,17 +81,34 @@ function reorient_tetrahedron_cells(cells, vertices) {
 
         // Compute facet normal of face (1,2,3), and check
         // direction of normal relative to x0->x1 vector
-        if ( (x1[0] - x0[0]) * (a[1] * b[2] - a[2] * b[1])
+        reorient[i] = (
+             (x1[0] - x0[0]) * (a[1] * b[2] - a[2] * b[1])
            + (x1[1] - x0[1]) * (a[2] * b[0] - a[0] * b[2])
-           + (x1[2] - x0[2]) * (a[0] * b[1] - a[1] * b[0]) < 0) {
-            // Swapping two vertices in cell changes the winding
-            [c[j + 2], c[j + 3]] = [c[j + 3], c[j + 2]];
-        }
+           + (x1[2] - x0[2]) * (a[0] * b[1] - a[1] * b[0])
+             < 0);
     }
+    return reorient;
 }
 
-export {
-    compute_bounding_box,
-    compute_bounding_sphere,
-    reorient_tetrahedron_cells
-};
+// Reorient tetrahedron cells such that det(J) is positive
+// by swapping the last two indices in each cell if necessary
+export
+function reorient_tetrahedron_cells(cells, reorient) {
+    const num_cells = cells.length / 4;
+    for (let i = 0; i < num_cells; ++i) {
+        if (reorient[i]) {
+            const a = 4*i + 2;
+            const b = 4*i + 3;
+            [cells[a], cells[b]] = [cells[b], cells[a]];
+        }
+    }
+    /* TODO: Profile vs this approach
+    let j = 2;
+    for (let r of reorient) {
+        if (r) {
+            [cells[j], cells[j+1]] = [cells[j+1], cells[j]];
+        }
+        j += 4;
+    }
+    */
+}

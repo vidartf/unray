@@ -1,19 +1,10 @@
-'use strict';
+"use strict";
 
-import {
-    arange
-} from './utils.js';
+import * as THREE from "three";
 
-import {
-    reorient_tetrahedron_cells
-} from "./meshutils";
-
-import {
-    create_bounding_sphere,
-    create_bounding_box,
-} from "./boundinggeometry";
-
-import {THREE} from "./threeimport";
+import { arange } from "./utils.js";
+import { compute_tetrahedron_cell_orientations, reorient_tetrahedron_cells } from "./meshutils";
+import { create_bounding_sphere, create_bounding_box } from "./boundinggeometry";
 
 export
 function create_instanced_tetrahedron_geometry(num_tetrahedrons) {
@@ -87,7 +78,8 @@ function create_geometry(sorted, cells, coordinates) {
     // Reorient tetrahedral cells (NB! this happens in place!)
     // TODO: We want cells to be reoriented _once_ if they're
     //       reused because this is a bit expensive
-    reorient_tetrahedron_cells(cells, coordinates);
+    const reorient = compute_tetrahedron_cell_orientations(cells, coordinates);
+    reorient_tetrahedron_cells(cells, reorient);
 
     // Setup cells of geometry (using textures or attributes)
     const attributes = {};

@@ -1,25 +1,14 @@
 "use strict";
 
-// TODO: Add classes mirroring plotwidgets.py here
-
-// TODO: Remove data.js, figure.js, plot.js once replacements are up
-
-
+import * as THREE from "three";
 import widgets from "@jupyter-widgets/base";
+import { BlackboxModel } from "jupyter-threejs";
+import { getArrayFromUnion, data_union_serialization } from "jupyter-datawidgets";
 
 //import _ from "underscore";
 
 import version from "./version";
-
-import {create_plot_state} from "./plotstate";
-
-import {
-    getArrayFromUnion, data_union_serialization
-} from "jupyter-datawidgets";
-
-import {BlackboxModel} from "jupyter-threejs";
-
-import * as THREE from "three";
+import { create_plot_state } from "./plotstate";
 
 
 // Copied in from figure.js before deleting that file, maybe useful somewhere
@@ -156,6 +145,7 @@ class SurfacePlotModel extends PlotModel {
         const mesh = this.get("mesh");
         updateMeshEncoding(encoding, data, mesh);
 
+        // Encode wireframe params
         const wireframe = this.get("wireframe");
         if (wireframe) {
             encoding.wireframe = {};
@@ -164,12 +154,14 @@ class SurfacePlotModel extends PlotModel {
             }
         }
 
+        // Encode color / emission
         /*
-        let color = this.get("color");
+        const color = this.get("color");
         encoding.emission = {};
-        if (color.is_ColorField) {
+        if (color && color.is_ColorField) {
             const field = color.get("field");
             const lut = color.get("lut");
+
             const emission = field.get("values");
             if (emission) {
                 const { id, value } = getIdentifiedValue(emission, "emission");
@@ -182,11 +174,16 @@ class SurfacePlotModel extends PlotModel {
                 data[id] = value;
                 encoding.emission.lut_field = id;
             }
-        } else if (color.is_ColorConstant) {
+        } else if (color && color.is_ColorConstant) {
+            // const constant = color.get("constant");
+            // const color = color.get("color");
+            // encoding.emission = { constant: constant, color: color };
             const constant = color.get("constant");
-            // encoding.emission.constant = constant;  // FIXME
+            encoding.emission = { constant: 1.0, color: constant };
         }
         */
+
+        console.log("Built encoding", encoding);
 
         return { encoding, data };        
     }

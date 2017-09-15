@@ -1,6 +1,6 @@
 "use strict";
 
-import {THREE} from './threeimport';
+import * as THREE from "three";
 
 export
 function compute_range(array) {
@@ -61,10 +61,6 @@ const itemsize2threeformat = {
 
 export
 function allocate_array_texture(dtype, item_size, texture_shape) {
-    const size = texture_shape[0] * texture_shape[1] * item_size;
-
-    // console.log("Allocating array texture with shape: ", texture_shape);
-
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
@@ -73,12 +69,13 @@ function allocate_array_texture(dtype, item_size, texture_shape) {
     // const padded_data = new arraytype(size);
     // const type = dtype2threetype[dtype];
 
+    const size = texture_shape[0] * texture_shape[1] * item_size;
     const padded_data = new Float32Array(size);
+    const format = itemsize2threeformat[item_size];
     const type = dtype2threetype["float32"];  // NB! See comment above
 
-    const format = itemsize2threeformat[item_size];
-
-    const texture = new THREE.DataTexture(padded_data,
+    const texture = new THREE.DataTexture(
+        padded_data,
         texture_shape[0], texture_shape[1],
         format, type);
 
@@ -87,8 +84,6 @@ function allocate_array_texture(dtype, item_size, texture_shape) {
 
 export
 function allocate_lut_texture(dtype, item_size, texture_shape) {
-    const size = texture_shape[0] * texture_shape[1] * item_size;
-
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
@@ -97,18 +92,21 @@ function allocate_lut_texture(dtype, item_size, texture_shape) {
     // const padded_data = new arraytype(size);
     // const type = dtype2threetype[dtype];
 
+    const size = texture_shape[0] * texture_shape[1] * item_size;
     const padded_data = new Float32Array(size);
-    const type = dtype2threetype["float32"];  // NB! See comment above
-
     const format = itemsize2threeformat[item_size];
+    const type = dtype2threetype["float32"];  // NB! See comment above
+    const mapping = undefined;
+    const wrapping = THREE.ClampToEdgeWrapping;
+    const filter = THREE.LinearFilter;  // TODO: Could make linear/nearest filtering of lut an encoding parameter
 
-    const texture = new THREE.DataTexture(padded_data,
+    const texture = new THREE.DataTexture(
+        padded_data,
         texture_shape[0], texture_shape[1],
         format, type,
-        undefined,
-        THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping,
-        // TODO: Could make linear/nearest filtering of lut an encoding parameter
-        THREE.LinearFilter, THREE.LinearFilter);
+        mapping,
+        wrapping, wrapping,
+        filter, filter);
 
     return texture;
 }

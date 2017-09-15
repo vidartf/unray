@@ -1,6 +1,6 @@
 "use strict";
 
-import {THREE} from './threeimport';
+import * as THREE from "three";
 import {managers} from "./managers";
 
 import {delete_undefined} from "./utils";

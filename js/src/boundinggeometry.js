@@ -1,11 +1,8 @@
 "use strict";
 
-import {
-    compute_bounding_sphere,
-    compute_bounding_box
-} from "./meshutils";
+import * as THREE from "three";
 
-import {THREE} from "./threeimport";
+import { compute_bounding_sphere, compute_bounding_box } from "./meshutils";
 
 export
 function create_bounding_sphere(coordinates) {

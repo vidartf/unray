@@ -1,6 +1,6 @@
 "use strict";
 
-import {THREE} from './threeimport';
+import * as THREE from "three";
 
 import {ObjectManager} from "./object_manager";
 

@@ -1,7 +1,8 @@
 "use strict";
 
 import _ from "underscore";
-import {THREE} from "./threeimport";
+import * as THREE from "three";
+
 import {
     create_bounding_sphere_geometry,
     create_bounding_box_geometry,
@@ -136,14 +137,22 @@ function create_mesh(method, encoding, data) {
 
 function update_mesh(mesh, method, encoding, data) {
     // Recompute uniforms and defines (this also updates texture values etc)
-    //const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
+    const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
 
-    // TODO: Update material
-    // (let three.js determine if recompilation is necessary)
-    //mesh.material.uniforms = uniforms;
-    //mesh.material.defines = defines;  // TODO: Does this override something it shouldn't?
+    // Update material (let three.js determine if recompilation is necessary)
+    const mat = mesh.material;
+    Object.keys(mat.uniforms).forEach(k => { delete mat.uniforms[k]; });
+    Object.assign(mat.uniforms, uniforms);
+    Object.keys(mat.defines).forEach(k => { delete mat.defines[k]; });
+    Object.assign(mat.defines, defines);
+    mat.needsUpdate = true;
 
     // TODO: Is it necessary to update geometry? If attributes can change it is.
+    if (Object.keys(attributes).length > 0) {
+        console.warn("Ignoring newly created attributes in update_mesh.", attributes);
+    }
+    //const geo = mesh.geometry;
+    //geo.attributes.addAttribute();
 }
 
 function create_debugging_geometries(mesh) {

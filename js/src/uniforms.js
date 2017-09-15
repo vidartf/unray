@@ -2,7 +2,7 @@
 
 import _ from 'underscore';
 
-import {THREE} from './threeimport';
+import * as THREE from "three";
 
 // Uniforms that are set automatically by user
 export
