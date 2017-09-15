@@ -12,10 +12,8 @@ import {
 } from "./threeutils";
 
 import {default_automatic_uniforms} from "./uniforms";
+import {default_encodings} from "./encodings";
 
-
-// TODO: Improve and document encoding specifications
-// TODO: ENABLE_PERSPECTIVE_PROJECTION should be determined by camera, maybe use a uniform to toggle
 const default_defines = {
     surface: {
         ENABLE_SURFACE_MODEL: 1,
@@ -44,81 +42,104 @@ const default_defines = {
     },
 };
 
-const default_encodings = create_default_encodings();
-
-// Build default encodings for each method
-function create_default_encodings() {
-    // Reusable channel defaults
-    const cells = {
-        field: null,
-    };
-    const coordinates = {
-        field: null,
-    };
-    const indicators = {
-        field: null,
-        values: [1],
-        lut_field: null,
-    };
-    const density = {
-        constant: 1.0,
-        field: null,
-        space: "P1",
-        range: "auto",
-        lut_field: null,
-    };
-    const emission = {
-        constant: "#ff00ff",
-        field: null,
-        space: "P1",
-        range: "auto",
-        lut_field: null,
-    };
-    const wireframe = {
-        enable: false,
-        size: 0.001,
-        color: "#000000",
-        opacity: 1.0,
-        decay: 0.5,
-    };
-    const isovalues = {
-        mode: "single", // "single", "linear", "log", "power", "sweep"
-        value: 0.0,
-        num_intervals: 0,
-        spacing: 1.0,
-        period: 3.0,
-    };
-    const light = {
-        emission_intensity_range: [0.5, 1.0],
-        // ambient_intensity: 0.0,
-        // ambient_color: "#888888"
-    };
-    const extinction = { value: 1.0 };
-    const exposure = { value: 0.0 };
-
-    // Compose method defaults from channels
-    const defenc = {
-        mesh: { cells, coordinates, indicators, wireframe, light },
-        surface: { cells, coordinates, indicators, wireframe, emission, light },
-        isosurface: { cells, coordinates, wireframe, isovalues },
-        xray: { cells, coordinates, indicators, density, extinction },
-        sum: { cells, coordinates, indicators, emission, exposure },
-        min: { cells, coordinates, indicators, density },
-        max: { cells, coordinates, indicators, density },
-        volume: { cells, coordinates, indicators, density, emission },
-    };
-
-    return defenc;
-}
-
 function update_range_uniform(uniforms, name, range, array) {
-    if (range === undefined) {
-        delete uniforms[name];
-    } else {
+    if (range) {
         const newrange = range === "auto" ? compute_range(array) : range;
         uniforms[name] = { value: extended_range(...newrange) };
     }
 }
+
+// TODO: Use or delete
+function __allocate_value(item_size) {
+    switch (item_size)
+    {
+    case 1:
+        return 0;
+    case 2:
+        return new THREE.Vector2();
+    case 3:
+        return new THREE.Vector3();
+    case 4:
+        return new THREE.Vector4();
+    case 9:
+        return new THREE.Matrix3();
+    case 16:
+        return new THREE.Matrix4();
+    default:
+        throw { message: 'Invalid item size', item_size: item_size };
+    }
+}
+
+// TODO: Use or delete
+function __update_uniform_value(uniform, new_value) {
+    if (typeof uniform.value === "number") {
+        uniform.value = new_value;
+    } else if (uniform.value.isVector2) {  // TODO: Clean up this verbosity, did this to get rid of some errors quickly
+        uniform.value.set(new_value[0], new_value[1]);
+    } else if (uniform.value.isVector3) {
+        uniform.value.set(new_value[0], new_value[1], new_value[2]);
+    } else if (uniform.value.isVector4) {
+        uniform.value.set(new_value[0], new_value[1], new_value[2], new_value[3]);
+    } else if (uniform.value.isVector2 || uniform.value.isVector3 || uniform.value.isVector4) {
+        uniform.value.set(...new_value);
+    } else if (uniform.value.isMatrix3 || uniform.value.isMatrix4) {
+        uniform.value.set(...new_value);
+    } else if (uniform.value.isColor) {
+        // TODO: Consider better color handling
+        if (new_value.isColor || typeof new_value === "string") {
+            uniform.value.set(new_value);
+        } else {
+            // Assuming rgb triplet
+            uniform.value.setRGB(new_value[0], new_value[1], new_value[2]);
+        }
+        // uniform.value.setHSL(...new_value);  // hsl triplet
+    } else {
+        console.warn("Unexpected uniform type " + (typeof uniform.value));
+        uniform.value = new_value;
+    }
+}
+
+/*  Old range update code TODO Review new code and delete this
+
+        // Update associated data range
+        if (enc.range !== undefined) {
+            let newrange = null;
+            if (enc.range === "auto") {
+                newrange = compute_range(new_value);
+            } else  {
+                newrange = enc.range;
+            }
+            if (newrange !== null) {
+                newrange = extended_range(...newrange);
+                const range_name = "u_" + channel_name + "_range";
+                if (uniforms.hasOwnProperty(range_name)) {
+                    uniforms[range_name].value.set(...newrange);
+                }
+            }
+
+            // FIXME: Autoupdate values in a cleaner way
+            // if (method === "isosurface") {
+            //     const isovalue_enc = FIXME;
+            //     if (isovalue_enc.value === "auto") {
+            //         const value_range = newrange;
+            //         u.u_isovalue = 0.5 * (value_range[0] + value_range[1]);
+            //     }
+            //     if (isovalue_enc.spacing === "auto") {
+            //         const num_intervals = isovalue_enc.num_intervals;
+            //         let spacing = 0.0;
+            //         switch (isovalue_enc.mode) {
+            //         case "linear":
+            //             spacing = (1.0 / num_intervals) * (value_range[1] - value_range[0]);
+            //             break;
+            //         case "log":
+            //             spacing = Math.pow(value_range[1] / value_range[0], 1.0 / (num_intervals + 1.0));
+            //             break;
+            //         }
+            //         u.u_isovalue_spacing = spacing;
+            //     }
+            // }
+        }
+*/
 
 const channel_handlers = {
     cells: ({uniforms, defines, attributes}, desc, {data, managers}) => {
@@ -176,62 +197,107 @@ const channel_handlers = {
     wireframe: ({uniforms, defines}, desc) => {
         if (desc.enable) {
             defines.ENABLE_WIREFRAME = 1;
-        } else {
-            delete defines.ENABLE_WIREFRAME;
+            uniforms.u_wireframe_color = { value: new THREE.Color(desc.color) };
+            uniforms.u_wireframe_alpha = { value: desc.opacity };
+            uniforms.u_wireframe_size = { value: desc.size };
         }
-        uniforms.u_wireframe_color = { value: new THREE.Color(desc.color) };
-        uniforms.u_wireframe_alpha = { value: desc.opacity };
-        uniforms.u_wireframe_size = { value: desc.size };
-        uniforms.u_wireframe_decay = { value: desc.decay };
     },
     light: ({uniforms, defines}, desc) => {
         uniforms.u_emission_intensity_range = { value: [...desc.emission_intensity_range] };
+
+        defines.ENABLE_SURFACE_LIGHT = 1;
     },
     density: ({uniforms, defines}, desc, {data, managers}) => {
-        const key = desc.field;
-        if (key) {
-            const array = data[key];
-            const num_vertices = array.length;
-            const texture_shape = compute_texture_shape(num_vertices);
+        defines.ENABLE_DENSITY = 1;
 
-            const prev = uniforms.t_density ? uniforms.t_density.value : undefined;
-            const value = managers.array_texture.update(key,
-                {array: array, dtype: "float32", item_size: 1, texture_shape: texture_shape },
-                prev);
-            uniforms.t_density = { value };
-            defines.ENABLE_DENSITY = 1;
+        if (desc.field) {
+            const key = desc.field;
+            const uname = "t_density";
+
+            const array = data[key];
+            const dtype = "float32";
+            const item_size = 1;
+            const texture_shape = compute_texture_shape(array.length / item_size);
+            const spec = {array, dtype, item_size, texture_shape};
+
+            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+
+            const value = managers.array_texture.update(key, spec, prev);
+            uniforms[uname] = { value };
+
+            defines.ENABLE_DENSITY_FIELD = 1;
             if (desc.space !== "P0") {
                 defines.ENABLE_DENSITY_BACK = 1;
             }
+
             update_range_uniform(uniforms, "u_density_range", desc.range, array);
+        } else {
+            uniforms.u_density_constant = { value: desc.constant };
         }
+
         if (desc.lut_field) {
-            const lut = managers.lut_texture.update(desc.lut_field, data[desc.lut_field]); // FIXME
-            uniforms.t_density_lut = { value: lut };
+            const key = desc.lut_field;
+            const uname = "t_density_lut";
+
+            const array = data[key];
+            const item_size = 1;
+            const dtype = "float32";
+            const spec = {array, dtype, item_size};
+
+            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+
+            const value = managers.lut_texture.update(key, spec, prev);
+            uniforms[uname] = { value };
+
+            defines.ENABLE_DENSITY_LUT = 1;
         }
     },
     emission: ({uniforms, defines}, desc, {data, managers}) => {
-        const key = desc.field;
-        if (key) {
-            const array = data[key];
-            const num_vertices = array.length;
-            const texture_shape = compute_texture_shape(num_vertices);
+        defines.ENABLE_EMISSION = 1;
 
-            const prev = uniforms.t_emission ? uniforms.t_emission.value : undefined;
-            const value = managers.array_texture.update(key,
-                {array: array, dtype: "float32", item_size: 1, texture_shape: texture_shape },
-                prev);
-            uniforms.t_emission = { value };
-            defines.ENABLE_EMISSION = 1;
+        if (desc.field) {
+            const key = desc.field;
+            const uname = "t_emission";
+
+            const array = data[key];
+            const item_size = 1;
+            const dtype = "float32";
+            const texture_shape = compute_texture_shape(array.length / item_size);
+            const spec = {array, dtype, item_size, texture_shape};
+
+            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+
+            const value = managers.array_texture.update(key, spec, prev);
+            uniforms[uname] = { value };
+
+            defines.ENABLE_EMISSION_FIELD = 1;
             if (desc.space !== "P0") {
                 defines.ENABLE_EMISSION_BACK = 1;
             }
+
             update_range_uniform(uniforms, "u_emission_range", desc.range, array);
+        } else {
+            uniforms.u_emission_constant = { value: desc.constant };
         }
+
         if (desc.lut_field) {
-            const lut = managers.lut_texture.update(desc.lut_field, data[desc.lut_field]); // FIXME
-            uniforms.t_emission_lut = { value: lut };
+            const key = desc.lut_field;
+            const uname = "t_emission_lut";
+            
+            const array = data[key];
+            const item_size = 1;
+            const dtype = "float32";
+            const spec = {array, dtype, item_size};
+
+            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+
+            const value = managers.lut_texture.update(key, spec, prev);
+            uniforms[uname] = { value };
+
+            defines.ENABLE_EMISSION_LUT = 1;
         }
+
+        // This should always have a valid value
         uniforms.u_emission_color = { value: new THREE.Color(desc.color) };
     },
     isovalues: ({uniforms, defines}, desc) => {
@@ -244,8 +310,6 @@ const channel_handlers = {
 
         if (desc.mode === "sweep") {
             uniforms.u_isovalue_sweep_period = { value: desc.period };
-        } else {
-            delete uniforms.u_isovalue_sweep_period;
         }
 
         // TODO: Use a single define instead?
@@ -283,8 +347,12 @@ function create_three_data(method, encoding, data) {
 
     // Define initial default defines based on method
     const defines = Object.assign({}, default_defines[method]);
-    defines.ENABLE_CELL_ORDERING = 1;  // TODO: Avoid for unsorted methods
-    defines.ENABLE_PERSPECTIVE_PROJECTION = 1;  // TODO: Determine based on camera type
+
+    // TODO: ENABLE_CELL_ORDERING should be determined by need for sorting based on method
+    defines.ENABLE_CELL_ORDERING = 1;
+
+    // TODO: ENABLE_PERSPECTIVE_PROJECTION should be determined by camera type
+    defines.ENABLE_PERSPECTIVE_PROJECTION = 1;
 
     // Initialize uniforms that are set by time and view changes
     const uniforms = default_automatic_uniforms();

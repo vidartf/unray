@@ -109,6 +109,7 @@ uniform vec3 u_local_camera_position;
 uniform vec3 u_local_view_direction;
 #endif
 
+
 // Custom light uniforms
 uniform vec3 u_emission_color;
 #ifdef ENABLE_SURFACE_LIGHT
@@ -122,7 +123,6 @@ uniform float u_exposure;
 uniform vec3 u_wireframe_color;
 uniform float u_wireframe_alpha;
 uniform float u_wireframe_size;
-uniform float u_wireframe_decay;
 #endif
 
 #ifdef ENABLE_ISOSURFACE_MODEL
@@ -144,12 +144,27 @@ uniform float u_extinction;
 // #endif
 
 #ifdef ENABLE_DENSITY
+#ifdef ENABLE_DENSITY_FIELD
 uniform vec4 u_density_range;
+#else
+uniform float u_density_constant;
+#endif
+#endif
+
+#ifdef ENABLE_DENSITY_LUT
 uniform sampler2D t_density_lut;
 #endif
 
+
 #ifdef ENABLE_EMISSION
+#ifdef ENABLE_EMISSION_FIELD
 uniform vec4 u_emission_range;
+#else
+uniform float u_emission_constant;
+#endif
+#endif
+
+#ifdef ENABLE_EMISSION_LUT
 uniform sampler2D t_emission_lut;
 #endif
 
@@ -179,11 +194,11 @@ varying mat4 v_planes;                   // webgl2 required for flat keyword
 varying vec4 v_ray_lengths;
 #endif
 
-#ifdef ENABLE_DENSITY
+#ifdef ENABLE_DENSITY_FIELD
 varying float v_density;
 #endif
 
-#ifdef ENABLE_EMISSION
+#ifdef ENABLE_EMISSION_FIELD
 varying float v_emission;
 #endif
 
@@ -294,25 +309,51 @@ void main()
     // or just allow the texture sampler to deal with that?
 
 #ifdef ENABLE_DENSITY
+  #ifdef ENABLE_DENSITY_FIELD
     float scaled_density = (v_density - u_density_range.x) * u_density_range.w;
+  #else
+    float scaled_density = u_density_constant;
+  #endif
+  #ifdef ENABLE_DENSITY_LUT
     float mapped_density = texture2D(t_density_lut, vec2(scaled_density, 0.5)).a;
-  #ifdef ENABLE_DENSITY_BACK
+  #else
+    float mapped_density = scaled_density;
+  #endif
+#endif
+
+#ifdef ENABLE_DENSITY_BACK
     // TODO: With constant view direction,
     //    dot(v_density_gradient, view_direction)
     // is also constant and can be made a flat varying
     float density_back = v_density + depth * dot(v_density_gradient, view_direction);
     float scaled_density_back = (density_back - u_density_range.x) * u_density_range.w;
+  #ifdef ENABLE_DENSITY_LUT
     float mapped_density_back = texture2D(t_density_lut, vec2(scaled_density_back, 0.5)).a;
+  #else
+    float mapped_density_back = scaled_density_back;
   #endif
 #endif
 
 #ifdef ENABLE_EMISSION
+  #ifdef ENABLE_EMISSION_FIELD
     float scaled_emission = (v_emission - u_emission_range.x) * u_emission_range.w;
+  #else
+    float scaled_emission = u_emission_constant;
+  #endif
+  #ifdef ENABLE_EMISSION_LUT
     vec3 mapped_emission = texture2D(t_emission_lut, vec2(scaled_emission, 0.5)).xyz;
-  #ifdef ENABLE_EMISSION_BACK
+  #else
+    vec3 mapped_emission = u_emission_color * scaled_emission;
+  #endif
+#endif
+
+#ifdef ENABLE_EMISSION_BACK
     float emission_back = v_emission + depth * dot(v_emission_gradient, view_direction);
     float scaled_emission_back = (emission_back - u_emission_range.x) * u_emission_range.w;
+  #ifdef ENABLE_EMISSION_LUT
     vec3 mapped_emission_back = texture2D(t_emission_lut, vec2(scaled_emission_back, 0.5)).xyz;
+  #else
+    vec3 mapped_emission_back = u_emission_color * scaled_emission_back;
   #endif
 #endif
 
@@ -329,11 +370,11 @@ void main()
 #ifdef ENABLE_SURFACE_MODEL
     // Select emission color
     #if defined(ENABLE_EMISSION)
-    vec3 C = mapped_emission;
+    vec3 C_emit = mapped_emission;
     #elif defined(ENABLE_DENSITY)
-    vec3 C = u_emission_color * mapped_density;
+    vec3 C_emit = u_emission_color * mapped_density;
     #else
-    vec3 C = u_emission_color;
+    vec3 C_emit = u_emission_color;
     #endif
 
     // TODO: Get proper light terms and parameter names in here
@@ -343,7 +384,9 @@ void main()
 
     // Apply shading to emission color
     float k_emit = mix(u_emission_intensity_range.x, u_emission_intensity_range.y, cos_V_N);
-    C *= k_emit;
+    vec3 C = k_emit * C_emit;
+  #else
+    vec3 C = C_emit;
   #endif
 
     // TODO: Could modulate surface_scaling or color components with
@@ -450,9 +493,17 @@ void main()
     // Map value through color lut
     float scaled_value = (value - value_range.x) * value_range.w;
   #if defined(ENABLE_EMISSION_BACK)
+    #ifdef ENABLE_EMISSION_LUT
     vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz; // CHECKME
+    #else
+    vec3 C = u_emission_color * scaled_value; // CHECKME
+    #endif
   #elif defined(ENABLE_DENSITY_BACK)
-    vec3 C = u_emission_color * texture2D(t_density_lut, vec2(scaled_value, 0.5)).a; // CHECKME
+    #ifdef ENABLE_DENSITY_LUT
+    float C = u_emission_color * texture2D(t_density_lut, vec2(scaled_value, 0.5)).a;
+    #else
+    float C = u_emission_color * scaled_value;
+    #endif
   #endif
 
 
@@ -626,19 +677,26 @@ void main()
     // using partial derivatives of barycentric coordinates
     // in window space to ensure edge size is large enough
     // for far away edges.
-    vec4 edge_closeness = smoothstep(vec4(0.0), max(bc_width, u_wireframe_size), v_barycentric_coordinates);
+    vec4 edge_closeness = smoothstep(
+        vec4(0.0),
+        max(bc_width, u_wireframe_size), // vec4 in [0,1]
+        v_barycentric_coordinates  // vec4 in [0,1]
+        );
+    // Note that edge_closeness[i] -> 0 when closer to face i,
+    // which means that on the edge between two faces i,j
+    // we get edge_closeness[i] and edge_closeness[j] almost zero.
 
     // Pick the two smallest edge closeness values and square them
     vec4 sorted_edge_closeness = sorted(edge_closeness);
-    float edge_factor = sorted_edge_closeness[0]*sorted_edge_closeness[0]
-                      + sorted_edge_closeness[1]*sorted_edge_closeness[1];
+    float edge_dist2 = sorted_edge_closeness[0]*sorted_edge_closeness[0]
+                     + sorted_edge_closeness[1]*sorted_edge_closeness[1];
+    // Note that edge_dist2 goes to 0 when getting close to any edge.
 
-    // 1 at near plane, 0 at infinity
-    float proximity = clamp(gl_FragColor.w, 0.0, 1.0);
-    u_wireframe_decay;
+    // Compute opacity of edge shading at this fragment
+    float edge_opacity = u_wireframe_alpha * (1.0 - edge_dist2);
 
     // Mix edge color into background
-    C = mix(u_wireframe_color, C, mix(1.0, edge_factor, u_wireframe_alpha));
+    C = mix(C, u_wireframe_color, edge_opacity);
 #endif
 
 

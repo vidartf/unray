@@ -1,25 +1,81 @@
-'use strict';
+"use strict";
 
 // TODO: Add classes mirroring plotwidgets.py here
 
 // TODO: Remove data.js, figure.js, plot.js once replacements are up
 
 
-import widgets from '@jupyter-widgets/base';
+import widgets from "@jupyter-widgets/base";
 
-//import _ from 'underscore';
+//import _ from "underscore";
 
-import version from './version';
+import version from "./version";
 
-import {create_unray_state} from './renderer';
+import {create_plot_state} from "./plotstate";
 
 import {
     getArrayFromUnion, data_union_serialization
-} from 'jupyter-datawidgets';
+} from "jupyter-datawidgets";
 
-import {BlackboxModel} from 'jupyter-threejs';
+import {BlackboxModel} from "jupyter-threejs";
 
-import * as THREE from 'three';
+import * as THREE from "three";
+
+
+// Copied in from figure.js before deleting that file, maybe useful somewhere
+function __recompute_near_far(center, radius, position, fov) {
+    const offset = 0.2;
+    const dist = position.distanceTo(center);
+    const near_edge = dist - radius;
+    const far_edge = dist + radius;
+    const near = Math.max(0.01 * near_edge, 0.01 * radius);
+    const far = 100 * far_edge;
+    return [near, far];
+}
+
+// Copied in from figure.js before deleting that file, documenting how renderer was previously setup
+function __setup_renderer(canvas, width, height, bgcolor) {
+    const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        precision: "highp",
+        alpha: true,
+        antialias: true,
+        stencil: false,
+        preserveDrawingBuffer: true,
+        depth: true,
+        logarithmicDepthBuffer: true,
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
+    renderer.setClearColor(bgcolor, 1);
+
+    // Setup scene fog
+    //scene.fog = new THREE.Fog(0xaaaaaa);
+}
+
+
+
+function getIdentifiedValue(model, name) {
+    const array = model.get("array");
+    const value = getArrayFromUnion(array).data;
+    const id = array.model_id || model.model_id + "_" + name;
+    return { id, value };
+}
+
+function updateMeshEncoding(encoding, data, mesh) {
+    const cells = mesh.get("cells");
+    if (cells) {
+        const { id, value } = getIdentifiedValue(cells, "cells");
+        data[id] = value;
+        encoding.cells = { field: id };
+    }
+    const points = mesh.get("points");
+    if (points) {
+        const { id, value } = getIdentifiedValue(points, "points");
+        data[id] = value;
+        encoding.coordinates = { field: id };
+    }
+}
 
 
 class PlotModel extends BlackboxModel {
@@ -39,7 +95,7 @@ class PlotModel extends BlackboxModel {
 
     constructThreeObject() {
         const root = new THREE.Group();
-        this.plotState = create_unray_state(root, this.getPlotMethod());
+        this.plotState = create_plot_state(root, this.getPlotMethod());
         const { encoding, data } = this.buildPlotEncoding();
         this.plotState.init(encoding, data);
         return root;
@@ -72,72 +128,6 @@ class PlotModel extends BlackboxModel {
 
 
 export
-class WireframePlotModel extends PlotModel {
-    getPlotMethod() {
-        return "mesh";
-    }
-
-    plotDefaults() {
-        return {
-            mesh: null,
-            //restrict: null,
-            wireframe: true,
-            edgesize: 0.001,
-        };
-    }
-
-    defaults() {
-        return Object.assign(super.defaults(), {
-            _model_name : 'WireframePlotModel',
-            }, this.plotDefaults());
-    }
-
-    buildPlotEncoding() {
-        // Map attributes to expected unray input
-        const encoding = {};
-        const data = {};
-
-        // If we need a plot id for this object, this should do the trick
-        //const plotname = this.model_id;
-
-        // Get relevant attributes
-        const mesh = this.get('mesh');
-
-        if (mesh) {
-            const cells = mesh.get('cells');
-            if (cells) {
-                // FIXME: Get id and array with ipydatawidgets api
-                const array = cells.get('array');
-
-                data['cells'] = getArrayFromUnion(array).data;
-                encoding.cells = { field: 'cells' };
-            }
-            const points = mesh.get('points');
-            if (points) {
-                // FIXME: Get id and array with ipydatawidgets api
-                const array = points.get('array');
-
-                data['points'] = getArrayFromUnion(array).data;
-                encoding.coordinates = { field: 'points' };
-            }
-        }
-
-        // FIXME: Fix unray input of various small data like this:
-        //encoding.wireframe = wireframe;
-        //encoding.wireframe_size = edgesize;
-
-        return { encoding, data };
-    }
-};
-WireframePlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
-    {
-        mesh: { deserialize: widgets.unpack_models }
-    }
-);
-
-
-export
 class SurfacePlotModel extends PlotModel {
     getPlotMethod() {
         return "surface";
@@ -145,71 +135,58 @@ class SurfacePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            //restrict: null,
-            color: null,
-            wireframe: true,
-            edgesize: 0.001,
+            mesh: null,  // MeshModel
+            restrict: null,  // IndicatorFieldModel
+            color: null,  // ColorFieldModel || ColorConstantModel
+            wireframe: null,  // WireframeParamsModel
         };
     }
 
     defaults() {
         return Object.assign(super.defaults(), {
-            _model_name : 'SurfacePlotModel',
+            _model_name : "SurfacePlotModel",
             }, this.plotDefaults());
     }
 
     buildPlotEncoding() {
-        // Map attributes to expected unray input
         const encoding = {};
         const data = {};
 
-        // If we need a plot id for this object, this should do the trick
-        const plotname = this.model_id;
+        // Always need a mesh
+        const mesh = this.get("mesh");
+        updateMeshEncoding(encoding, data, mesh);
 
-        // FIXME: This currently assumes 'color' is a ColorField
-        // Get relevant attributes
-        let color = this.get('color');
-
-        if (color) {
-            const field = color.get('field');
-            const mesh = field.get('mesh');
-
-            // TODO: Reuse mesh encoding, maybe even reuse encoding for each channel
-            const cells = mesh.get('cells');
-            if (cells) {
-                const array = cells.get('array');
-                const id = plotname + "_cells";  // FIXME: Get model_id from array if available
-                data[id] = getArrayFromUnion(array).data;
-                encoding.cells = { field: id };
-            }
-            const points = mesh.get('points');
-            if (points) {
-                const array = points.get('array');
-                const id = plotname + "_points";  // FIXME: Get model_id from array if available
-                data[id] = getArrayFromUnion(array).data;
-                encoding.coordinates = { field: id };
-            }
-
-            const emission = field.get('values');
-            if (emission) {
-                const array = emission;
-                const id = plotname + "_emission";  // FIXME: Get model_id from array if available
-                data[id] = getArrayFromUnion(array).data;
-                encoding.emission = { field: id };
-            }
-            const emission_lut = color.get('lut');
-            if (emission_lut) {
-                // FIXME: Assumes ArrayColorLUT
-                const array = emission_lut.get('values');
-                const id = plotname + "_emission_lut";  // FIXME: Get model_id from array if available
-                data[id] = getArrayFromUnion(array).data;
-                encoding.emission_lut = { field: id };
+        const wireframe = this.get("wireframe");
+        if (wireframe) {
+            encoding.wireframe = {};
+            for (let key of ["enable", "size", "color", "opacity"]) {
+                encoding.wireframe[key] = wireframe.get(key);
             }
         }
 
-        // FIXME: Fix unray input of various small data like this:
-        //encoding.wireframe = wireframe;
-        //encoding.wireframe_size = edgesize;
+        /*
+        let color = this.get("color");
+        encoding.emission = {};
+        if (color.is_ColorField) {
+            const field = color.get("field");
+            const lut = color.get("lut");
+            const emission = field.get("values");
+            if (emission) {
+                const { id, value } = getIdentifiedValue(emission, "emission");
+                data[id] = value;
+                encoding.emission.field = id;
+            }
+            const emission_lut = lut.get("values");  // FIXME: Assumes ArrayColorLUT
+            if (emission_lut) {
+                const { id, value } = getIdentifiedValue(emission_lut, "emission_lut");
+                data[id] = value;
+                encoding.emission.lut_field = id;
+            }
+        } else if (color.is_ColorConstant) {
+            const constant = color.get("constant");
+            // encoding.emission.constant = constant;  // FIXME
+        }
+        */
 
         return { encoding, data };        
     }
@@ -217,7 +194,10 @@ class SurfacePlotModel extends PlotModel {
 SurfacePlotModel.serializers = Object.assign({},
     BlackboxModel.serializers,
     {
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
+        wireframe: { deserialize: widgets.unpack_models },
     }
 );
 
@@ -230,23 +210,25 @@ class IsosurfacePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            // TODO
+            mesh: null,  // MeshModel
+            restrict: null,  // IndicatorFieldModel
+            color: null,
         };
     }
 
     defaults() {
         return Object.assign(super.defaults(), {
-            _model_name : 'IsosurfacePlotModel',
+            _model_name : "IsosurfacePlotModel",
             }, this.plotDefaults());
     }
 
     buildPlotEncoding() {
-        // Map attributes to expected unray input
         const encoding = {};
         const data = {};
 
-        // If we need a plot id for this object, this should do the trick
-        //const plotname = this.model_id;
+        // Always need a mesh
+        const mesh = this.get("mesh");
+        updateMeshEncoding(encoding, data, mesh);
 
         // TODO
 
@@ -256,7 +238,9 @@ class IsosurfacePlotModel extends PlotModel {
 IsosurfacePlotModel.serializers = Object.assign({},
     BlackboxModel.serializers,
     {
-            // TODO
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
+        color: { deserialize: widgets.unpack_models },
     }
 );
 
@@ -269,28 +253,29 @@ class XrayPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
+            mesh: null,  // MeshModel
+            restrict: null,  // IndicatorFieldModel
             density: null,  // FieldModel
-            //restrict: null,
+            //color: "#ffffff",  // ColorConstant
         };
     }
 
     defaults() {
         return Object.assign(super.defaults(), {
-            _model_name : 'XrayPlotModel',
+            _model_name : "XrayPlotModel",
             }, this.plotDefaults());
     }
 
     buildPlotEncoding() {
-        // Map attributes to expected unray input
         const encoding = {};
         const data = {};
 
-        // If we need a plot id for this object, this should do the trick
-        //const plotname = this.model_id;
+        // Always need a mesh
+        const mesh = this.get("mesh");
+        updateMeshEncoding(encoding, data, mesh);
 
         // Get relevant attributes
-        let density = this.get('density');
-
+        let density = this.get("density");
 
         // FIXME: Build encoding and data
         if (density) {
@@ -302,7 +287,10 @@ class XrayPlotModel extends PlotModel {
 XrayPlotModel.serializers = Object.assign({},
     BlackboxModel.serializers,
     {
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
         density: { deserialize: widgets.unpack_models },
+        //color: { deserialize: widgets.unpack_models },
     }
 );
 
@@ -315,23 +303,25 @@ class MinPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            // TODO
+            mesh: null,  // MeshModel
+            restrict: null,  // IndicatorFieldModel
+            color: null,  // ColorFieldModel
         };
     }
 
     defaults() {
         return Object.assign(super.defaults(), {
-            _model_name : 'MinPlotModel',
+            _model_name : "MinPlotModel",
             }, this.plotDefaults());
     }
 
     buildPlotEncoding() {
-        // Map attributes to expected unray input
         const encoding = {};
         const data = {};
 
-        // If we need a plot id for this object, this should do the trick
-        //const plotname = this.model_id;
+        // Always need a mesh
+        const mesh = this.get("mesh");
+        updateMeshEncoding(encoding, data, mesh);
 
         // TODO
 
@@ -341,7 +331,9 @@ class MinPlotModel extends PlotModel {
 MinPlotModel.serializers = Object.assign({},
     BlackboxModel.serializers,
     {
-        // TODO
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
+        color: { deserialize: widgets.unpack_models },
     }
 );
 
@@ -354,23 +346,25 @@ class MaxPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            // TODO
+            mesh: null,  // MeshModel
+            restrict: null,  // IndicatorFieldModel
+            color: null,  // ColorFieldModel
         };
     }
 
     defaults() {
         return Object.assign(super.defaults(), {
-            _model_name : 'MaxPlotModel',
+            _model_name : "MaxPlotModel",
             }, this.plotDefaults());
     }
 
     buildPlotEncoding() {
-        // Map attributes to expected unray input
         const encoding = {};
         const data = {};
 
-        // If we need a plot id for this object, this should do the trick
-        //const plotname = this.model_id;
+        // Always need a mesh
+        const mesh = this.get("mesh");
+        updateMeshEncoding(encoding, data, mesh);
 
         // TODO
 
@@ -380,7 +374,9 @@ class MaxPlotModel extends PlotModel {
 MaxPlotModel.serializers = Object.assign({},
     BlackboxModel.serializers,
     {
-        // TODO
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
+        color: { deserialize: widgets.unpack_models },
     }
 );
 
@@ -393,23 +389,25 @@ class SumPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            // TODO
+            mesh: null,  // MeshModel
+            restrict: null,  // IndicatorFieldModel
+            color: null,  // ColorFieldModel
         };
     }
 
     defaults() {
         return Object.assign(super.defaults(), {
-            _model_name : 'SumPlotModel',
+            _model_name : "SumPlotModel",
             }, this.plotDefaults());
     }
 
     buildPlotEncoding() {
-        // Map attributes to expected unray input
         const encoding = {};
         const data = {};
 
-        // If we need a plot id for this object, this should do the trick
-        //const plotname = this.model_id;
+        // Always need a mesh
+        const mesh = this.get("mesh");
+        updateMeshEncoding(encoding, data, mesh);
 
         // TODO
 
@@ -419,7 +417,9 @@ class SumPlotModel extends PlotModel {
 SumPlotModel.serializers = Object.assign({},
     BlackboxModel.serializers,
     {
-        // TODO
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
+        color: { deserialize: widgets.unpack_models },
     }
 );
 
@@ -432,23 +432,26 @@ class VolumePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            // TODO
+            mesh: null,  // MeshModel
+            restrict: null,  // IndicatorFieldModel
+            density: null,  // FieldModel
+            color: null,  // ColorFieldModel
         };
     }
 
     defaults() {
         return Object.assign(super.defaults(), {
-            _model_name : 'VolumePlotModel',
+            _model_name : "VolumePlotModel",
             }, this.plotDefaults());
     }
 
     buildPlotEncoding() {
-        // Map attributes to expected unray input
         const encoding = {};
         const data = {};
 
-        // If we need a plot id for this object, this should do the trick
-        //const plotname = this.model_id;
+        // Always need a mesh
+        const mesh = this.get("mesh");
+        updateMeshEncoding(encoding, data, mesh);
 
         // TODO
 
@@ -458,6 +461,9 @@ class VolumePlotModel extends PlotModel {
 VolumePlotModel.serializers = Object.assign({},
     BlackboxModel.serializers,
     {
-        // TODO
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
+        density: { deserialize: widgets.unpack_models },
+        color: { deserialize: widgets.unpack_models },
     }
 );

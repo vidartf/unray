@@ -19,6 +19,9 @@ class BaseWidget(widgets.Widget):
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
 
+# ------------------------------------------------------
+
+
 @register
 class Mesh(BaseWidget):
     """Representation of an unstructured mesh."""
@@ -46,6 +49,53 @@ class IndicatorField(BaseWidget):
     space = Enum(indicator_field_types, "I3").tag(sync=True)
 
 
+# ------------------------------------------------------
+
+
+@register
+class WireframeParams(BaseWidget):
+    """Collection of wireframe parameters."""
+    _model_name = Unicode('WireframeParamsModel').tag(sync=True)
+    enable = CBool(True).tag(sync=True)
+    size = CFloat(0.001).tag(sync=True)
+    color = Unicode("#000000").tag(sync=True)
+    opacity = CFloat(1.0).tag(sync=True)
+
+
+# ------------------------------------------------------
+
+# TODO:
+# ScalarIndicators
+# ScalarLUT
+# ArrayScalarLUT
+# NamedScalarLUT
+
+# class Scalar(BaseWidget):
+#     """TODO: Document me."""
+#     # Abstract class, don't register, and don't set name
+#     pass
+
+
+# @register
+# class ScalarConstant(Scalar):
+#     """TODO: Document me."""
+#     _model_name = Unicode('ScalarConstantModel').tag(sync=True)
+
+#     constant = CFloat(0.0).tag(sync=True)
+
+
+# @register
+# class ScalarField(Scalar):
+#     """TODO: Document me."""
+#     _model_name = Unicode('ScalarFieldModel').tag(sync=True)
+
+#     field = Instance(Field, allow_none=True).tag(sync=True, **widget_serialization)
+#     lut = Instance(ScalarLUT, allow_none=True).tag(sync=True, **widget_serialization)
+
+
+# ------------------------------------------------------
+
+
 class ColorLUT(BaseWidget):
     """TODO: Document me."""
     # Abstract class, don't register, and don't set name
@@ -68,6 +118,9 @@ class NamedColorLUT(ColorLUT):
     name = Unicode("viridis").tag(sync=True)
 
 
+# ------------------------------------------------------
+
+
 class Color(BaseWidget):
     """TODO: Document me."""
     # Abstract class, don't register, and don't set name
@@ -88,7 +141,7 @@ class ColorField(Color):
     """TODO: Document me."""
     _model_name = Unicode('ColorFieldModel').tag(sync=True)
 
-    field = Instance(Field, allow_none=True).tag(sync=True, **widget_serialization)
+    field = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
     lut = Instance(ColorLUT, allow_none=True).tag(sync=True, **widget_serialization)
 
 
@@ -98,5 +151,8 @@ class ColorIndicators(Color):
     _model_name = Unicode('ColorIndicatorsModel').tag(sync=True)
 
     # TODO: Validate field spaces: ["I2", "I3"]
-    field = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
+    field = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)
     lut = Instance(ColorLUT, allow_none=True).tag(sync=True, **widget_serialization)
+
+
+# ------------------------------------------------------

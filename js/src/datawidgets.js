@@ -11,6 +11,8 @@ import {
 
 export
 class MeshModel extends widgets.WidgetModel {
+    get is_Mesh() { return true; }
+
     defaults() {
         return Object.assign(super.defaults(), version.module_defaults, {
             _model_name : 'MeshModel',
@@ -50,6 +52,8 @@ MeshModel.serializers = Object.assign({},
 
 export
 class FieldModel extends widgets.WidgetModel {
+    get is_Field() { return true; }
+
     defaults() {
         return Object.assign(super.defaults(),
             version.module_defaults, {
@@ -71,6 +75,8 @@ FieldModel.serializers = Object.assign({},
 
 export
 class IndicatorFieldModel extends widgets.WidgetModel {
+    get is_IndicatorField() { return true; }
+
     defaults() {
         return Object.assign(super.defaults(),
             version.module_defaults, {
@@ -91,7 +97,28 @@ IndicatorFieldModel.serializers = Object.assign({},
 
 
 export
+class WireframeParamsModel extends widgets.WidgetModel {
+    get is_WireframeParams() { return true; }
+
+    defaults() {
+        return Object.assign(super.defaults(),
+            version.module_defaults, {
+            _model_name : 'WireframeParamsModel',
+
+            enable: true,
+            size: 0.001,
+            color: "#000000",
+            opacity: 1.0,
+            decay: 0.5,
+        });
+    }
+}
+
+
+export
 class ArrayColorLUTModel extends widgets.WidgetModel {
+    get is_ArrayColorLUT() { return true; }
+
     defaults() {
         return Object.assign(super.defaults(),
             version.module_defaults, {
@@ -111,6 +138,8 @@ ArrayColorLUTModel.serializers = Object.assign({},
 
 export
 class NamedColorLUTModel extends widgets.WidgetModel {
+    get is_NamedColorLUT() { return true; }
+
     defaults() {
         return Object.assign(super.defaults(),
             version.module_defaults, {
@@ -128,6 +157,8 @@ class NamedColorLUTModel extends widgets.WidgetModel {
 
 export
 class ColorConstantModel extends widgets.WidgetModel {
+    get is_ColorConstant() { return true; }
+    
     defaults() {
         return Object.assign(super.defaults(),
             version.module_defaults, {
@@ -145,6 +176,8 @@ class ColorConstantModel extends widgets.WidgetModel {
 
 export
 class ColorFieldModel extends widgets.WidgetModel {
+    get is_ColorField() { return true; }
+
     defaults() {
         return Object.assign(super.defaults(),
             version.module_defaults, {
@@ -165,6 +198,8 @@ ColorFieldModel.serializers = Object.assign({},
 
 export
 class ColorIndicatorsModel extends widgets.WidgetModel {
+    get is_ColorIndicators() { return true; }
+
     defaults() {
         return Object.assign(super.defaults(),
             version.module_defaults, {

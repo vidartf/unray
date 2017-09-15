@@ -127,16 +127,3 @@ function update_array_texture(texture, data) {
     }
     texture.needsUpdate = true;
 }
-
-export
-function update_lut(uniform, new_value, item_size, dtype) {
-    const dim = new_value.length / item_size;
-    if (!uniform.value) {
-        uniform.value = allocate_lut_texture(dtype, item_size, [dim, 1]);
-    } else if (uniform.value.image.width !== dim) {
-        // TODO: Should we deallocate the gl texture via uniform.value somehow?
-        uniform.value = allocate_lut_texture(
-            dtype, item_size, [dim, 1]);
-    }
-    update_array_texture(uniform.value, new_value);
-}

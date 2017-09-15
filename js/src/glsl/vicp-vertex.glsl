@@ -55,27 +55,27 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 #endif
 
 #ifdef ENABLE_PERSPECTIVE_PROJECTION
-    #define ENABLE_COORDINATES 1
+    #define ENABLE_ALL_COORDINATES 1
 #endif
 
 #ifdef ENABLE_EMISSION_BACK
-    #define ENABLE_EMISSION 1
+    #define ENABLE_EMISSION_FIELD 1
     #define ENABLE_EMISSION_GRADIENT 1
     #define ENABLE_DEPTH 1
     #define ENABLE_VIEW_DIRECTION 1
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
-    #define ENABLE_DENSITY 1
+    #define ENABLE_DENSITY_FIELD 1
     #define ENABLE_DENSITY_GRADIENT 1
     #define ENABLE_DEPTH 1
     #define ENABLE_VIEW_DIRECTION 1
 #endif
 
 #ifdef ENABLE_SURFACE_LIGHT
-    #if defined(ENABLE_EMISSION)
+    #if defined(ENABLE_EMISSION_FIELD)
         #define ENABLE_EMISSION_GRADIENT 1
-    #elif defined(ENABLE_DENSITY)
+    #elif defined(ENABLE_DENSITY_FIELD)
         #define ENABLE_DENSITY_GRADIENT 1
     #endif
     #define ENABLE_PLANES 1
@@ -90,7 +90,7 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 #endif
 
 #ifdef ENABLE_DEPTH
-    #define ENABLE_COORDINATES 1
+    #define ENABLE_ALL_COORDINATES 1
     #define ENABLE_BARYCENTRIC_COORDINATES 1
     #define ENABLE_EDGES 1
     #ifdef ENABLE_PERSPECTIVE_PROJECTION
@@ -102,44 +102,35 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
     #define ENABLE_EDGES 1
 #endif
 
-#ifdef ENABLE_DENSITY
-    #define ENABLE_VERTEX_UV 1
-#endif
-
-#ifdef ENABLE_EMISSION
-    #define ENABLE_VERTEX_UV 1
-#endif
-
 #ifdef ENABLE_JACOBIAN_INVERSE
-    #define ENABLE_COORDINATES 1
+    #define ENABLE_ALL_COORDINATES 1
 #endif
 
-#ifdef ENABLE_COORDINATES
+#ifdef ENABLE_DENSITY_FIELD
     #define ENABLE_VERTEX_UV 1
 #endif
 
+#ifdef ENABLE_EMISSION_FIELD
+    #define ENABLE_VERTEX_UV 1
+#endif
 
-// Time uniforms
-// uniform float u_time;
-// uniform vec4 u_oscillators;
+#ifdef ENABLE_ALL_COORDINATES
+    #define ENABLE_VERTEX_UV 1
+#endif
+
 
 // Custom camera uniforms
 uniform mat4 u_mvp_matrix;
 uniform vec3 u_local_camera_position;
+
 #ifndef ENABLE_PERSPECTIVE_PROJECTION
 uniform vec3 u_local_view_direction;
 #endif
 
-// Input data uniforms
 
+// Input data uniforms
 #ifdef ENABLE_CELL_INDICATORS
 uniform int u_cell_indicator_value;
-#endif
-#ifdef ENABLE_DENSITY
-uniform vec4 u_density_range;
-#endif
-#ifdef ENABLE_EMISSION
-uniform vec4 u_emission_range;
 #endif
 
 
@@ -147,6 +138,7 @@ uniform vec4 u_emission_range;
 #ifdef ENABLE_CELL_UV
 uniform ivec2 u_cell_texture_shape;
 #endif
+
 #ifdef ENABLE_VERTEX_UV
 uniform ivec2 u_vertex_texture_shape;
 #endif
@@ -156,19 +148,20 @@ uniform ivec2 u_vertex_texture_shape;
 #ifdef ENABLE_CELL_ORDERING
 uniform sampler2D t_cells;
 #endif
+
 #ifdef ENABLE_CELL_INDICATORS
 uniform sampler2D t_cell_indicators;
 #endif
 
 // Vertex textures
 uniform sampler2D t_coordinates;
-#ifdef ENABLE_DENSITY
+
+#ifdef ENABLE_DENSITY_FIELD
 uniform sampler2D t_density;
-uniform sampler2D t_density_lut;
 #endif
-#ifdef ENABLE_EMISSION
+
+#ifdef ENABLE_EMISSION_FIELD
 uniform sampler2D t_emission;
-uniform sampler2D t_emission_lut;
 #endif
 
 
@@ -213,7 +206,7 @@ varying vec4 v_ray_lengths;
 #endif
 
 // TODO: Can pack density and density_gradient in one vec4 since they're interpolated anyway
-#ifdef ENABLE_DENSITY
+#ifdef ENABLE_DENSITY_FIELD
 varying float v_density;
 #endif
 
@@ -221,7 +214,7 @@ varying float v_density;
 varying vec3 v_density_gradient;         // webgl2 required for flat keyword
 #endif
 
-#ifdef ENABLE_EMISSION
+#ifdef ENABLE_EMISSION_FIELD
 varying float v_emission;
 #endif
 
@@ -314,7 +307,7 @@ void main()
 #endif
 
 
-#ifdef ENABLE_COORDINATES
+#ifdef ENABLE_ALL_COORDINATES
     // Get coordinates of all tetrahedron vertices
     vec3 coordinates[4];
     for (int i = 0; i < 4; ++i) {
@@ -365,7 +358,7 @@ void main()
     }
     v_density = getitem(density, local_vertex_id);
     v_density_gradient = compute_gradient(Jinv, density);
-#elif defined(ENABLE_DENSITY)
+#elif defined(ENABLE_DENSITY_FIELD)
     v_density = texture2D(t_density, this_vertex_uv).a;
 #endif
 
@@ -377,7 +370,7 @@ void main()
     }
     v_emission = getitem(emission, local_vertex_id);
     v_emission_gradient = compute_gradient(Jinv, emission);
-#elif defined(ENABLE_EMISSION)
+#elif defined(ENABLE_EMISSION_FIELD)
     v_emission = texture2D(t_emission, this_vertex_uv).a;
 #endif
 

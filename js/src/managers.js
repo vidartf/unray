@@ -7,14 +7,10 @@ import {ObjectManager} from "./object_manager";
 import {
     allocate_lut_texture,
     allocate_array_texture,
-    update_lut,
     update_array_texture
 } from "./threeutils";
 
-// channel.dtype
-// channel.item_size
-// vertex_texture_shape
-// cell_texture_shape
+
 // Singleton managers for each object type
 export
 const managers = {
@@ -32,14 +28,15 @@ const managers = {
     ),
     lut_texture: new ObjectManager(
         // Create
-        ({array, dtype, item_size, texture_shape}) => {
-            const texture = allocate_array_texture(dtype, item_size, texture_shape);
+        ({array, dtype, item_size}) => {
+            const texture_shape = [array.length / item_size, 1];
+            const texture = allocate_lut_texture(dtype, item_size, texture_shape);
             update_array_texture(texture, array);
             return texture;
         },
         // Update
-        (texture, {array, dtype, item_size}) => {
-            update_lut(texture, array, item_size, dtype);
+        (texture, {array}) => {
+            update_array_texture(texture, array);
         },
     ),
     cells_buffer: new ObjectManager(

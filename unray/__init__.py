@@ -1,9 +1,7 @@
 from unray._version import version_info, __version__
 
-from unray.widgets import *
-from unray.lab import *
-from unray.examples import *
-
+from unray.datawidgets import *
+from unray.plotwidgets import *
 
 def _jupyter_nbextension_paths():
     return [{

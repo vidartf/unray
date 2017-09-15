@@ -136,12 +136,12 @@ function create_mesh(method, encoding, data) {
 
 function update_mesh(mesh, method, encoding, data) {
     // Recompute uniforms and defines (this also updates texture values etc)
-    const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
+    //const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
 
     // TODO: Update material
     // (let three.js determine if recompilation is necessary)
-    mesh.material.uniforms = uniforms;
-    mesh.material.defines = defines;  // TODO: Does this override something it shouldn't?
+    //mesh.material.uniforms = uniforms;
+    //mesh.material.defines = defines;  // TODO: Does this override something it shouldn't?
 
     // TODO: Is it necessary to update geometry? If attributes can change it is.
 }
@@ -184,7 +184,7 @@ const method_backgrounds = {
 };
 
 export
-function create_unray_state(root, method) {
+function create_plot_state(root, method) {
     const state = {
         // Remember the root node (a THREE.Group instance) to modify our subscene
         root: root,
@@ -200,6 +200,9 @@ function create_unray_state(root, method) {
             const mesh = create_mesh(this.method, encoding, data);
             this.root.add(mesh);
             this.root.add(create_debugging_geometries(mesh));
+            console.log("Initialized plot mesh:", mesh);
+            console.log("defines:", mesh.material.defines);
+            console.log("uniforms:", mesh.material.uniforms);
         },
 
         // Called on later updates
@@ -210,6 +213,7 @@ function create_unray_state(root, method) {
             // Find mesh (should be the first root node, make this more robust if needed)
             const mesh = this.root.children[0];
             update_mesh(mesh, this.method, encoding, data);
+            console.log("Updated plot mesh:", mesh);
         },
 
         // Method specific suggestion for background color
@@ -223,5 +227,6 @@ function create_unray_state(root, method) {
             return this.bgcolor;
         }
     };
+    console.log("Constructed plot state:", state);
     return state;
 }
