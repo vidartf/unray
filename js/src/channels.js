@@ -1,18 +1,39 @@
 "use strict";
 
 import * as THREE from "three";
+
 import {managers} from "./managers";
-
 import {delete_undefined} from "./utils";
-
-import {
-    compute_range,
-    extended_range,
-    compute_texture_shape
-} from "./threeutils";
-
 import {default_automatic_uniforms} from "./uniforms";
 import {default_encodings} from "./encodings";
+
+export
+function compute_range(array) {
+    let min = array[0];
+    let max = array[0];
+    for (let v of array) {
+        min = Math.min(min, v);
+        max = Math.max(max, v);
+    }
+    return [min, max];
+}
+
+export
+function extended_range(min, max) {
+    let range = max - min;
+    let scale = range > 0.0 ? 1.0 / range : 1.0;
+    return [min, max, range, scale];
+}
+
+export
+function compute_texture_shape(size) {
+    if (size <= 0) {
+        throw Error(`Expecting a positive size ${size}`);
+    }
+    const width = Math.pow(2, Math.floor(Math.log2(size) / 2));
+    const height = Math.ceil(size / width);
+    return [width, height];
+}
 
 const default_defines = {
     surface: {
