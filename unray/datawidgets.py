@@ -50,19 +50,6 @@ class IndicatorField(BaseWidget):
 
 
 # ------------------------------------------------------
-
-
-@register
-class WireframeParams(BaseWidget):
-    """Collection of wireframe parameters."""
-    _model_name = Unicode('WireframeParamsModel').tag(sync=True)
-    enable = CBool(True).tag(sync=True)
-    size = CFloat(0.001).tag(sync=True)
-    color = Unicode("#000000").tag(sync=True)
-    opacity = CFloat(1.0).tag(sync=True)
-
-
-# ------------------------------------------------------
 # TODO: Lookup tables for scalars and colors should be
 # developed further in ipyscales or shared with some other project
 
@@ -81,14 +68,8 @@ class ArrayScalarLUT(ScalarLUT):
     """Representation of a scalar lookup table by an array of values."""
     _model_name = Unicode('ArrayScalarLUTModel').tag(sync=True)
     values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None)).tag(sync=True, **data_union_serialization)
+    # TODO: Handle linear/log scaled LUTs somehow:
     #space = Enum(["linear", "log", "power"], "linear").tag(sync=True)
-
-
-# @register
-# class NamedScalarLUT(ScalarLUT):
-#     """Representation of a scalar lookup table by name."""
-#     _model_name = Unicode('NamedScalarLUTModel').tag(sync=True)
-#     name = Unicode("linear").tag(sync=True)
 
 
 class ColorLUT(LUT):
@@ -182,6 +163,33 @@ class ColorIndicators(Color):
     # TODO: Validate field spaces: ["I2", "I3"]
     field = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)
     lut = Instance(ColorLUT, allow_none=True).tag(sync=True, **widget_serialization)
+
+
+# ------------------------------------------------------
+
+
+@register
+class WireframeParams(BaseWidget):
+    """Collection of wireframe parameters."""
+    _model_name = Unicode('WireframeParamsModel').tag(sync=True)
+    enable = CBool(True).tag(sync=True)
+    size = CFloat(0.001).tag(sync=True)
+    color = Unicode("#000000").tag(sync=True)
+    opacity = CFloat(1.0).tag(sync=True)
+
+
+isosurface_types = ["single", "linear", "log", "power", "sweep"]
+
+
+@register
+class IsovalueParams(BaseWidget):
+    """Collection of isosurface value parameters."""
+    _model_name = Unicode('IsovalueParamsModel').tag(sync=True)
+    mode = Enum(isosurface_types, "single").tag(sync=True)
+    value = CFloat(0.0).tag(sync=True)
+    num_intervals = CFloat(0).tag(sync=True)
+    spacing = CFloat(1.0).tag(sync=True)
+    period = CFloat(3.0).tag(sync=True)
 
 
 # ------------------------------------------------------

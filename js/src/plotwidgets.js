@@ -43,6 +43,13 @@ function __setup_renderer(canvas, width, height, bgcolor) {
 }
 
 
+function getNotNull(model, key) {
+    const value = model.get(key);
+    if (!value) {
+        throw Error(`Missing required ${key} on ${model.attributes._model_name}.`);
+    }
+    return value;
+}
 
 function getIdentifiedValue(model, name) {
     const array = model.get("array");
@@ -51,18 +58,171 @@ function getIdentifiedValue(model, name) {
     return { id, value };
 }
 
-function updateMeshEncoding(encoding, data, mesh) {
-    const cells = mesh.get("cells");
+function setMeshEncoding(encoding, data, mesh) {
+    if (!mesh) {
+        throw Error("Mesh is always required.");
+    }
+
+    const cells = getNotNull(mesh, "cells");
     if (cells) {
         const { id, value } = getIdentifiedValue(cells, "cells");
         data[id] = value;
         encoding.cells = { field: id };
     }
-    const points = mesh.get("points");
+
+    const points = getNotNull(mesh, "points");
     if (points) {
         const { id, value } = getIdentifiedValue(points, "points");
         data[id] = value;
         encoding.coordinates = { field: id };
+    }
+}
+
+function checkMeshEncoding(encoding, data, mesh) {
+    if (mesh) {
+        const cells = mesh.get("cells");
+        if (cells) {
+            const { id, value } = getIdentifiedValue(cells, "cells");
+            if (encoding.cells.field !== id) {
+                console.warn(`Mesh mismatch, cells id differ:`, encoding.cells.field, id);
+            }
+            if (data[id] !== value) {
+                console.warn(`Mesh mismatch, cells value differ:`, data[id], value);
+            }
+        }
+        const points = mesh.get("points");
+        if (points) {
+            const { id, value } = getIdentifiedValue(points, "points");
+            if (encoding.points.field !== id) {
+                console.warn(`Mesh mismatch, points id differ:`, encoding.points.field, id);
+            }
+            if (data[id] !== value) {
+                console.warn(`Mesh mismatch, points value differ:`, data[id], value);
+            }
+        }
+    }
+}
+
+function setRestrictEncoding(encoding, data, restrict) {
+    if (restrict) {
+        // FIXME
+        console.error("Missing implementation of restrict encoding.");
+    }
+}
+
+function setParamsEncoding(encoding, data, params, channel, keys) {
+    if (params) {
+        const desc = {};
+        for (let key of keys) {
+            desc[key] = params.get(key);
+        }
+        encoding[channel] = desc;
+    }
+}
+
+function setWireframeEncoding(encoding, data, params) {
+    const channel = "wireframe";
+    const keys = ["enable", "size", "color", "opacity"];
+    setParamsEncoding(encoding, data, params, channel, keys);
+}
+
+function setIsovalueParamsEncoding(encoding, data, params) {
+    const channel = "isovalues";
+    const keys = ["mode", "value", "num_intervals", "spacing", "period"];
+    setParamsEncoding(encoding, data, params, channel, keys);
+}
+
+function setDensityEncoding(encoding, data, density) {
+    if (density) {
+        if (density.isScalarConstant) {
+            // TODO: Allow constant mapped through LUT?
+            encoding.density = {
+                constant: density.get("value"),
+            };
+        } else if (density.isScalarField) {
+            encoding.density = {};
+
+            // Top level traits
+            const field = getNotNull(density, "field");
+            const lut = density.get("lut");
+
+            checkMeshEncoding(encoding, data, field.get("mesh"));
+            
+            // Non-optional field
+            const array = getNotNull(field, "values");
+            const { id, value } = getIdentifiedValue(array, "density");
+            data[id] = value;
+            encoding.density.field = id;
+            encoding.density.space = field.get("space");
+            //encoding.density.range = field.get("range"); // FIXME
+
+            // Optional LUT
+            if (lut) {
+                if (lut.isArrayScalarLUT) {
+                    const values = getNotNull(lut, "values");
+                    const { id, value } = getIdentifiedValue(values, "density_lut");
+                    data[id] = value;
+                    encoding.density.lut_field = id;
+                    // TODO: Handle linear/log scaled LUTs somehow:
+                    //encoding.density.lut_space = getNotNull(lut, "space");
+                } else {
+                    console.error("Invalid scalar LUT", lut);
+                }
+            }
+        } else {
+            console.error("Invalid scalar ", density);
+        }
+    }
+}
+
+function setEmissionEncoding(encoding, data, color) {
+    if (color) {
+        if (color.isColorConstant) {
+            // TODO: Allow constant mapped through LUT?
+            encoding.emission = {
+                constant: color.get("intensity"),
+                color: color.get("color"),
+            };
+        } else if (color.isColorField) {
+            encoding.emission = {};
+
+            // Top level traits
+            const field = getNotNull(color, "field");
+            const lut = color.get("lut");
+
+            checkMeshEncoding(encoding, data, field.get("mesh"));
+
+            // Non-optional field
+            const array = getNotNull(field, "values");
+            const { id, value } = getIdentifiedValue(array, "emission");
+            data[id] = value;
+            encoding.emission.field = id;
+            encoding.emission.space = field.get("space");
+            //encoding.emission.range = field.get("range"); // FIXME
+
+            // Optional LUT
+            if (lut) {
+                if (lut.isArrayColorLUT) {
+                    const values = getNotNull(lut, "values");
+                    const { id, value } = getIdentifiedValue(values, "emission_lut");
+                    data[id] = value;
+                    encoding.emission.lut_field = id;
+                    // TODO: Handle linear/log scaled LUTs somehow:
+                    //encoding.emission.lut_space = getNotNull(lut, "space");
+                } else if (lut.isNamedColorLUT) {
+                    const id = getNotNull(lut, "name");
+                    // FIXME Implement something like this using d3
+                    const value = getNamedColorLutArray(id);
+                    data[id] = value;
+                    encoding.emission.lut_field = id;
+                    console.error("Named color LUT not implemented.");
+                } else {
+                    console.error("Invalid color LUT", lut);
+                }
+            }
+        } else {
+            console.error("Invalid color ", color);
+        }
     }
 }
 
@@ -138,57 +298,18 @@ class SurfacePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        console.log("IN buildPlotEncoding");
         const encoding = {};
         const data = {};
-
-        // Always need a mesh
-        const mesh = this.get("mesh");
-        updateMeshEncoding(encoding, data, mesh);
-
-        // Encode wireframe params
-        const wireframe = this.get("wireframe");
-        if (wireframe) {
-            encoding.wireframe = {};
-            for (let key of ["enable", "size", "color", "opacity"]) {
-                encoding.wireframe[key] = wireframe.get(key);
-            }
-        }
-
-        // Encode color / emission
-        const color = this.get("color");
-        if (color) {
-            if (color.is_ColorConstant) {
-                encoding.emission = {
-                    constant: color.get("intensity"),
-                    color: color.get("color"),
-                };
-            } else if (color.is_ColorField) {
-                const desc = {};
-
-                const field = color.get("field");
-                const lut = color.get("lut");
-
-                const emission = field.get("values");
-                if (emission) {
-                    const { id, value } = getIdentifiedValue(emission, "emission");
-                    data[id] = value;
-                    desc.field = id;
-                }
-                const emission_lut = lut.get("values");  // FIXME: Assumes ArrayColorLUT
-                if (emission_lut) {
-                    const { id, value } = getIdentifiedValue(emission_lut, "emission_lut");
-                    data[id] = value;
-                    desc.lut_field = id;
-                }
-                encoding.emission = desc;
-            }
-            console.log("Encoded color:", encoding.emission);
-        } else {
-            console.log("No color encoding.");
-        }
-
-        console.log("LEAVING buildPlotEncoding", encoding, data);
+        setMeshEncoding(encoding, data, this.get("mesh"));
+        setRestrictEncoding(encoding, data, this.get("restrict"));
+        setEmissionEncoding(encoding, data, this.get("color"));
+        setWireframeEncoding(encoding, data, this.get("wireframe"));
+        console.log("Encoding in SurfacePlot:")
+        console.log("----------------->")
+        console.log(encoding)
+        console.log("------------------")
+        console.log(data)
+        console.log("<-----------------")
         return { encoding, data };
     }
 };
@@ -213,7 +334,10 @@ class IsosurfacePlotModel extends PlotModel {
         return {
             mesh: null,  // MeshModel
             restrict: null,  // IndicatorFieldModel
-            color: null,
+            color: null,  // ColorFieldModel | ColorConstantModel
+            field: null,  // Field if different from color.field
+            values: null,  // IsovalueParams
+            // wireframe: null, // TODO: Add wireframe options
         };
     }
 
@@ -226,13 +350,12 @@ class IsosurfacePlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-
-        // Always need a mesh
-        const mesh = this.get("mesh");
-        updateMeshEncoding(encoding, data, mesh);
-
-        // TODO
-
+        setMeshEncoding(encoding, data, this.get("mesh"));
+        setRestrictEncoding(encoding, data, this.get("restrict"));
+        setDensityEncoding(encoding, data, this.get("field"));
+        setEmissionEncoding(encoding, data, this.get("color"));
+        setIsovalueParamsEncoding(encoding, data, this.get("values"));
+        //setWireframeEncoding(encoding, data, this.get("wireframe"));
         return { encoding, data };
     }
 };
@@ -242,6 +365,9 @@ IsosurfacePlotModel.serializers = Object.assign({},
         mesh: { deserialize: widgets.unpack_models },
         restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
+        field: { deserialize: widgets.unpack_models },
+        values: { deserialize: widgets.unpack_models },
+        //wireframe: { deserialize: widgets.unpack_models },
     }
 );
 
@@ -257,6 +383,7 @@ class XrayPlotModel extends PlotModel {
             mesh: null,  // MeshModel
             restrict: null,  // IndicatorFieldModel
             density: null,  // ScalarFieldModel | ScalarConstantModel
+            extinction: 1.0,
             //color: "#ffffff",  // ColorConstant
         };
     }
@@ -270,18 +397,11 @@ class XrayPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-
-        // Always need a mesh
-        const mesh = this.get("mesh");
-        updateMeshEncoding(encoding, data, mesh);
-
-        // Get relevant attributes
-        let density = this.get("density");
-
-        // FIXME: Build encoding and data
-        if (density) {
-        }
-
+        setMeshEncoding(encoding, data, this.get("mesh"));
+        setRestrictEncoding(encoding, data, this.get("restrict"));
+        setDensityEncoding(encoding, data, this.get("density"));
+        //setConstantEmissionEncoding(encoding, data, this.get("color"));
+        encoding.extinction = { value: this.get("extinction") };
         return { encoding, data };
     }
 };
@@ -306,7 +426,7 @@ class MinPlotModel extends PlotModel {
         return {
             mesh: null,  // MeshModel
             restrict: null,  // IndicatorFieldModel
-            color: null,  // ColorFieldModel
+            color: null,  // ColorFieldModel | ColorConstantModel
         };
     }
 
@@ -319,13 +439,9 @@ class MinPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-
-        // Always need a mesh
-        const mesh = this.get("mesh");
-        updateMeshEncoding(encoding, data, mesh);
-
-        // TODO
-
+        setMeshEncoding(encoding, data, this.get("mesh"));
+        setRestrictEncoding(encoding, data, this.get("restrict"));
+        setEmissionEncoding(encoding, data, this.get("color"));
         return { encoding, data };
     }
 };
@@ -349,7 +465,7 @@ class MaxPlotModel extends PlotModel {
         return {
             mesh: null,  // MeshModel
             restrict: null,  // IndicatorFieldModel
-            color: null,  // ColorFieldModel
+            color: null,  // ColorFieldModel | ColorConstantModel
         };
     }
 
@@ -362,13 +478,9 @@ class MaxPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-
-        // Always need a mesh
-        const mesh = this.get("mesh");
-        updateMeshEncoding(encoding, data, mesh);
-
-        // TODO
-
+        setMeshEncoding(encoding, data, this.get("mesh"));
+        setRestrictEncoding(encoding, data, this.get("restrict"));
+        setEmissionEncoding(encoding, data, this.get("color"));
         return { encoding, data };
     }
 };
@@ -392,7 +504,8 @@ class SumPlotModel extends PlotModel {
         return {
             mesh: null,  // MeshModel
             restrict: null,  // IndicatorFieldModel
-            color: null,  // ColorFieldModel
+            color: null,  // ColorFieldModel | ColorConstantModel
+            exposure: 0.0,
         };
     }
 
@@ -405,13 +518,10 @@ class SumPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-
-        // Always need a mesh
-        const mesh = this.get("mesh");
-        updateMeshEncoding(encoding, data, mesh);
-
-        // TODO
-
+        setMeshEncoding(encoding, data, this.get("mesh"));
+        setRestrictEncoding(encoding, data, this.get("restrict"));
+        setEmissionEncoding(encoding, data, this.get("color"));
+        encoding.exposure = { value: this.get("exposure") };
         return { encoding, data };
     }
 };
@@ -449,13 +559,10 @@ class VolumePlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-
-        // Always need a mesh
-        const mesh = this.get("mesh");
-        updateMeshEncoding(encoding, data, mesh);
-
-        // TODO
-
+        setMeshEncoding(encoding, data, this.get("mesh"));
+        setRestrictEncoding(encoding, data, this.get("restrict"));
+        setDensityEncoding(encoding, data, this.get("density"));
+        setEmissionEncoding(encoding, data, this.get("color"));
         return { encoding, data };
     }
 };

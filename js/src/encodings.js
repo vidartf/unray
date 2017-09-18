@@ -24,6 +24,8 @@ function create_default_encodings() {
         space: "P1",
         range: "auto",
         lut_field: null,
+        // TODO: Handle linear/log scaled LUTs somehow:
+        // lut_space: "linear",
     };
     const emission = {
         constant: 1.0,
@@ -32,6 +34,8 @@ function create_default_encodings() {
         space: "P1",
         range: "auto",
         lut_field: null,
+        // TODO: Handle linear/log scaled LUTs somehow:
+        // lut_space: "linear",
     };
     const wireframe = {
         enable: false,

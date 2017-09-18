@@ -62,14 +62,18 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 #endif
 
 #ifdef ENABLE_EMISSION_BACK
-    #define ENABLE_EMISSION 1
+    #if !defined(ENABLE_EMISSION) || !defined(ENABLE_EMISSION_FIELD)
+    compile_error();
+    #endif
     #define ENABLE_EMISSION_GRADIENT 1
     #define ENABLE_DEPTH 1
     #define ENABLE_VIEW_DIRECTION 1
 #endif
 
 #ifdef ENABLE_DENSITY_BACK
-    #define ENABLE_DENSITY 1
+    #if !defined(ENABLE_DENSITY) || !defined(ENABLE_DENSITY_FIELD)
+    compile_error();
+    #endif
     #define ENABLE_DENSITY_GRADIENT 1
     #define ENABLE_DEPTH 1
     #define ENABLE_VIEW_DIRECTION 1
@@ -544,25 +548,25 @@ void main()
 #ifdef ENABLE_XRAY_MODEL
     #if defined(ENABLE_EMISSION)
     compile_error();  // Xray model does not accept emission, only density
-    #elif !defined(ENABLE_DENSITY)  // defined(ENABLE_DENSITY_UNIFORM)
-    float rho = 0.1; // u_density;  // TODO: Add this parameter
-    #elif defined(ENABLE_DENSITY_INTEGRATED)
-    // TODO: Preintegrated texture of integrated density from front to back value
-    #elif defined(ENABLE_DENSITY_BACK) // TODO: Rename ENABLE_DENSITY_BACK -> ENABLE_DENSITY_LINEAR
+    #elif !defined(ENABLE_DENSITY)
+    compile_error();  // Xray model requires density
+    #elif defined(ENABLE_DENSITY_BACK)
     // This is exact assuming rho linear along a ray segment
     float rho = mix(mapped_density, mapped_density_back, 0.5);
-    #elif defined(ENABLE_DENSITY)  // TODO: Use ENABLE_DENSITY_CONSTANT
+    #elif defined(ENABLE_DENSITY_FIELD)
     // This is exact for rho constant along a ray segment
     float rho = mapped_density;
     #else
-    compile_error();  // Xray model needs density and density only
+    // Given global constant
+    float rho = mapped_density;
     #endif
-
-    // DEBUGGING: Add some oscillation to density
-    // rho *= abs((2.0 + u_oscillators[1]) / 3.0);
 
     // Compute transparency (NB! this is 1-opacity)
     float a = exp(-depth * u_extinction * rho);
+
+    // TODO: It's possible to get rid of the exp call by computing
+    // preintegrated texture of integrated density from front
+    // to back value. Possibly not really an optimization though.
 
     // This must be zero for no emission to occur, i.e.
     // all color comes from the background and is attenuated by 1-a

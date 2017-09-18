@@ -248,6 +248,7 @@ const channel_handlers = {
 
             defines.ENABLE_DENSITY_FIELD = 1;
             if (desc.space !== "P0") {
+                // TODO: Rename ENABLE_DENSITY_BACK -> ENABLE_DENSITY_LINEAR
                 defines.ENABLE_DENSITY_BACK = 1;
             }
 

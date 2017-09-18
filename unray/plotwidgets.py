@@ -8,11 +8,11 @@ from traitlets import Instance, TraitError, TraitType, Undefined
 from ._version import widget_module_name, widget_module_version
 
 from .datawidgets import Mesh, Field, IndicatorField
-from .datawidgets import WireframeParams
 from .datawidgets import ScalarLUT, ArrayScalarLUT #, NamedScalarLUT
 from .datawidgets import Scalar, ScalarConstant, ScalarField, ScalarIndicators
 from .datawidgets import ColorLUT, ArrayColorLUT, NamedColorLUT
 from .datawidgets import Color, ColorConstant, ColorField, ColorIndicators
+from .datawidgets import WireframeParams, IsovalueParams
 
 
 @register
@@ -56,7 +56,11 @@ class IsoSurfacePlot(Plot):
     # Color can be a constant or a field with color mapping
     color = Instance(Color, allow_none=False).tag(sync=True, **widget_serialization)
 
-    # TODO
+    # Scalar field to produce isosurfaces of, if different from color field
+    field = Instance(Field, allow_none=True).tag(sync=True, **widget_serialization)
+
+    # Configuration of values to show
+    values = Instance(IsovalueParams, allow_none=False).tag(sync=True, **widget_serialization)
 
 
 @register
@@ -73,6 +77,9 @@ class XrayPlot(Plot):
 
     # Density can be a constant or a scalar field with scalar mapping
     density = Instance(Scalar, allow_none=True).tag(sync=True, **widget_serialization)
+
+    # Extinction rate constant
+    extinction = CFloat(1.0).tag(sync=True)
 
     # Constant color to absorb through
     #color = Instance(ColorConstant, allow_none=True).tag(sync=True, **widget_serialization)
@@ -130,6 +137,9 @@ class SumPlot(Plot):
 
     # Color field with color mapping
     color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
+
+    # Exposure level
+    exposure = CFloat(0.0).tag(sync=True)
 
     # TODO
 

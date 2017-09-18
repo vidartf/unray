@@ -11,7 +11,7 @@ import {
 
 export
 class MeshModel extends widgets.WidgetModel {
-    get is_Mesh() { return true; }
+    get isMesh() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(), module_defaults, {
@@ -52,7 +52,7 @@ MeshModel.serializers = Object.assign({},
 
 export
 class FieldModel extends widgets.WidgetModel {
-    get is_Field() { return true; }
+    get isField() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -75,7 +75,7 @@ FieldModel.serializers = Object.assign({},
 
 export
 class IndicatorFieldModel extends widgets.WidgetModel {
-    get is_IndicatorField() { return true; }
+    get isIndicatorField() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -98,7 +98,7 @@ IndicatorFieldModel.serializers = Object.assign({},
 
 export
 class WireframeParamsModel extends widgets.WidgetModel {
-    get is_WireframeParams() { return true; }
+    get isWireframeParams() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -116,8 +116,27 @@ class WireframeParamsModel extends widgets.WidgetModel {
 
 
 export
+class IsovalueParamsModel extends widgets.WidgetModel {
+    get isIsovalueParam() { return true; }
+
+    defaults() {
+        return Object.assign(super.defaults(),
+            module_defaults, {
+            _model_name : "IsovalueParamsModel",
+
+            mode: "single", // "single", "linear", "log", "power", "sweep"
+            value: 0.0,
+            num_intervals: 0,
+            spacing: 1.0,
+            period: 3.0,
+        });
+    }
+}
+
+
+export
 class ArrayScalarLUTModel extends widgets.WidgetModel {
-    get is_ArrayScalarLUT() { return true; }
+    get isArrayScalarLUT() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -136,28 +155,9 @@ ArrayScalarLUTModel.serializers = Object.assign({},
 );
 
 
-// export
-// class NamedScalarLUTModel extends widgets.WidgetModel {
-//     get is_NamedScalarLUT() { return true; }
-
-//     defaults() {
-//         return Object.assign(super.defaults(),
-//             module_defaults, {
-//             _model_name : "NamedScalarLUTModel",
-//             name: "linear",
-//         });
-//     }
-// }
-// NamedScalarLUTModel.serializers = Object.assign({},
-//     widgets.WidgetModel.serializers,
-//     {
-//     }
-// );
-
-
 export
 class ArrayColorLUTModel extends widgets.WidgetModel {
-    get is_ArrayColorLUT() { return true; }
+    get isArrayColorLUT() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -178,7 +178,7 @@ ArrayColorLUTModel.serializers = Object.assign({},
 
 export
 class NamedColorLUTModel extends widgets.WidgetModel {
-    get is_NamedColorLUT() { return true; }
+    get isNamedColorLUT() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -188,11 +188,6 @@ class NamedColorLUTModel extends widgets.WidgetModel {
         });
     }
 }
-// NamedColorLUTModel.serializers = Object.assign({},
-//     widgets.WidgetModel.serializers,
-//     {
-//     }
-// );
 
 
 // ------------------------------------------
@@ -200,26 +195,21 @@ class NamedColorLUTModel extends widgets.WidgetModel {
 
 export
 class ScalarConstantModel extends widgets.WidgetModel {
-    get is_ScalarConstant() { return true; }
+    get isScalarConstant() { return true; }
     
     defaults() {
         return Object.assign(super.defaults(),
             module_defaults, {
             _model_name : "ScalarConstantModel",
-            value: 1.0,
+            value: 0.0,
         });
     }
 }
-// ScalarConstantModel.serializers = Object.assign({},
-//     widgets.WidgetModel.serializers,
-//     {
-//     }
-// );
 
 
 export
 class ScalarFieldModel extends widgets.WidgetModel {
-    get is_ScalarField() { return true; }
+    get isScalarField() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -241,7 +231,7 @@ ScalarFieldModel.serializers = Object.assign({},
 
 export
 class ScalarIndicatorsModel extends widgets.WidgetModel {
-    get is_ScalarIndicators() { return true; }
+    get isScalarIndicators() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -266,7 +256,7 @@ ScalarIndicatorsModel.serializers = Object.assign({},
 
 export
 class ColorConstantModel extends widgets.WidgetModel {
-    get is_ColorConstant() { return true; }
+    get isColorConstant() { return true; }
     
     defaults() {
         return Object.assign(super.defaults(),
@@ -286,7 +276,7 @@ class ColorConstantModel extends widgets.WidgetModel {
 
 export
 class ColorFieldModel extends widgets.WidgetModel {
-    get is_ColorField() { return true; }
+    get isColorField() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
@@ -308,7 +298,7 @@ ColorFieldModel.serializers = Object.assign({},
 
 export
 class ColorIndicatorsModel extends widgets.WidgetModel {
-    get is_ColorIndicators() { return true; }
+    get isColorIndicators() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
