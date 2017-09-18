@@ -116,6 +116,46 @@ class WireframeParamsModel extends widgets.WidgetModel {
 
 
 export
+class ArrayScalarLUTModel extends widgets.WidgetModel {
+    get is_ArrayScalarLUT() { return true; }
+
+    defaults() {
+        return Object.assign(super.defaults(),
+            module_defaults, {
+            _model_name : "ArrayScalarLUTModel",
+            values: null,  // ndarray
+            //space: "linear",
+        });
+    }
+}
+ArrayScalarLUTModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        values: data_union_serialization,
+    }
+);
+
+
+// export
+// class NamedScalarLUTModel extends widgets.WidgetModel {
+//     get is_NamedScalarLUT() { return true; }
+
+//     defaults() {
+//         return Object.assign(super.defaults(),
+//             module_defaults, {
+//             _model_name : "NamedScalarLUTModel",
+//             name: "linear",
+//         });
+//     }
+// }
+// NamedScalarLUTModel.serializers = Object.assign({},
+//     widgets.WidgetModel.serializers,
+//     {
+//     }
+// );
+
+
+export
 class ArrayColorLUTModel extends widgets.WidgetModel {
     get is_ArrayColorLUT() { return true; }
 
@@ -155,6 +195,75 @@ class NamedColorLUTModel extends widgets.WidgetModel {
 // );
 
 
+// ------------------------------------------
+
+
+export
+class ScalarConstantModel extends widgets.WidgetModel {
+    get is_ScalarConstant() { return true; }
+    
+    defaults() {
+        return Object.assign(super.defaults(),
+            module_defaults, {
+            _model_name : "ScalarConstantModel",
+            value: 1.0,
+        });
+    }
+}
+// ScalarConstantModel.serializers = Object.assign({},
+//     widgets.WidgetModel.serializers,
+//     {
+//     }
+// );
+
+
+export
+class ScalarFieldModel extends widgets.WidgetModel {
+    get is_ScalarField() { return true; }
+
+    defaults() {
+        return Object.assign(super.defaults(),
+            module_defaults, {
+            _model_name : "ScalarFieldModel",
+            field: null,  // FieldModel
+            lut: null,  // ArrayScalarLUTModel | NamedScalarLUTModel
+        });
+    }
+}
+ScalarFieldModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        field: { deserialize: widgets.unpack_models },
+        lut: { deserialize: widgets.unpack_models },
+    }
+);
+
+
+export
+class ScalarIndicatorsModel extends widgets.WidgetModel {
+    get is_ScalarIndicators() { return true; }
+
+    defaults() {
+        return Object.assign(super.defaults(),
+            module_defaults, {
+            _model_name : "ScalarIndicatorsModel",
+            field: null,  // IndicatorFieldModel
+            lut: null,  // ArrayScalarLUTModel | NamedScalarLUTModel
+        });
+    }
+}
+ScalarIndicatorsModel.serializers = Object.assign({},
+    widgets.WidgetModel.serializers,
+    {
+        field: { deserialize: widgets.unpack_models },
+        lut: { deserialize: widgets.unpack_models },
+    }
+);
+
+
+// ------------------------------------------
+
+
 export
 class ColorConstantModel extends widgets.WidgetModel {
     get is_ColorConstant() { return true; }
@@ -163,7 +272,8 @@ class ColorConstantModel extends widgets.WidgetModel {
         return Object.assign(super.defaults(),
             module_defaults, {
             _model_name : "ColorConstantModel",
-            constant: "#888888",
+            intensity: 1.0,
+            color: "#ffffff",
         });
     }
 }
@@ -216,3 +326,5 @@ ColorIndicatorsModel.serializers = Object.assign({},
         lut: { deserialize: widgets.unpack_models },
     }
 );
+
+// ------------------------------------------

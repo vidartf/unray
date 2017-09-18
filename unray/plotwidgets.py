@@ -9,8 +9,8 @@ from ._version import widget_module_name, widget_module_version
 
 from .datawidgets import Mesh, Field, IndicatorField
 from .datawidgets import WireframeParams
-#from .datawidgets import ScalarLUT, ArrayScalarLUT, NamedScalarLUT
-#from .datawidgets import Scalar, ScalarConstant, ScalarField, ScalarIndicators
+from .datawidgets import ScalarLUT, ArrayScalarLUT #, NamedScalarLUT
+from .datawidgets import Scalar, ScalarConstant, ScalarField, ScalarIndicators
 from .datawidgets import ColorLUT, ArrayColorLUT, NamedColorLUT
 from .datawidgets import Color, ColorConstant, ColorField, ColorIndicators
 
@@ -72,8 +72,7 @@ class XrayPlot(Plot):
     restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Density can be a constant or a scalar field with scalar mapping
-    # TODO: Field is not all these things, use Scalar
-    density = Instance(Field, allow_none=True).tag(sync=True, **widget_serialization)
+    density = Instance(Scalar, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Constant color to absorb through
     #color = Instance(ColorConstant, allow_none=True).tag(sync=True, **widget_serialization)
@@ -152,6 +151,6 @@ class VolumePlot(Plot):
 
     # Density can be a constant or a scalar field with scalar mapping
     # TODO: Field is not all these things, use Scalar
-    density = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
+    density = Instance(Scalar, allow_none=False).tag(sync=True, **widget_serialization)
 
     # TODO

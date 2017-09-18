@@ -27,7 +27,7 @@ function create_default_encodings() {
     };
     const emission = {
         constant: 1.0,
-        color: "#ff00ff",
+        color: "#ffffff",
         field: null,
         space: "P1",
         range: "auto",

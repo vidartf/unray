@@ -138,6 +138,7 @@ class SurfacePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
+        console.log("IN buildPlotEncoding");
         const encoding = {};
         const data = {};
 
@@ -155,37 +156,40 @@ class SurfacePlotModel extends PlotModel {
         }
 
         // Encode color / emission
-        /*
         const color = this.get("color");
-        encoding.emission = {};
-        if (color && color.is_ColorField) {
-            const field = color.get("field");
-            const lut = color.get("lut");
+        if (color) {
+            if (color.is_ColorConstant) {
+                encoding.emission = {
+                    constant: color.get("intensity"),
+                    color: color.get("color"),
+                };
+            } else if (color.is_ColorField) {
+                const desc = {};
 
-            const emission = field.get("values");
-            if (emission) {
-                const { id, value } = getIdentifiedValue(emission, "emission");
-                data[id] = value;
-                encoding.emission.field = id;
+                const field = color.get("field");
+                const lut = color.get("lut");
+
+                const emission = field.get("values");
+                if (emission) {
+                    const { id, value } = getIdentifiedValue(emission, "emission");
+                    data[id] = value;
+                    desc.field = id;
+                }
+                const emission_lut = lut.get("values");  // FIXME: Assumes ArrayColorLUT
+                if (emission_lut) {
+                    const { id, value } = getIdentifiedValue(emission_lut, "emission_lut");
+                    data[id] = value;
+                    desc.lut_field = id;
+                }
+                encoding.emission = desc;
             }
-            const emission_lut = lut.get("values");  // FIXME: Assumes ArrayColorLUT
-            if (emission_lut) {
-                const { id, value } = getIdentifiedValue(emission_lut, "emission_lut");
-                data[id] = value;
-                encoding.emission.lut_field = id;
-            }
-        } else if (color && color.is_ColorConstant) {
-            // const constant = color.get("constant");
-            // const color = color.get("color");
-            // encoding.emission = { constant: constant, color: color };
-            const constant = color.get("constant");
-            encoding.emission = { constant: 1.0, color: constant };
+            console.log("Encoded color:", encoding.emission);
+        } else {
+            console.log("No color encoding.");
         }
-        */
 
-        console.log("Built encoding", encoding);
-
-        return { encoding, data };        
+        console.log("LEAVING buildPlotEncoding", encoding, data);
+        return { encoding, data };
     }
 };
 SurfacePlotModel.serializers = Object.assign({},
@@ -252,7 +256,7 @@ class XrayPlotModel extends PlotModel {
         return {
             mesh: null,  // MeshModel
             restrict: null,  // IndicatorFieldModel
-            density: null,  // FieldModel
+            density: null,  // ScalarFieldModel | ScalarConstantModel
             //color: "#ffffff",  // ColorConstant
         };
     }
@@ -431,8 +435,8 @@ class VolumePlotModel extends PlotModel {
         return {
             mesh: null,  // MeshModel
             restrict: null,  // IndicatorFieldModel
-            density: null,  // FieldModel
-            color: null,  // ColorFieldModel
+            density: null,  // ScalarFieldModel | ScalarConstantModel
+            color: null,  // ColorFieldModel | ColorConstantModel
         };
     }
 

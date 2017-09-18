@@ -63,57 +63,50 @@ class WireframeParams(BaseWidget):
 
 
 # ------------------------------------------------------
+# TODO: Lookup tables for scalars and colors should be
+# developed further in ipyscales or shared with some other project
 
-# TODO:
-# ScalarIndicators
-# ScalarLUT
-# ArrayScalarLUT
-# NamedScalarLUT
+class LUT(BaseWidget):
+    """Representation of a lookup table."""
+    # Abstract class, don't register, and don't set name
 
-# class Scalar(BaseWidget):
-#     """TODO: Document me."""
-#     # Abstract class, don't register, and don't set name
-#     pass
+
+class ScalarLUT(LUT):
+    """Representation of a scalar lookup table."""
+    # Abstract class, don't register, and don't set name
+
+
+@register
+class ArrayScalarLUT(ScalarLUT):
+    """Representation of a scalar lookup table by an array of values."""
+    _model_name = Unicode('ArrayScalarLUTModel').tag(sync=True)
+    values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None)).tag(sync=True, **data_union_serialization)
+    #space = Enum(["linear", "log", "power"], "linear").tag(sync=True)
 
 
 # @register
-# class ScalarConstant(Scalar):
-#     """TODO: Document me."""
-#     _model_name = Unicode('ScalarConstantModel').tag(sync=True)
-
-#     constant = CFloat(0.0).tag(sync=True)
-
-
-# @register
-# class ScalarField(Scalar):
-#     """TODO: Document me."""
-#     _model_name = Unicode('ScalarFieldModel').tag(sync=True)
-
-#     field = Instance(Field, allow_none=True).tag(sync=True, **widget_serialization)
-#     lut = Instance(ScalarLUT, allow_none=True).tag(sync=True, **widget_serialization)
+# class NamedScalarLUT(ScalarLUT):
+#     """Representation of a scalar lookup table by name."""
+#     _model_name = Unicode('NamedScalarLUTModel').tag(sync=True)
+#     name = Unicode("linear").tag(sync=True)
 
 
-# ------------------------------------------------------
-
-
-class ColorLUT(BaseWidget):
-    """TODO: Document me."""
+class ColorLUT(LUT):
+    """Representation of a color lookup table."""
     # Abstract class, don't register, and don't set name
 
 
 @register
 class ArrayColorLUT(ColorLUT):
-    """TODO: Document me."""
+    """Representation of a color lookup table by an array of values."""
     _model_name = Unicode('ArrayColorLUTModel').tag(sync=True)
     values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None, 3)).tag(sync=True, **data_union_serialization)
     space = Enum(["rgb", "hsv"], "rgb").tag(sync=True)
 
-# TODO: Develop color lookup methods further, rgb, hsv, nominal vs quantitiative, etc etc...
-# TODO: Use scale widgets when available
 
 @register
 class NamedColorLUT(ColorLUT):
-    """TODO: Document me."""
+    """Representation of a color lookup table by name."""
     _model_name = Unicode('NamedColorLUTModel').tag(sync=True)
     name = Unicode("viridis").tag(sync=True)
 
@@ -121,24 +114,60 @@ class NamedColorLUT(ColorLUT):
 # ------------------------------------------------------
 
 
-class Color(BaseWidget):
-    """TODO: Document me."""
+class Scalar(BaseWidget):
+    """Representation of a scalar quantity."""
     # Abstract class, don't register, and don't set name
     pass
 
 
 @register
-class ColorConstant(Color):
-    """TODO: Document me."""
+class ScalarConstant(Scalar):
+    """Representation of a scalar constant."""
+    _model_name = Unicode('ScalarConstantModel').tag(sync=True)
+
+    value = CFloat(0.0).tag(sync=True)
+
+
+@register
+class ScalarField(Scalar):
+    """Representation of a scalar field."""
+    _model_name = Unicode('ScalarFieldModel').tag(sync=True)
+
+    field = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
+    lut = Instance(ScalarLUT, allow_none=True).tag(sync=True, **widget_serialization)
+
+
+@register
+class ScalarIndicators(Scalar):
+    """Representation of a scalar constant for each mesh entity."""
+    _model_name = Unicode('ScalarIndicatorsModel').tag(sync=True)
+
+    # TODO: Validate field spaces: ["I2", "I3"]
+    field = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)
+    lut = Instance(ScalarLUT, allow_none=True).tag(sync=True, **widget_serialization)
+
+
+# ------------------------------------------------------
+
+
+class Color(BaseWidget):
+    """Representation of a color quantity."""
+    # Abstract class, don't register, and don't set name
+    pass
+
+
+@register
+class ColorConstant(Color):  # TODO: Use something from ipywidgets or other generic library
+    """Representation of a constant color."""
     _model_name = Unicode('ColorConstantModel').tag(sync=True)
 
-    # Constant value if no field is provided
-    constant = Unicode("#888888").tag(sync=True)
+    intensity = CFloat(1.0).tag(sync=True)
+    color = Unicode("#ffffff").tag(sync=True)
 
 
 @register
 class ColorField(Color):
-    """TODO: Document me."""
+    """Representation of a color field."""
     _model_name = Unicode('ColorFieldModel').tag(sync=True)
 
     field = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
@@ -147,7 +176,7 @@ class ColorField(Color):
 
 @register
 class ColorIndicators(Color):
-    """TODO: Document me."""
+    """Representation of a color constant for each mesh entity."""
     _model_name = Unicode('ColorIndicatorsModel').tag(sync=True)
 
     # TODO: Validate field spaces: ["I2", "I3"]
