@@ -93,8 +93,8 @@ function checkMeshEncoding(encoding, data, mesh) {
         const points = mesh.get("points");
         if (points) {
             const { id, value } = getIdentifiedValue(points, "points");
-            if (encoding.points.field !== id) {
-                console.warn(`Mesh mismatch, points id differ:`, encoding.points.field, id);
+            if (encoding.coordinates.field !== id) {
+                console.warn(`Mesh mismatch, points id differ:`, encoding.coordinates.field, id);
             }
             if (data[id] !== value) {
                 console.warn(`Mesh mismatch, points value differ:`, data[id], value);

@@ -48,7 +48,7 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
     #define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
 
-#ifdef ENABLE_SURFACE_DEPTH_MODEL
+#ifdef ENABLE_SURFACE_DEPTH_SHADING
     #define ENABLE_DEPTH 1
 #endif
 

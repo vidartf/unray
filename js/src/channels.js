@@ -38,9 +38,8 @@ function compute_texture_shape(size) {
 const default_defines = {
     surface: {
         ENABLE_SURFACE_MODEL: 1,
-    },
-    surface_depth: {
-        ENABLE_SURFACE_DEPTH_MODEL: 1,
+        // Enable this for debugging, shading by depth:
+        //ENABLE_SURFACE_DEPTH_SHADING: 1,
     },
     isosurface: {
         ENABLE_ISOSURFACE_MODEL: 1,

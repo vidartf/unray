@@ -49,7 +49,7 @@ function compute_radius(points=new Float32Array([]), center=[0, 0, 0]) {
     return Math.sqrt(radius);
 }
 
-// Estimate smallest sphere containing all points
+// Estimate smallest sphere containing all points.
 export
 function compute_bounding_sphere(points=new Float32Array([])) {
     const center = compute_center(points);
@@ -57,9 +57,15 @@ function compute_bounding_sphere(points=new Float32Array([])) {
     return {center, radius};
 }
 
-// Compute orientation of tetrahedron cells represented by sign of det(J)
+/**
+ * Compute orientation of tetrahedron cells.
+ *
+ * @param  {Int32Array} cells - array packing 4 vertex indices per tetrahedron
+ * @param  {Float32Array} vertices - array packing one 3D coordinate for each vertex
+ * @return {Uint8Array} reorient - boolean array containing 1 for cells needing reorientation
+ */
 export
-function compute_tetrahedron_cell_orientations(cells, vertices) {
+function compute_tetrahedron_cell_orientations(cells=new Int32Array([]), vertices=new Float32Array([])) {
     const c = cells;
     const v = vertices;
     const num_cells = cells.length / 4;
@@ -111,4 +117,21 @@ function reorient_tetrahedron_cells(cells, reorient) {
         j += 4;
     }
     */
+}
+
+export
+function copy_reoriented(dst, src, reorient) {
+    const N = reorient.length;
+    for (let i = 0; i < N; ++i) {
+        const j = 4 * i;
+        dst[j] = src[j];
+        dst[j+1] = src[j+1];
+        if (reorient[i]) {
+            dst[j+2] = src[j+3];
+            dst[j+3] = src[j+2];
+        } else {
+            dst[j+2] = src[j+2];
+            dst[j+3] = src[j+3];
+        }
+    }
 }

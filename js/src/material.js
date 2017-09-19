@@ -3,11 +3,32 @@
 import _ from "underscore";
 import * as THREE from "three";
 
+// Load shaders. The shaders contain lots of #ifdefs,
+// so the final shader program depends on the defines
+// built for a specific plot configuration.
 const vertexShader = require("./glsl/vertex.glsl");
 const fragmentShader = require("./glsl/fragment.glsl");
 
-// Note: Cells are oriented such that the front side should be
+// Note:
+// Cells are oriented such that the front side should be
 // visible, which means we either use FrontSide or DoubleSide.
+
+// Note:
+// src is the value written by the fragment shader
+// dst is the value already in the framebuffer
+// Otherwise see opengl docs for meaning of blendSrc, etc.
+
+// Note:
+// Methods below configure blend equations and note how they
+// relate to the fragment shader variables C and a, i.e.:
+// dst = a * dst + 1 * C
+// means the result of a blend operation is to scale
+// the existing dst value by a from the fragment shader
+// then add C from the fragment shader.
+
+// Note:
+// Depth testing is turned on to allow composing with
+// previously drawn opaque objects.
 
 const default_nontransparent = {
     side: THREE.FrontSide,
@@ -26,25 +47,24 @@ const default_transparent = {
 };
 
 const default_minmax = Object.assign(default_transparent, {
+    // dst = min|max(1 * dst, 1 * C)
     blendSrc: THREE.OneFactor,
     blendDst: THREE.OneFactor,
 });
 
 const method_configs = {
-    // TODO: Merge these methods into one with different encodings
-    mesh: default_nontransparent,
-    cells: default_nontransparent,
     surface: default_nontransparent,
-    surface_depth: default_nontransparent,
-
     isosurface: default_nontransparent,
     max: Object.assign(default_minmax, {
+        // dst = max(dst, C)
         // Rendering front and back sides means shaders can be
         // simpler at the cost of doubling the number of triangles.
         side: THREE.DoubleSide,
         blendEquation: THREE.MaxEquation,
     }),
+    // TODO: Profile and pick one version
     max2: Object.assign(default_minmax, {
+        // dst = max(dst, C)
         // Rendering front side only and computing back
         // side value in shader, meaning more costly shader
         // computations but half as many triangles.
@@ -52,12 +72,14 @@ const method_configs = {
         blendEquation: THREE.MaxEquation,
     }),
     min: Object.assign(default_minmax, {
+        // dst = min(dst, C)
         // Rendering front and back sides means shaders can be
         // simpler at the cost of doubling the number of triangles.
         side: THREE.DoubleSide,
         blendEquation: THREE.MinEquation,
     }),
     min2: Object.assign(default_minmax, {
+        // dst = min(dst, C)
         // Rendering front side only and computing back
         // side value in shader, meaning more costly shader
         // computations but half as many triangles.
@@ -65,21 +87,32 @@ const method_configs = {
         blendEquation: THREE.MinEquation,
     }),
     xray: Object.assign(default_transparent, {
+        // dst = (1 - a) * dst + 1 * C = (1 - a)*dst
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
-        blendDst: THREE.SrcAlphaFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
     }),
+    // TODO: Remove and keep the best one
     xray2: Object.assign(default_transparent, {
+        // dst = (1 - a) * dst + 1 * C = (1 - a)*dst
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
-        blendDst: THREE.SrcAlphaFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
+    }),
+    alt_xray: Object.assign(default_transparent, {
+        // dst = src .* dst + 0 * src
+        blendEquation: THREE.AddEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
     }),
     sum: Object.assign(default_transparent, {
+        // dst = 1 * dst + 1 * C
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
         blendDst: THREE.OneFactor,
     }),
     volume: Object.assign(default_transparent, {
+        // dst = (1 - a) * dst + 1 * C
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
         blendDst: THREE.OneMinusSrcAlphaFactor,
