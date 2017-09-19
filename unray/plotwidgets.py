@@ -1,6 +1,6 @@
 import numpy as np
 import ipywidgets as widgets
-from ipywidgets import widget_serialization, register
+from ipywidgets import widget_serialization, register, Color
 from ipydatawidgets import DataUnion
 import pythreejs
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
@@ -9,9 +9,9 @@ from ._version import widget_module_name, widget_module_version
 
 from .datawidgets import Mesh, Field, IndicatorField
 from .datawidgets import ScalarLUT, ArrayScalarLUT #, NamedScalarLUT
-from .datawidgets import Scalar, ScalarConstant, ScalarField, ScalarIndicators
+from .datawidgets import ScalarValued, ScalarConstant, ScalarField, ScalarIndicators
 from .datawidgets import ColorLUT, ArrayColorLUT, NamedColorLUT
-from .datawidgets import Color, ColorConstant, ColorField, ColorIndicators
+from .datawidgets import ColorValued, ColorConstant, ColorField, ColorIndicators
 from .datawidgets import WireframeParams, IsovalueParams
 
 
@@ -35,7 +35,7 @@ class SurfacePlot(Plot):
     restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Color can be a constant or a field with color mapping
-    color = Instance(Color, allow_none=True).tag(sync=True, **widget_serialization)
+    color = Instance(ColorValued, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Wireframe parameters are packed in their own model, None means disabled
     wireframe = Instance(WireframeParams, allow_none=True).tag(sync=True, **widget_serialization)
@@ -54,7 +54,7 @@ class IsoSurfacePlot(Plot):
     restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Color can be a constant or a field with color mapping
-    color = Instance(Color, allow_none=False).tag(sync=True, **widget_serialization)
+    color = Instance(ColorValued, allow_none=False).tag(sync=True, **widget_serialization)
 
     # Scalar field to produce isosurfaces of, if different from color field
     field = Instance(Field, allow_none=True).tag(sync=True, **widget_serialization)
@@ -76,15 +76,13 @@ class XrayPlot(Plot):
     restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Density can be a constant or a scalar field with scalar mapping
-    density = Instance(Scalar, allow_none=True).tag(sync=True, **widget_serialization)
+    density = Instance(ScalarValued, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Extinction rate constant
     extinction = CFloat(1.0).tag(sync=True)
 
     # Constant color to absorb through
-    #color = Instance(ColorConstant, allow_none=True).tag(sync=True, **widget_serialization)
-
-    # TODO
+    #color = Color("#ffffff").tag(sync=True)
 
 
 @register
@@ -102,8 +100,6 @@ class MinPlot(Plot):
     # Color field with color mapping
     color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
 
-    # TODO
-
 
 @register
 class MaxPlot(Plot):
@@ -120,8 +116,6 @@ class MaxPlot(Plot):
     # Color field with color mapping
     color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
 
-    # TODO
-
 
 @register
 class SumPlot(Plot):
@@ -135,13 +129,11 @@ class SumPlot(Plot):
     # TODO: Validate IndicatorField spaces: ["I3", "I2"]
     restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
-    # Color field with color mapping
-    color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
+    # Color field with color mapping or constant color
+    color = Instance(ColorValued, allow_none=False).tag(sync=True, **widget_serialization)
 
     # Exposure level
     exposure = CFloat(0.0).tag(sync=True)
-
-    # TODO
 
 
 @register
@@ -156,11 +148,8 @@ class VolumePlot(Plot):
     # TODO: Validate IndicatorField spaces: ["I3", "I2"]
     restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
-    # Color field with color mapping
-    color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
+    # Color field with color mapping or a constant color
+    color = Instance(ColorValued, allow_none=False).tag(sync=True, **widget_serialization)
 
     # Density can be a constant or a scalar field with scalar mapping
-    # TODO: Field is not all these things, use Scalar
-    density = Instance(Scalar, allow_none=False).tag(sync=True, **widget_serialization)
-
-    # TODO
+    density = Instance(ScalarValued, allow_none=False).tag(sync=True, **widget_serialization)

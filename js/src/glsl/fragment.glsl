@@ -39,6 +39,14 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
     #define ENABLE_DEPTH 1
 #endif
 
+#ifdef ENABLE_SUM_MODEL
+    #define ENABLE_DEPTH 1
+#endif
+
+#ifdef ENABLE_VOLUME_MODEL
+    #define ENABLE_DEPTH 1
+#endif
+
 #ifdef ENABLE_SURFACE_MODEL
     #ifdef ENABLE_SURFACE_LIGHT
         #define ENABLE_FACET_PLANE 1
@@ -48,6 +56,7 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 #ifdef ENABLE_ISOSURFACE_MODEL
     #define ENABLE_BARYCENTRIC_DERIVATIVES 1
 #endif
+
 
 #ifdef ENABLE_SURFACE_DEPTH_SHADING
     #define ENABLE_DEPTH 1

@@ -9,6 +9,7 @@
 
 
 // Using webpack-glsl-loader to copy in shared code
+@import ./utils/transpose;
 @import ./utils/inverse;
 @import ./utils/getitem;
 @import ./utils/minmax;
@@ -41,6 +42,10 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 #endif
 
 #ifdef ENABLE_SUM_MODEL
+    #define ENABLE_DEPTH 1
+#endif
+
+#ifdef ENABLE_VOLUME_MODEL
     #define ENABLE_DEPTH 1
 #endif
 

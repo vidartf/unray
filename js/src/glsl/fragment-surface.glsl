@@ -1,4 +1,5 @@
 // Select emission color
+// TODO: Review choice of emission/density from widgets through encoding to here
 #if defined(ENABLE_EMISSION)
 vec3 C_emit = mapped_emission;
 #elif defined(ENABLE_DENSITY)
@@ -7,8 +8,10 @@ vec3 C_emit = u_emission_color * mapped_density;
 vec3 C_emit = u_emission_color;
 #endif
 
+
 // Apply light model
 // TODO: Get proper light terms and parameter names in here
+// TODO: Use lights from three.js
 #if defined(ENABLE_SURFACE_LIGHT)
 vec3 surface_normal = facet_plane.xyz;
 float cos_V_N = max(0.0, -dot(surface_normal, view_direction));
@@ -19,6 +22,7 @@ vec3 C = k_emit * C_emit;
 #else
 vec3 C = C_emit;
 #endif
+
 
 // Always opaque
 float a = 1.0;

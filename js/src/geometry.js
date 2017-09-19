@@ -80,6 +80,8 @@ function create_geometry(sorted, cells, coordinates) {
     //       reused because this is a bit expensive
     const reorient = compute_tetrahedron_cell_orientations(cells, coordinates);
     reorient_tetrahedron_cells(cells, reorient);
+    // TODO: Reorient on copy somewhere else, maybe in manager
+    // copy_reoriented(dst, cells, reorient);
 
     // Setup cells of geometry (using textures or attributes)
     const attributes = {};

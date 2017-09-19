@@ -17,6 +17,7 @@
 #ifdef ENABLE_EMISSION_LUT
     vec3 mapped_emission = texture2D(t_emission_lut, vec2(scaled_emission, 0.5)).xyz;
 #else
+    // TODO: Review API and whether this is reachable
     vec3 mapped_emission = u_emission_color * scaled_emission;
 #endif
 

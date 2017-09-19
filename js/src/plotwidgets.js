@@ -46,15 +46,16 @@ function __setup_renderer(canvas, width, height, bgcolor) {
 function getNotNull(model, key) {
     const value = model.get(key);
     if (!value) {
-        throw Error(`Missing required ${key} on ${model.attributes._model_name}.`);
+        console.log("Key:", key, "Model:", model);
+        throw Error(`Missing required ${key} on ${model}.`);
     }
     return value;
 }
 
-function getIdentifiedValue(model, name) {
-    const array = model.get("array");
-    const value = getArrayFromUnion(array).data;
-    const id = array.model_id || model.model_id + "_" + name;
+function getIdentifiedValue(parent, name) {
+    const dataunion = getNotNull(parent, name);
+    const value = getArrayFromUnion(dataunion).data;
+    const id = dataunion.model_id || parent.model_id + "_" + name;
     return { id, value };
 }
 
@@ -63,16 +64,16 @@ function setMeshEncoding(encoding, data, mesh) {
         throw Error("Mesh is always required.");
     }
 
-    const cells = getNotNull(mesh, "cells");
-    if (cells) {
-        const { id, value } = getIdentifiedValue(cells, "cells");
+    const cells = getIdentifiedValue(mesh, "cells");
+    if (cells.value) {
+        const { id, value } = cells;
         data[id] = value;
         encoding.cells = { field: id };
     }
 
-    const points = getNotNull(mesh, "points");
-    if (points) {
-        const { id, value } = getIdentifiedValue(points, "points");
+    const points = getIdentifiedValue(mesh, "points");
+    if (points.value) {
+        const { id, value } = points;
         data[id] = value;
         encoding.coordinates = { field: id };
     }
@@ -80,9 +81,9 @@ function setMeshEncoding(encoding, data, mesh) {
 
 function checkMeshEncoding(encoding, data, mesh) {
     if (mesh) {
-        const cells = mesh.get("cells");
-        if (cells) {
-            const { id, value } = getIdentifiedValue(cells, "cells");
+        const cells = getIdentifiedValue(mesh, "cells");
+        if (cells.value) {
+            const { id, value } = cells;
             if (encoding.cells.field !== id) {
                 console.warn(`Mesh mismatch, cells id differ:`, encoding.cells.field, id);
             }
@@ -90,9 +91,9 @@ function checkMeshEncoding(encoding, data, mesh) {
                 console.warn(`Mesh mismatch, cells value differ:`, data[id], value);
             }
         }
-        const points = mesh.get("points");
-        if (points) {
-            const { id, value } = getIdentifiedValue(points, "points");
+        const points = getIdentifiedValue(mesh, "points");
+        if (points.value) {
+            const { id, value } = points;
             if (encoding.coordinates.field !== id) {
                 console.warn(`Mesh mismatch, points id differ:`, encoding.coordinates.field, id);
             }
@@ -114,7 +115,10 @@ function setParamsEncoding(encoding, data, params, channel, keys) {
     if (params) {
         const desc = {};
         for (let key of keys) {
-            desc[key] = params.get(key);
+            const value = params.get(key);
+            if (value !== undefined) {
+                desc[key] = value;
+            }
         }
         encoding[channel] = desc;
     }
@@ -132,100 +136,139 @@ function setIsovalueParamsEncoding(encoding, data, params) {
     setParamsEncoding(encoding, data, params, channel, keys);
 }
 
+function setDensityConstantEncoding(encoding, data, density) {
+    // TODO: Allow constant mapped through LUT?
+    encoding.density = {
+        constant: density.get("value"),
+    };
+}
+
+function setDensityFieldEncoding(encoding, data, density) {
+    encoding.density = {};
+
+    // Top level traits
+    const field = getNotNull(density, "field");
+    const lut = density.get("lut");
+
+    checkMeshEncoding(encoding, data, field.get("mesh"));
+
+    // Non-optional field values
+    const values = getIdentifiedValue(field, "values");
+    if (density.value) {
+        const { id, value } = values;
+        data[id] = value;
+        encoding.density.field = id;
+        encoding.density.space = field.get("space");
+        //encoding.density.range = field.get("range"); // FIXME
+    } else {
+        throw Error(`Missing values in field.`);
+    }
+
+    // Optional LUT
+    if (lut) {
+        if (lut.isArrayScalarLUT) {
+            const values = getIdentifiedValue(lut, "values");
+            if (values.value) {
+                const { id, value } = values;
+                data[id] = value;
+                encoding.density.lut_field = id;
+                // TODO: Handle linear/log scaled LUTs somehow:
+                //encoding.density.lut_space = getNotNull(lut, "space");
+            } else {
+                throw Error(`Missing values in array LUT.`);
+            }
+        } else {
+            console.error("Invalid scalar LUT", lut);
+        }
+    }
+}
+
 function setDensityEncoding(encoding, data, density) {
     if (density) {
         if (density.isScalarConstant) {
-            // TODO: Allow constant mapped through LUT?
-            encoding.density = {
-                constant: density.get("value"),
-            };
+            setDensityConstantEncoding(encoding, data, density);
         } else if (density.isScalarField) {
-            encoding.density = {};
-
-            // Top level traits
-            const field = getNotNull(density, "field");
-            const lut = density.get("lut");
-
-            checkMeshEncoding(encoding, data, field.get("mesh"));
-            
-            // Non-optional field
-            const array = getNotNull(field, "values");
-            const { id, value } = getIdentifiedValue(array, "density");
-            data[id] = value;
-            encoding.density.field = id;
-            encoding.density.space = field.get("space");
-            //encoding.density.range = field.get("range"); // FIXME
-
-            // Optional LUT
-            if (lut) {
-                if (lut.isArrayScalarLUT) {
-                    const values = getNotNull(lut, "values");
-                    const { id, value } = getIdentifiedValue(values, "density_lut");
-                    data[id] = value;
-                    encoding.density.lut_field = id;
-                    // TODO: Handle linear/log scaled LUTs somehow:
-                    //encoding.density.lut_space = getNotNull(lut, "space");
-                } else {
-                    console.error("Invalid scalar LUT", lut);
-                }
-            }
+            setDensityFieldEncoding(encoding, data, density);
         } else {
             console.error("Invalid scalar ", density);
         }
     }
 }
 
+function setEmissionConstantEncoding(encoding, data, color) {
+    // TODO: Allow constant mapped through LUT?
+    encoding.emission = {
+        constant: color.get("intensity"),
+        color: color.get("color"),
+    };
+}
+
+function setEmissionFieldEncoding(encoding, data, color) {
+    const enc = {};
+
+    // Top level traits
+    const field = getNotNull(color, "field");
+    const lut = color.get("lut");
+
+    checkMeshEncoding(encoding, data, field.get("mesh"));
+
+    // Non-optional field
+    // color: ColorFieldModel
+    // field: FieldModel
+    // array: DataUnion
+    const values = getIdentifiedValue(field, "values");
+    if (values.value) {
+        const { id, value } = values;
+        data[id] = value;
+        enc.field = id;
+        enc.space = field.get("space");
+        // enc.range = field.get("range"); // FIXME
+    } else {
+        throw Error(`Missing required field values.`);
+    }
+
+    // Optional LUT
+    if (lut) {
+        if (lut.isArrayColorLUT) {
+            const values = getIdentifiedValue(lut, "values");
+            if (values.value) {
+                const { id, value } = values;
+                data[id] = value;
+                enc.lut_field = id;
+                // TODO: Handle linear/log scaled LUTs somehow:
+                // enc.lut_space = getNotNull(lut, "space");
+            } else {
+                throw Error(`Missing required values in ArrayColorLUT`);
+            }
+        } else if (lut.isNamedColorLUT) {
+            const name = getNotNull(lut, "name");
+            // FIXME Implement something like this using d3
+            const value = getNamedColorLutArray(name);
+            const id = name;
+            data[id] = value;
+            enc.lut_field = id;
+            console.error("Named color LUT not implemented.");
+        } else {
+            console.error("Invalid color LUT", lut);
+        }
+    }
+
+    // TODO: Cleaner to return enc/data and mutate encoding/data at call site
+    // Store encoded channel
+    encoding.emission = enc;    
+}
+
 function setEmissionEncoding(encoding, data, color) {
     if (color) {
         if (color.isColorConstant) {
-            // TODO: Allow constant mapped through LUT?
-            encoding.emission = {
-                constant: color.get("intensity"),
-                color: color.get("color"),
-            };
+            setEmissionConstantEncoding(encoding, data, color);
         } else if (color.isColorField) {
-            encoding.emission = {};
-
-            // Top level traits
-            const field = getNotNull(color, "field");
-            const lut = color.get("lut");
-
-            checkMeshEncoding(encoding, data, field.get("mesh"));
-
-            // Non-optional field
-            const array = getNotNull(field, "values");
-            const { id, value } = getIdentifiedValue(array, "emission");
-            data[id] = value;
-            encoding.emission.field = id;
-            encoding.emission.space = field.get("space");
-            //encoding.emission.range = field.get("range"); // FIXME
-
-            // Optional LUT
-            if (lut) {
-                if (lut.isArrayColorLUT) {
-                    const values = getNotNull(lut, "values");
-                    const { id, value } = getIdentifiedValue(values, "emission_lut");
-                    data[id] = value;
-                    encoding.emission.lut_field = id;
-                    // TODO: Handle linear/log scaled LUTs somehow:
-                    //encoding.emission.lut_space = getNotNull(lut, "space");
-                } else if (lut.isNamedColorLUT) {
-                    const id = getNotNull(lut, "name");
-                    // FIXME Implement something like this using d3
-                    const value = getNamedColorLutArray(id);
-                    data[id] = value;
-                    encoding.emission.lut_field = id;
-                    console.error("Named color LUT not implemented.");
-                } else {
-                    console.error("Invalid color LUT", lut);
-                }
-            }
+            setEmissionFieldEncoding(encoding, data, color);
         } else {
             console.error("Invalid color ", color);
         }
     }
 }
-
 
 class PlotModel extends BlackboxModel {
     // Override this in every subclass

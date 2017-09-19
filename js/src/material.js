@@ -46,72 +46,66 @@ const default_transparent = {
     blending: THREE.CustomBlending,
 };
 
-const default_minmax = Object.assign(default_transparent, {
-    // dst = min|max(1 * dst, 1 * C)
-    blendSrc: THREE.OneFactor,
-    blendDst: THREE.OneFactor,
-});
-
 const method_configs = {
-    surface: default_nontransparent,
-    isosurface: default_nontransparent,
-    max: Object.assign(default_minmax, {
-        // dst = max(dst, C)
-        // Rendering front and back sides means shaders can be
-        // simpler at the cost of doubling the number of triangles.
-        side: THREE.DoubleSide,
-        blendEquation: THREE.MaxEquation,
-    }),
-    // TODO: Profile and pick one version
-    max2: Object.assign(default_minmax, {
+    surface: Object.assign({}, default_nontransparent),
+    isosurface: Object.assign({}, default_nontransparent),
+    max: Object.assign({}, default_transparent, {
         // dst = max(dst, C)
         // Rendering front side only and computing back
         // side value in shader, meaning more costly shader
         // computations but half as many triangles.
-        side: THREE.FrontSide,
         blendEquation: THREE.MaxEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneFactor,
     }),
-    min: Object.assign(default_minmax, {
-        // dst = min(dst, C)
-        // Rendering front and back sides means shaders can be
-        // simpler at the cost of doubling the number of triangles.
-        side: THREE.DoubleSide,
-        blendEquation: THREE.MinEquation,
-    }),
-    min2: Object.assign(default_minmax, {
+    // max2: Object.assign({}, default_transparent, {
+    //     // FIXME: Probably want this config for a P0 field
+    //     // dst = max(dst, C)
+    //     // Rendering front and back sides means shaders can be
+    //     // simpler at the cost of doubling the number of triangles.
+    //     side: THREE.DoubleSide,
+    //     blendEquation: THREE.MaxEquation,
+    //     blendSrc: THREE.OneFactor,
+    //     blendDst: THREE.OneFactor,
+    // }),
+    min: Object.assign({}, default_transparent, {
         // dst = min(dst, C)
         // Rendering front side only and computing back
         // side value in shader, meaning more costly shader
         // computations but half as many triangles.
-        side: THREE.FrontSide,
         blendEquation: THREE.MinEquation,
+        blendSrc: THREE.OneFactor,
+        blendDst: THREE.OneFactor,
     }),
-    xray: Object.assign(default_transparent, {
+    // min2: Object.assign({}, default_transparent, {
+    //     // FIXME: Probably want this config for a P0 field
+    //     // dst = min(dst, C)
+    //     // Rendering front and back sides means shaders can be
+    //     // simpler at the cost of doubling the number of triangles.
+    //     side: THREE.DoubleSide,
+    //     blendEquation: THREE.MinEquation,
+    //     blendSrc: THREE.OneFactor,
+    //     blendDst: THREE.OneFactor,
+    // }),
+    xray: Object.assign({}, default_transparent, {
         // dst = (1 - a) * dst + 1 * C = (1 - a)*dst
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
         blendDst: THREE.OneMinusSrcAlphaFactor,
     }),
-    // TODO: Remove and keep the best one
-    xray2: Object.assign(default_transparent, {
-        // dst = (1 - a) * dst + 1 * C = (1 - a)*dst
-        blendEquation: THREE.AddEquation,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneMinusSrcAlphaFactor,
-    }),
-    alt_xray: Object.assign(default_transparent, {
+    alt_xray: Object.assign({}, default_transparent, {
         // dst = src .* dst + 0 * src
         blendEquation: THREE.AddEquation,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneMinusSrcAlphaFactor,
+        blendSrc: THREE.OneFactor, // fixme
+        blendDst: THREE.OneMinusSrcAlphaFactor, // fixme
     }),
-    sum: Object.assign(default_transparent, {
+    sum: Object.assign({}, default_transparent, {
         // dst = 1 * dst + 1 * C
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,
         blendDst: THREE.OneFactor,
     }),
-    volume: Object.assign(default_transparent, {
+    volume: Object.assign({}, default_transparent, {
         // dst = (1 - a) * dst + 1 * C
         blendEquation: THREE.AddEquation,
         blendSrc: THREE.OneFactor,

@@ -113,7 +113,7 @@ function box_edge_vertices(u, v) {
 }
 
 export
-function create_bounding_box_axis_geometry(bbox, scale=1.0, color=0x000000) {
+function create_bounding_box_axis_geometry(bbox, scale=1.0, color="#000000") {
     const [u, v] = bounding_box_corners(bbox, scale);
     const vertices = box_edge_vertices(u, v);
     const geometry = new THREE.BufferGeometry();
@@ -123,7 +123,7 @@ function create_bounding_box_axis_geometry(bbox, scale=1.0, color=0x000000) {
         transparent: false,
         depthTest: true,
         depthWrite: true,
+        fog: true,
         });
-    material.fog = true;
     return new THREE.LineSegments(geometry, material);
 }

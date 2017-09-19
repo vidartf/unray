@@ -70,6 +70,7 @@ function allocate_lut_texture(dtype, item_size, texture_shape) {
     const padded_data = new Float32Array(size);
     const format = itemsize2threeformat[item_size];
     const type = dtype2threetype["float32"];  // NB! See comment above
+
     const mapping = undefined;
     const wrapping = THREE.ClampToEdgeWrapping;
     const filter = THREE.LinearFilter;  // TODO: Could make linear/nearest filtering of lut an encoding parameter

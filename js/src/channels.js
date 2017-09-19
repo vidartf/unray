@@ -306,7 +306,7 @@ const channel_handlers = {
             const uname = "t_emission_lut";
             
             const array = data[key];
-            const item_size = 1;
+            const item_size = 3;
             const dtype = "float32";
             const spec = {array, dtype, item_size};
 

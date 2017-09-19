@@ -65,8 +65,8 @@ function create_default_encodings() {
         isosurface: { cells, coordinates, wireframe, isovalues },
         xray: { cells, coordinates, indicators, density, extinction },
         sum: { cells, coordinates, indicators, emission, exposure },
-        min: { cells, coordinates, indicators, density },
-        max: { cells, coordinates, indicators, density },
+        min: { cells, coordinates, indicators, emission },
+        max: { cells, coordinates, indicators, emission },
         volume: { cells, coordinates, indicators, density, emission },
     };
 

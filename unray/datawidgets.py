@@ -1,6 +1,6 @@
 import numpy as np
 import ipywidgets as widgets
-from ipywidgets import widget_serialization, register
+from ipywidgets import widget_serialization, register, Color
 from ipydatawidgets import DataUnion, data_union_serialization, shape_constraints
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
 from traitlets import Instance, TraitError, TraitType, Undefined
@@ -95,14 +95,14 @@ class NamedColorLUT(ColorLUT):
 # ------------------------------------------------------
 
 
-class Scalar(BaseWidget):
+class ScalarValued(BaseWidget):
     """Representation of a scalar quantity."""
     # Abstract class, don't register, and don't set name
     pass
 
 
 @register
-class ScalarConstant(Scalar):
+class ScalarConstant(ScalarValued):
     """Representation of a scalar constant."""
     _model_name = Unicode('ScalarConstantModel').tag(sync=True)
 
@@ -110,7 +110,7 @@ class ScalarConstant(Scalar):
 
 
 @register
-class ScalarField(Scalar):
+class ScalarField(ScalarValued):
     """Representation of a scalar field."""
     _model_name = Unicode('ScalarFieldModel').tag(sync=True)
 
@@ -119,7 +119,7 @@ class ScalarField(Scalar):
 
 
 @register
-class ScalarIndicators(Scalar):
+class ScalarIndicators(ScalarValued):
     """Representation of a scalar constant for each mesh entity."""
     _model_name = Unicode('ScalarIndicatorsModel').tag(sync=True)
 
@@ -131,23 +131,23 @@ class ScalarIndicators(Scalar):
 # ------------------------------------------------------
 
 
-class Color(BaseWidget):
+class ColorValued(BaseWidget):
     """Representation of a color quantity."""
     # Abstract class, don't register, and don't set name
     pass
 
 
 @register
-class ColorConstant(Color):  # TODO: Use something from ipywidgets or other generic library
+class ColorConstant(ColorValued):  # TODO: Use something from ipywidgets or other generic library
     """Representation of a constant color."""
     _model_name = Unicode('ColorConstantModel').tag(sync=True)
 
     intensity = CFloat(1.0).tag(sync=True)
-    color = Unicode("#ffffff").tag(sync=True)
+    color = Color("#ffffff").tag(sync=True)
 
 
 @register
-class ColorField(Color):
+class ColorField(ColorValued):
     """Representation of a color field."""
     _model_name = Unicode('ColorFieldModel').tag(sync=True)
 
@@ -156,7 +156,7 @@ class ColorField(Color):
 
 
 @register
-class ColorIndicators(Color):
+class ColorIndicators(ColorValued):
     """Representation of a color constant for each mesh entity."""
     _model_name = Unicode('ColorIndicatorsModel').tag(sync=True)
 
@@ -174,7 +174,7 @@ class WireframeParams(BaseWidget):
     _model_name = Unicode('WireframeParamsModel').tag(sync=True)
     enable = CBool(True).tag(sync=True)
     size = CFloat(0.001).tag(sync=True)
-    color = Unicode("#000000").tag(sync=True)
+    color = Color("#000000").tag(sync=True)
     opacity = CFloat(1.0).tag(sync=True)
 
 
