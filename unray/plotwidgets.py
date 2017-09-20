@@ -90,9 +90,11 @@ class XrayPlot(Plot):
     density = Instance(ScalarValued, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Extinction rate constant
+    # TODO: Validate positive
     extinction = CFloat(1.0).tag(sync=True)
 
-    # Constant color to absorb through
+    # Constant color to weight absorption
+    # TODO: To do this properly need some other blend equation setup
     #color = Color("#ffffff").tag(sync=True)
 
 
@@ -143,7 +145,8 @@ class SumPlot(Plot):
     # Color field with color mapping or constant color
     color = Instance(ColorValued, allow_none=False).tag(sync=True, **widget_serialization)
 
-    # Exposure level
+    # Exposure level (color is scaled by 2**exposure)
+    # TODO: Validate in range [-10, 10]
     exposure = CFloat(0.0).tag(sync=True)
 
 
@@ -165,4 +168,10 @@ class VolumePlot(Plot):
     # Density can be a constant or a scalar field with scalar mapping
     density = Instance(ScalarValued, allow_none=False).tag(sync=True, **widget_serialization)
 
-    # TODO: Add both exposure and extinction here and in shaders
+    # Extinction rate constant
+    # TODO: Validate positive
+    extinction = CFloat(1.0).tag(sync=True)
+
+    # Exposure level (color is scaled by 2**exposure)
+    # TODO: Validate in range [-10, 10]
+    exposure = CFloat(0.0).tag(sync=True)

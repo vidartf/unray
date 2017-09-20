@@ -121,14 +121,18 @@ uniform vec3 u_local_camera_position;
 uniform vec3 u_local_view_direction;
 #endif
 
-
 // Custom light uniforms
 uniform vec3 u_emission_color;
 #ifdef ENABLE_SURFACE_LIGHT
 uniform vec2 u_emission_intensity_range;  // [min, max]
 #endif
-#ifdef ENABLE_SUM_MODEL
+
+#if defined(ENABLE_SUM_MODEL) || defined(ENABLE_VOLUME_MODEL)
 uniform float u_exposure;
+#endif
+
+#if defined(ENABLE_XRAY_MODEL) || defined(ENABLE_VOLUME_MODEL)
+uniform float u_extinction;
 #endif
 
 #ifdef ENABLE_WIREFRAME
@@ -145,10 +149,6 @@ uniform float u_isovalue;
 uniform float u_isovalue_spacing;
 // Time period for sweep modes
 uniform float u_isovalue_sweep_period;
-#endif
-
-#if defined(ENABLE_XRAY_MODEL) || defined(ENABLE_VOLUME_MODEL)
-uniform float u_extinction;
 #endif
 
 // #ifdef ENABLE_CELL_INDICATORS

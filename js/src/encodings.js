@@ -67,7 +67,7 @@ function create_default_encodings() {
         sum: { cells, coordinates, indicators, emission, exposure },
         min: { cells, coordinates, indicators, emission },
         max: { cells, coordinates, indicators, emission },
-        volume: { cells, coordinates, indicators, density, emission },
+        volume: { cells, coordinates, indicators, density, emission, extinction, exposure },
     };
 
     return default_encodings;

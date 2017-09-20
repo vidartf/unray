@@ -144,7 +144,7 @@ function setDensityConstantEncoding(encoding, data, density) {
 }
 
 function setDensityFieldEncoding(encoding, data, density) {
-    encoding.density = {};
+    const enc = {};
 
     // Top level traits
     const field = getNotNull(density, "field");
@@ -154,12 +154,12 @@ function setDensityFieldEncoding(encoding, data, density) {
 
     // Non-optional field values
     const values = getIdentifiedValue(field, "values");
-    if (density.value) {
+    if (values.value) {
         const { id, value } = values;
         data[id] = value;
-        encoding.density.field = id;
-        encoding.density.space = field.get("space");
-        //encoding.density.range = field.get("range"); // FIXME
+        enc.field = id;
+        enc.space = field.get("space");
+        // enc.range = field.get("range"); // FIXME
     } else {
         throw new Error(`Missing values in field.`);
     }
@@ -171,9 +171,9 @@ function setDensityFieldEncoding(encoding, data, density) {
             if (values.value) {
                 const { id, value } = values;
                 data[id] = value;
-                encoding.density.lut_field = id;
+                enc.lut_field = id;
                 // TODO: Handle linear/log scaled LUTs somehow:
-                //encoding.density.lut_space = getNotNull(lut, "space");
+                //enc.lut_space = getNotNull(lut, "space");
             } else {
                 throw new Error(`Missing values in array LUT.`);
             }
@@ -181,6 +181,10 @@ function setDensityFieldEncoding(encoding, data, density) {
             console.error("Invalid scalar LUT", lut);
         }
     }
+
+    // TODO: Cleaner to return enc/data and mutate encoding/data at call site
+    // Store encoded channel
+    encoding.density = enc;
 }
 
 function setDensityEncoding(encoding, data, density) {
@@ -590,6 +594,8 @@ class VolumePlotModel extends PlotModel {
             restrict: null,  // IndicatorFieldModel
             density: null,  // ScalarFieldModel | ScalarConstantModel
             color: null,  // ColorFieldModel | ColorConstantModel
+            extinction: 1.0,
+            exposure: 0.0,
         };
     }
 
@@ -606,6 +612,8 @@ class VolumePlotModel extends PlotModel {
         setRestrictEncoding(encoding, data, this.get("restrict"));
         setDensityEncoding(encoding, data, this.get("density"));
         setEmissionEncoding(encoding, data, this.get("color"));
+        encoding.extinction = { value: this.get("extinction") };
+        encoding.exposure = { value: this.get("exposure") };
         return { encoding, data };
     }
 };
