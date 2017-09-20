@@ -9,7 +9,7 @@ pushd deps
 wget https://github.com/jovyan/pythreejs/archive/auto-gen-wrappers.zip
 unzip auto-gen-wrappers.zip
 
-pushd pythreejs
+pushd pythreejs-auto-gen-wrappers
 pip install .
 popd
 
