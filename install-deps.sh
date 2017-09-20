@@ -14,6 +14,8 @@ pushd pythreejs-auto-gen-wrappers
 pip install .
 jupyter nbextension install --py --sys-prefix pythreejs
 jupyter nbextension enable --py --sys-prefix pythreejs
+jupyter nbextension list
+python -c "import pythreejs; print(pythreejs.__file__)"
 popd
 
 popd

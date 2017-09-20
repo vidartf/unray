@@ -9,4 +9,4 @@ install:
     - jupyter nbextension install --py --sys-prefix unray
     - jupyter nbextension enable --py --sys-prefix unray
 script:
-    - ./test.sh
+    - pushd test && python -m pytest && popd
