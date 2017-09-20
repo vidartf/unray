@@ -6,7 +6,7 @@ before_install:
     - ./install-deps.sh
 install:
     - pip install .
-    - jupyter nbextension install --py --sys-prefix unray
-    - jupyter nbextension enable --py --sys-prefix unray
+    - echo Later: jupyter nbextension install --py --sys-prefix unray
+    - echo Later: jupyter nbextension enable --py --sys-prefix unray
 script:
     - pushd test && python -m pytest && popd

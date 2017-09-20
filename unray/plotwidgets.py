@@ -1,10 +1,21 @@
 import numpy as np
+
 import ipywidgets as widgets
 from ipywidgets import widget_serialization, register, Color
+
 from ipydatawidgets import DataUnion
-import pythreejs
+
+# Hack to make basic construction of objects work in tests
+# on travis while pythreejs branch is hard to install
+try:
+    import pythreejs
+    Blackbox = pythreejs.Blackbox
+except:
+    Blackbox = widgets.Widget
+
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
 from traitlets import Instance, TraitError, TraitType, Undefined
+
 from ._version import widget_module_name, widget_module_version
 
 from .datawidgets import Mesh, Field, IndicatorField
@@ -16,7 +27,7 @@ from .datawidgets import WireframeParams, IsovalueParams
 
 
 @register
-class Plot(pythreejs.Blackbox):
+class Plot(Blackbox):
     """Base class for all plot widgets."""
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
