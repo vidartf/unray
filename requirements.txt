@@ -1,0 +1,5 @@
+numpy
+traittypes
+ipywidgets >= 7.0.0
+git+https://github.com/jovyan/pythreejs.git@auto-gen-wrappers
+ipydatawidgets >= 1.2.1
