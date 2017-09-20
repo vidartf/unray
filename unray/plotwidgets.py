@@ -153,3 +153,5 @@ class VolumePlot(Plot):
 
     # Density can be a constant or a scalar field with scalar mapping
     density = Instance(ScalarValued, allow_none=False).tag(sync=True, **widget_serialization)
+
+    # TODO: Add both exposure and extinction here and in shaders

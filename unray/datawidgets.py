@@ -2,7 +2,7 @@ import numpy as np
 import ipywidgets as widgets
 from ipywidgets import widget_serialization, register, Color
 from ipydatawidgets import DataUnion, data_union_serialization, shape_constraints
-from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
+from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum, Union
 from traitlets import Instance, TraitError, TraitType, Undefined
 from ._version import widget_module_name, widget_module_version
 
@@ -84,6 +84,10 @@ class ArrayColorLUT(ColorLUT):
     values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None, 3)).tag(sync=True, **data_union_serialization)
     space = Enum(["rgb", "hsv"], "rgb").tag(sync=True)
 
+    # TODO: This instead? Then we can do:
+    #   ArrayColorLut(values=["hsl(30,50%,50%)", "hsl(90,50%,50%)"], space="hsl")
+    # values = List(CSSColor).tag(sync=True)
+    # Check out options for color interpolation spaces in d3.
 
 @register
 class NamedColorLUT(ColorLUT):
@@ -131,6 +135,15 @@ class ScalarIndicators(ScalarValued):
 # ------------------------------------------------------
 
 
+def CSSColor(default_value):
+    """Create a color trait.
+
+    Temporary workaround to allow both hsl(h,s,l) syntax
+    and linking to the standard color picker widget.
+    """
+    return Union([Color(default_value), Unicode()])
+
+
 class ColorValued(BaseWidget):
     """Representation of a color quantity."""
     # Abstract class, don't register, and don't set name
@@ -143,8 +156,7 @@ class ColorConstant(ColorValued):  # TODO: Use something from ipywidgets or othe
     _model_name = Unicode('ColorConstantModel').tag(sync=True)
 
     intensity = CFloat(1.0).tag(sync=True)
-    color = Color("#ffffff").tag(sync=True)
-
+    color = CSSColor("#ffffff").tag(sync=True)
 
 @register
 class ColorField(ColorValued):
@@ -174,7 +186,7 @@ class WireframeParams(BaseWidget):
     _model_name = Unicode('WireframeParamsModel').tag(sync=True)
     enable = CBool(True).tag(sync=True)
     size = CFloat(0.001).tag(sync=True)
-    color = Color("#000000").tag(sync=True)
+    color = CSSColor("#000000").tag(sync=True)
     opacity = CFloat(1.0).tag(sync=True)
 
 
