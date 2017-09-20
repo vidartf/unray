@@ -11,6 +11,8 @@ pip install pytest
 #unzip auto-gen-wrappers.zip
 
 #pushd pythreejs-auto-gen-wrappers
+#        TODO: Make this work, currently travis logs say the pip install
+#              here works fine but the tests can't import it afterwards
 #pip install .
 #python -c "import pythreejs; print(pythreejs.__file__)"
 #jupyter nbextension install --py --sys-prefix pythreejs
