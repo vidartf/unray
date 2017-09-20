@@ -1,2 +1,3 @@
 #!/bin/bash
-py.test
+set -ex
+python -m pytest
