@@ -1,5 +1,7 @@
 # unray
 
+[![Build Status](https://travis-ci.org/martinal/unray.svg?branch=master)](https://travis-ci.org/martinal/unray)
+
 ## Description
 
 Unray is a scientific visualization package
