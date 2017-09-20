@@ -2,6 +2,7 @@ import numpy as np
 import ipywidgets as widgets
 from ipywidgets import widget_serialization, register, Color
 from ipydatawidgets import DataUnion, data_union_serialization, shape_constraints
+import traitlets
 from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum, Union
 from traitlets import Instance, TraitError, TraitType, Undefined
 from ._version import widget_module_name, widget_module_version
@@ -158,6 +159,21 @@ class ColorConstant(ColorValued):  # TODO: Use something from ipywidgets or othe
     intensity = CFloat(1.0).tag(sync=True)
     color = CSSColor("#ffffff").tag(sync=True)
 
+    def dashboard(self):
+        "Create a linked color picker for this color."
+        children = []
+
+        w = widgets.FloatSlider(value=self.intensity)
+        widgets.jslink((w, "value"), (self, "intensity"))
+        children.append(w)
+
+        w = widgets.ColorPicker(value=self.color)
+        widgets.jslink((w, "value"), (self, "color"))
+        children.append(w)
+
+        return widgets.VBox(children=children)
+
+
 @register
 class ColorField(ColorValued):
     """Representation of a color field."""
@@ -185,9 +201,32 @@ class WireframeParams(BaseWidget):
     """Collection of wireframe parameters."""
     _model_name = Unicode('WireframeParamsModel').tag(sync=True)
     enable = CBool(True).tag(sync=True)
-    size = CFloat(0.001).tag(sync=True)
+    size = CFloat(0.001).tag(sync=True)  # TODO: Rename to width?
     color = CSSColor("#000000").tag(sync=True)
     opacity = CFloat(1.0).tag(sync=True)
+
+    def dashboard(self):
+        "Create linked widgets for wireframe parameters."
+        title = widgets.HTML(value=r"<em>Wireframe</em>")
+        children = [title]
+
+        w = widgets.Checkbox(value=self.enable, description="Enable")
+        widgets.jslink((w, "value"), (self, "enable"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.size, min=0.001, max=0.01, step=0.001, readout_format=".3f", description="Width")
+        widgets.jslink((w, "value"), (self, "size"))
+        children.append(w)
+
+        w = widgets.ColorPicker(value=self.color, description="Color")
+        widgets.jslink((w, "value"), (self, "color"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.opacity, min=0.0, max=1.0, step=0.01, description="Opacity")
+        widgets.jslink((w, "value"), (self, "opacity"))
+        children.append(w)
+
+        return widgets.VBox(children=children)
 
 
 isosurface_types = ["single", "linear", "log", "power", "sweep"]
@@ -203,5 +242,30 @@ class IsovalueParams(BaseWidget):
     spacing = CFloat(1.0).tag(sync=True)
     period = CFloat(3.0).tag(sync=True)
 
+    def dashboard(self):
+        "Create linked widgets for isosurface parameters."
+        title = widgets.HTML(value=r"<em>Isosurface</em>")
+        children = [title]
+
+        w = widgets.Dropdown(
+            value=self.mode,
+            options=[(v.capitalize(), v) for v in isosurface_types],
+            description="Mode")
+        traitlets.link((w, "value"), (self, "mode"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.num_intervals, min=0.0, step=0.1, readout_format=".1f", description="Number of intervals")
+        widgets.jslink((w, "value"), (self, "num_intervals"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.spacing, min=0.0, readout_format=".4e", description="Spacing")
+        widgets.jslink((w, "value"), (self, "spacing"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.period, min=0.1, max=10.0, step=0.1, readout_format=".1f", description="Period")
+        widgets.jslink((w, "value"), (self, "period"))
+        children.append(w)
+
+        return widgets.VBox(children=children)
 
 # ------------------------------------------------------

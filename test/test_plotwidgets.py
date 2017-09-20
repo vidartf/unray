@@ -16,17 +16,17 @@ def test_surface_plot(mesh, color_field, wireframe_params):
     assert p._model_name == "SurfacePlotModel"
 
 def test_isosurface_plot(mesh, isovalue_params, p1field, color_constant, color_field):
-    p = ur.IsoSurfacePlot(mesh=mesh, color=color_field, values=isovalue_params)
-    assert p._model_name == "IsoSurfacePlotModel"
+    p = ur.IsosurfacePlot(mesh=mesh, color=color_field, values=isovalue_params)
+    assert p._model_name == "IsosurfacePlotModel"
 
-    p = ur.IsoSurfacePlot(mesh=mesh, color=color_field, values=isovalue_params)
-    assert p._model_name == "IsoSurfacePlotModel"
+    p = ur.IsosurfacePlot(mesh=mesh, color=color_field, values=isovalue_params)
+    assert p._model_name == "IsosurfacePlotModel"
 
-    p = ur.IsoSurfacePlot(mesh=mesh, field=p1field, color=color_constant, values=isovalue_params)
-    assert p._model_name == "IsoSurfacePlotModel"
+    p = ur.IsosurfacePlot(mesh=mesh, field=p1field, color=color_constant, values=isovalue_params)
+    assert p._model_name == "IsosurfacePlotModel"
 
-    p = ur.IsoSurfacePlot(mesh=mesh, field=p1field, color=color_field, values=isovalue_params)
-    assert p._model_name == "IsoSurfacePlotModel"
+    p = ur.IsosurfacePlot(mesh=mesh, field=p1field, color=color_field, values=isovalue_params)
+    assert p._model_name == "IsosurfacePlotModel"
 
 def test_xray_plot(mesh, scalar_field):
     p = ur.XrayPlot(mesh=mesh, density=scalar_field)

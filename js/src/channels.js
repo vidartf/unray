@@ -334,12 +334,23 @@ const channel_handlers = {
         }
 
         // TODO: Use a single define instead?
-        const match = (mode, name) => (name === mode ? 1: undefined);
-        defines.USING_ISOSURFACE_MODE_SINGLE = match(desc.mode, "single");
-        defines.USING_ISOSURFACE_MODE_SWEEP = match(desc.mode, "sweep");
-        defines.USING_ISOSURFACE_MODE_LINEAR = match(desc.mode, "linear");
-        defines.USING_ISOSURFACE_MODE_LOG = match(desc.mode, "log");
-        defines.USING_ISOSURFACE_MODE_POWER = match(desc.mode, "power");
+        const mode2define = (mode) => {
+            switch (mode) {
+            case "single":
+                return { USING_ISOSURFACE_MODE_SINGLE: 1 };
+            case "sweep":
+                return { USING_ISOSURFACE_MODE_SWEEP: 1 };
+            case "linear":
+                return { USING_ISOSURFACE_MODE_LINEAR: 1 };
+            case "log":
+                return { USING_ISOSURFACE_MODE_LOG: 1 };
+            case "power":
+                return { USING_ISOSURFACE_MODE_POWER: 1 };
+            default:
+                throw new Error(`Invalid isovalue mode ${mode}.`);
+            }
+        };
+        Object.assign(defines, mode2define(desc.mode));
     },
     extinction: ({uniforms, defines}, desc) => {
         uniforms.u_extinction = { value: desc.value };

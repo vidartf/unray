@@ -62,7 +62,7 @@ function create_default_encodings() {
     const default_encodings = {
         mesh: { cells, coordinates, indicators, wireframe, light },
         surface: { cells, coordinates, indicators, wireframe, emission, light },
-        isosurface: { cells, coordinates, wireframe, isovalues },
+        isosurface: { cells, coordinates, wireframe, isovalues, emission, density },
         xray: { cells, coordinates, indicators, density, extinction },
         sum: { cells, coordinates, indicators, emission, exposure },
         min: { cells, coordinates, indicators, emission },

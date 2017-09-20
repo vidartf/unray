@@ -1,13 +1,20 @@
-#if defined(ENABLE_EMISSION_BACK)
-float front = v_emission;
-float back = emission_back;
-vec4 value_range = u_emission_range;
-#elif defined(ENABLE_DENSITY_BACK)
+// Config check
+#if !(defined(ENABLE_EMISSION_BACK) || defined(ENABLE_DENSITY_BACK))
+compile_error();  // Isosurface needs front and back values
+#endif
+
+
+// Select values from emission or density field
+// TODO: If both are present, use density for isovalue selection
+//       and corresponding emission for coloring
+#if defined(ENABLE_DENSITY_BACK)
 float front = v_density;
 float back = density_back;
 vec4 value_range = u_density_range;
-#else
-compile_error();  // Isosurface needs front and back values
+#elif defined(ENABLE_EMISSION_BACK)
+float front = v_emission;
+float back = emission_back;
+vec4 value_range = u_emission_range;
 #endif
 
 // Magically chosen tolerance for avoiding edge artifacts on isosurfaces
@@ -47,6 +54,8 @@ float value;
 if (!find_isovalue_power_spacing(value, back, front, u_isovalue, u_isovalue_spacing, tolerance)) {
     discard;
 }
+#else
+compile_error(); // Missing valid USING_ISOSURFACE_* define
 #endif
 
 

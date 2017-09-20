@@ -129,8 +129,9 @@ function create_mesh(method, encoding, data) {
         prerender_update(renderer, scene, camera, geometry, material, group, mesh);
     };
 
-    // If needed, we can attach properties to the mesh.userData object:
-    //Object.assign(mesh.userData, { method, encoding });
+    // If needed, we can attach properties to the mesh.userData object,
+    // doing it now merely for the debugging convenience:
+    Object.assign(mesh.userData, { method, encoding });
 
     return mesh;
 }

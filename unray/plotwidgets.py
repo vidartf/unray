@@ -53,9 +53,9 @@ class SurfacePlot(Plot):
 
 
 @register
-class IsoSurfacePlot(Plot):
+class IsosurfacePlot(Plot):
     """An isosurface plot widget."""
-    _model_name = Unicode('IsoSurfacePlotModel').tag(sync=True)
+    _model_name = Unicode('IsosurfacePlotModel').tag(sync=True)
 
     # Mesh must currently always be set
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
