@@ -47,7 +47,7 @@ function getNotNull(model, key) {
     const value = model.get(key);
     if (!value) {
         console.log("Key:", key, "Model:", model);
-        throw Error(`Missing required ${key} on ${model}.`);
+        throw new Error(`Missing required ${key} on ${model}.`);
     }
     return value;
 }
@@ -61,7 +61,7 @@ function getIdentifiedValue(parent, name) {
 
 function setMeshEncoding(encoding, data, mesh) {
     if (!mesh) {
-        throw Error("Mesh is always required.");
+        throw new Error("Mesh is always required.");
     }
 
     const cells = getIdentifiedValue(mesh, "cells");
@@ -161,7 +161,7 @@ function setDensityFieldEncoding(encoding, data, density) {
         encoding.density.space = field.get("space");
         //encoding.density.range = field.get("range"); // FIXME
     } else {
-        throw Error(`Missing values in field.`);
+        throw new Error(`Missing values in field.`);
     }
 
     // Optional LUT
@@ -175,7 +175,7 @@ function setDensityFieldEncoding(encoding, data, density) {
                 // TODO: Handle linear/log scaled LUTs somehow:
                 //encoding.density.lut_space = getNotNull(lut, "space");
             } else {
-                throw Error(`Missing values in array LUT.`);
+                throw new Error(`Missing values in array LUT.`);
             }
         } else {
             console.error("Invalid scalar LUT", lut);
@@ -224,7 +224,7 @@ function setEmissionFieldEncoding(encoding, data, color) {
         enc.space = field.get("space");
         // enc.range = field.get("range"); // FIXME
     } else {
-        throw Error(`Missing required field values.`);
+        throw new Error(`Missing required field values.`);
     }
 
     // Optional LUT
@@ -238,7 +238,7 @@ function setEmissionFieldEncoding(encoding, data, color) {
                 // TODO: Handle linear/log scaled LUTs somehow:
                 // enc.lut_space = getNotNull(lut, "space");
             } else {
-                throw Error(`Missing required values in ArrayColorLUT`);
+                throw new Error(`Missing required values in ArrayColorLUT`);
             }
         } else if (lut.isNamedColorLUT) {
             const name = getNotNull(lut, "name");
@@ -273,12 +273,12 @@ function setEmissionEncoding(encoding, data, color) {
 class PlotModel extends BlackboxModel {
     // Override this in every subclass
     getPlotMethod() {
-        throw Error("Missing implementation of getPlotMethod.");
+        throw new Error("Missing implementation of getPlotMethod.");
     }
 
     // Override this in every subclass
     buildPlotEncoding() {
-        throw Error("Missing implementation of buildPlotEncoding.");
+        throw new Error("Missing implementation of buildPlotEncoding.");
     }
 
     defaults() {

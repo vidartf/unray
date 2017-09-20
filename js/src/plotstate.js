@@ -90,20 +90,20 @@ function prerender_update(renderer, scene, camera, geometry, material, group, me
 function create_mesh(method, encoding, data) {
     // Tetrahedral mesh data is required and assumed to be present at this point
     if (encoding.cells === undefined || encoding.cells.field === undefined) {
-        throw Error("Cannot create mesh, missing cells in the encoding.")
+        throw new Error("Cannot create mesh, missing cells in the encoding.")
     }
     if (encoding.coordinates === undefined || encoding.coordinates.field === undefined) {
-        throw Error("Cannot create mesh, missing coordinates in the encoding.")
+        throw new Error("Cannot create mesh, missing coordinates in the encoding.")
     }
 
     const cells = data[encoding.cells.field];
     const coordinates = data[encoding.coordinates.field];
 
     if (cells === undefined) {
-        throw Error("Cannot create mesh, missing cells in data.")
+        throw new Error("Cannot create mesh, missing cells in data.")
     }
     if (coordinates === undefined) {
-        throw Error("Cannot create mesh, missing coordinates in data.")
+        throw new Error("Cannot create mesh, missing coordinates in data.")
     }
 
     // Determine whether cells should be sorted based on view direction
@@ -217,7 +217,7 @@ function create_plot_state(root, method) {
         // Called on later updates
         update(encoding, data) {
             if (this.root.children.length === 0) {
-                throw Error("Expecting init called once before calling update.");
+                throw new Error("Expecting init called once before calling update.");
             }
             // Find mesh (should be the first root node, make this more robust if needed)
             const mesh = this.root.children[0];
