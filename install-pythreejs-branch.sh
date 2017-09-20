@@ -11,6 +11,7 @@ wget https://github.com/jovyan/pythreejs/archive/auto-gen-wrappers.zip
 unzip auto-gen-wrappers.zip
 
 pushd pythreejs-auto-gen-wrappers
+(cd js && npm install)
 (cd js && npm run autogen)
 (cd js && npm run build)
 pip install -e .
