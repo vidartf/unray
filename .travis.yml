@@ -5,6 +5,7 @@ matrix:
 before_install:
     - ./install-deps.sh
 install:
+    - (cd js && npm install)
     - pip install .
     - jupyter nbextension install --py --sys-prefix unray
     - jupyter nbextension enable --py --sys-prefix unray
