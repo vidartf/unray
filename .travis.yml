@@ -3,4 +3,9 @@ matrix:
     include:
     - python: "2.7"
     - python: "3.5"
-script: py.test
+before_install:
+    - ./install-deps.sh
+install:
+    - pip install .
+script:
+    - ./test.sh
