@@ -11,38 +11,6 @@ import { module_defaults } from "./version";
 import { create_plot_state } from "./plotstate";
 
 
-// Copied in from figure.js before deleting that file, maybe useful somewhere
-function __recompute_near_far(center, radius, position, fov) {
-    const offset = 0.2;
-    const dist = position.distanceTo(center);
-    const near_edge = dist - radius;
-    const far_edge = dist + radius;
-    const near = Math.max(0.01 * near_edge, 0.01 * radius);
-    const far = 100 * far_edge;
-    return [near, far];
-}
-
-// Copied in from figure.js before deleting that file, documenting how renderer was previously setup
-function __setup_renderer(canvas, width, height, bgcolor) {
-    const renderer = new THREE.WebGLRenderer({
-        canvas: canvas,
-        precision: "highp",
-        alpha: true,
-        antialias: true,
-        stencil: false,
-        preserveDrawingBuffer: true,
-        depth: true,
-        logarithmicDepthBuffer: true,
-    });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(width, height);
-    renderer.setClearColor(bgcolor, 1);
-
-    // Setup scene fog
-    //scene.fog = new THREE.Fog(0xaaaaaa);
-}
-
-
 function getNotNull(model, key) {
     const value = model.get(key);
     if (!value) {
@@ -146,7 +114,6 @@ function createRestrictEncoding(restrict) {
     }
     return { encoding, data };
 }
-
 
 function createDensityConstantEncoding(density) {
     // TODO: Allow constant mapped through LUT?
@@ -278,7 +245,7 @@ function createEmissionFieldEncoding(color) {
     }
 
     encoding.emission = desc;
-    return {encoding, data};
+    return { encoding, data };
 }
 
 function createEmissionEncoding(color) {
@@ -294,10 +261,25 @@ function createEmissionEncoding(color) {
     return { encoding: {}, data: {} };
 }
 
+function createExtinctionEncoding(extinction) {
+    const encoding = { extinction: { value: extinction } };
+    return { encoding };
+}
 
-function updateEncoding(encoding, data, changed) {
-    Object.assign(encoding, changed.encoding);
-    Object.assign(data, changed.data);
+function createExposureEncoding(exposure) {
+    const encoding = { exposure: { value: exposure } };
+    return { encoding };
+}
+
+
+// Merge a list of { encoding, data } objects into one
+function mergeEncodings(...encodings) {
+    const dst = { encoding: {}, data: {} };
+    for (let src of encodingAndData) {
+        Object.assign(dst.encoding, src.encoding);
+        Object.assign(dst.data, src.data);
+    }
+    return dst;
 }
 
 
@@ -368,13 +350,12 @@ class SurfacePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
-        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
-        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
-        updateEncoding(encoding, data, createWireframeParamsEncoding(this.get("wireframe")));
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color")),
+            createWireframeParamsEncoding(this.get("wireframe"))
+        );
     }
 };
 SurfacePlotModel.serializers = Object.assign({},
@@ -412,15 +393,14 @@ class IsosurfacePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
-        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
-        updateEncoding(encoding, data, createDensityEncoding(this.get("field")));
-        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
-        updateEncoding(encoding, data, createIsovalueParamsEncoding(this.get("values")));
-        // updateEncoding(encoding, data, createWireframeParamsEncoding(this.get("wireframe")));
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createDensityEncoding(this.get("field")),
+            createEmissionEncoding(this.get("color")),
+            createIsovalueParamsEncoding(this.get("values"))
+            //createWireframeParamsEncoding(this.get("wireframe"))
+        );
     }
 };
 IsosurfacePlotModel.serializers = Object.assign({},
@@ -459,14 +439,13 @@ class XrayPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
-        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
-        updateEncoding(encoding, data, createDensityEncoding(this.get("density")));
-        //setConstantEmissionEncoding(encoding, data, this.get("color"));
-        encoding.extinction = { value: this.get("extinction") };
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createDensityEncoding(this.get("density")),
+            //createEmissionConstantEncoding(this.get("color")),
+            createExtinctionEncoding(this.get("extinction"))
+        );
     }
 };
 XrayPlotModel.serializers = Object.assign({},
@@ -478,7 +457,6 @@ XrayPlotModel.serializers = Object.assign({},
         //color: { deserialize: widgets.unpack_models },
     }
 );
-
 
 export
 class MinPlotModel extends PlotModel {
@@ -501,12 +479,11 @@ class MinPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
-        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
-        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color"))
+        );
     }
 };
 MinPlotModel.serializers = Object.assign({},
@@ -540,12 +517,11 @@ class MaxPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
-        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
-        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color"))
+        );
     }
 };
 MaxPlotModel.serializers = Object.assign({},
@@ -580,13 +556,12 @@ class SumPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
-        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
-        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
-        encoding.exposure = { value: this.get("exposure") };
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color")),
+            createExposureEncoding(this.get("exposure"))
+        );
     }
 };
 SumPlotModel.serializers = Object.assign({},
@@ -623,15 +598,14 @@ class VolumePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
-        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
-        updateEncoding(encoding, data, createDensityEncoding(this.get("density")));
-        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
-        encoding.extinction = { value: this.get("extinction") };
-        encoding.exposure = { value: this.get("exposure") };
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createDensityEncoding(this.get("density")),
+            createEmissionEncoding(this.get("color")),
+            createExtinctionEncoding(this.get("extinction")),
+            createExposureEncoding(this.get("exposure"))
+        );
     }
 };
 VolumePlotModel.serializers = Object.assign({},

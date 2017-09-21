@@ -30,3 +30,35 @@ function delete_undefined(obj) {
     }
     return obj;
 }
+
+
+// Copied in from figure.js before deleting that file, maybe useful somewhere
+function __recompute_near_far(center, radius, position, fov) {
+    const offset = 0.2;
+    const dist = position.distanceTo(center);
+    const near_edge = dist - radius;
+    const far_edge = dist + radius;
+    const near = Math.max(0.01 * near_edge, 0.01 * radius);
+    const far = 100 * far_edge;
+    return [near, far];
+}
+
+// Copied in from figure.js before deleting that file, documenting how renderer was previously setup
+function __setup_renderer(canvas, width, height, bgcolor) {
+    const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        precision: "highp",
+        alpha: true,
+        antialias: true,
+        stencil: false,
+        preserveDrawingBuffer: true,
+        depth: true,
+        logarithmicDepthBuffer: true,
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
+    renderer.setClearColor(bgcolor, 1);
+
+    // Setup scene fog
+    //scene.fog = new THREE.Fog(0xaaaaaa);
+}
