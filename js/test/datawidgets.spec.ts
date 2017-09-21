@@ -4,7 +4,7 @@ import {assert, expect, should} from 'chai';
 
 import { MeshModel } from "../src/datawidgets";
 
-import { createTestModel } from './testutils';
+import { createTestModel } from './utils.spec';
 
 import * as factory from "./modelfactory";
 

@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+      "declaration": true,
+      "noImplicitAny": false,
+      "lib": ["dom", "es6"],
+      "noEmitOnError": true,
+      "strictNullChecks": true,
+      "module": "commonjs",
+      "moduleResolution": "node",
+      "target": "ES6",
+      "outDir": "../lib",
+      "skipLibCheck": true,
+      "sourceMap": true
+    }
+  }

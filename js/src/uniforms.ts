@@ -1,6 +1,6 @@
 "use strict";
 
-import _ from "underscore";
+import * as _ from "underscore";
 
 import * as THREE from "three";
 
@@ -92,7 +92,7 @@ function default_uniforms() {
     };
 
     // Flatten groups to { u_foo: { value: 123, gltype: "float" } }
-    const groups = Object.assign({}, automatic_groups, user_data_groups);
+    const groups = Object.assign({}, user_data_groups);
     const all = Object.assign({}, ...Object.values(groups));
 
     // Create uniforms dict with fresh copies of values

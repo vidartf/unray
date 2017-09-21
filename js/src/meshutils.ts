@@ -91,7 +91,7 @@ function compute_tetrahedron_cell_orientations(cells=new Int32Array([]), vertice
              (x1[0] - x0[0]) * (a[1] * b[2] - a[2] * b[1])
            + (x1[1] - x0[1]) * (a[2] * b[0] - a[0] * b[2])
            + (x1[2] - x0[2]) * (a[0] * b[1] - a[1] * b[0])
-             < 0);
+             < 0) ? 1 : 0;
     }
     return reorient;
 }

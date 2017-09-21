@@ -6,17 +6,13 @@ class ObjectManager {
         this.createCb = create;
         this.updateCb = update;
         this.deletedCb = deleted;
-
-        this.object2key = new Map();
-        this.key2object = new Map();
-        this.objectCount = new Map();
     }
 
-    increment(object) {
+    increment(object): void {
         this.objectCount.set(object, (this.objectCount.get(object) | 0) + 1);
     }
 
-    decrement(object) {
+    decrement(object): number {
         const count = (this.objectCount.get(object) | 0) - 1;
         if (count === 0) {
             const key = this.object2key[object];
@@ -32,7 +28,7 @@ class ObjectManager {
         return count;
     }
 
-    update(key, spec, previousObject) {
+    update(key: string, spec, previousObject?: any): void {
         let object = this.key2object.get(key);
         if (object) {
             // Update object in place if it's in the cache
@@ -55,4 +51,12 @@ class ObjectManager {
         }
         return object;
     }
+
+    createCb: (spec: any) => any;
+    updateCb: (object: any, spec: any) => void;
+    deletedCb: (spec: any) => void;
+
+    object2key = new Map<any, string>();
+    key2object = new Map<string, any>();
+    objectCount = new Map<any, number>();
 };

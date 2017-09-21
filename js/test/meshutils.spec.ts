@@ -8,7 +8,7 @@ import {
     copy_reoriented
   } from '../src/meshutils';
 
-import { expectAllCloseTo } from './testutils';
+import { expectAllCloseTo } from './utils.spec';
 
 
 describe('meshutils', function() {

@@ -7,7 +7,7 @@ import * as ndarray from 'ndarray';
 import * as dw from "../src/datawidgets";
 import * as pw from "../src/plotwidgets";
 
-import { createTestModel } from './testutils';
+import { createTestModel } from './utils.spec';
 
 import * as factory from "./modelfactory";
 

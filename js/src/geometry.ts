@@ -84,7 +84,7 @@ function create_geometry(sorted, cells, coordinates) {
     // copy_reoriented(dst, cells, reorient);
 
     // Setup cells of geometry (using textures or attributes)
-    const attributes = {};
+    const attributes = {} as any;
     if (sorted) {
         // Need ordering, let ordering be instanced and read cells from texture
         // Initialize ordering array with contiguous indices,
