@@ -1,7 +1,7 @@
 "use strict";
 
 import * as THREE from "three";
-import widgets from "@jupyter-widgets/base";
+import * as widgets from "@jupyter-widgets/base";
 import { BlackboxModel } from "jupyter-threejs";
 import { getArrayFromUnion, data_union_serialization } from "jupyter-datawidgets";
 
@@ -259,7 +259,7 @@ function setEmissionFieldEncoding(encoding, data, color) {
 
     // TODO: Cleaner to return enc/data and mutate encoding/data at call site
     // Store encoded channel
-    encoding.emission = enc;    
+    encoding.emission = enc;
 }
 
 function setEmissionEncoding(encoding, data, color) {

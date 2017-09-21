@@ -3,7 +3,7 @@
 //import _ from "underscore";
 
 import { module_defaults } from "./version";
-import widgets from "@jupyter-widgets/base";
+import * as widgets from "@jupyter-widgets/base";
 import {
     getArrayFromUnion, data_union_serialization, listenToUnion
 } from "jupyter-datawidgets";
@@ -196,7 +196,7 @@ class NamedColorLUTModel extends widgets.WidgetModel {
 export
 class ScalarConstantModel extends widgets.WidgetModel {
     get isScalarConstant() { return true; }
-    
+
     defaults() {
         return Object.assign(super.defaults(),
             module_defaults, {
@@ -257,7 +257,7 @@ ScalarIndicatorsModel.serializers = Object.assign({},
 export
 class ColorConstantModel extends widgets.WidgetModel {
     get isColorConstant() { return true; }
-    
+
     defaults() {
         return Object.assign(super.defaults(),
             module_defaults, {

@@ -2,16 +2,26 @@
 
 import {assert, expect, should} from 'chai';
 
-// FIXME: This doesn't work because the glsl webpack loader isn't applied correctly
+import { MeshModel } from "../src/datawidgets";
 import { SurfacePlotModel } from "../src/plotwidgets";
+
+import { createTestModel } from './testutils';
+
+import * as ndarray from 'ndarray';
 
 describe('plotwidgets', function() {
 
     describe('SurfacePlotModel', function() {
+
         it('should be constructable', function() {
-            const plot = new SurfacePlotModel();
-            expect(plot._model_name).eq("SurfacePlotModel");
+            const mesh = createTestModel(MeshModel, {
+                cells: ndarray([0, 1, 2, 3]),
+                points: ndarray([0, 0, 0]),
+            });
+            const plot = createTestModel(SurfacePlotModel, {mesh});
+            expect(plot.get('_model_name')).eq("SurfacePlotModel");
         });
+
     });
 
 });
