@@ -142,7 +142,7 @@ function createRestrictEncoding(restrict) {
     const encoding = {};
     const data = {};
     if (restrict) {
-        
+
     }
     return { encoding, data };
 }
