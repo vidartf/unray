@@ -29,24 +29,6 @@ const resolve = {
 }
 
 
-// Notebook extension
-//
-// This bundle only contains the part of the JavaScript that is run on
-// load of the notebook. This section generally only performs
-// some configuration for requirejs, and provides the legacy
-// "load_ipython_extension" function which is required for any notebook
-// extension.
-const extension = {
-    entry: './src/extension.ts',
-    output: {
-        filename: 'extension.js',
-        path: static_path,
-        libraryTarget: 'amd'
-    },
-    resolve,
-};
-
-
 // Bundle for the notebook containing the custom widget views and models
 //
 // This bundle contains the implementation for the custom widget views and
@@ -99,7 +81,6 @@ const embed = {
 
 
 module.exports = [
-    extension,
     index,
     embed
 ];

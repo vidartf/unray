@@ -6,7 +6,8 @@ build/
 node_modules/
 
 # Compiled javascript
-unray/static/
+unray/static/index.*
+unray/static/lib
 
 # OS X
 .DS_Store
