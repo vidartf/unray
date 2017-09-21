@@ -1,14 +1,12 @@
 // Fragment shader for the Unray project implementing
 // variations of View Independent Cell Projection
 
-
+// Added by three.js:
+// #extension GL_OES_standard_derivatives : enable
 // precision highp float;
 // precision highp int;
 // precision highp sampler2D;
 // precision highp usampler2D;
-
-// Added by three.js:
-// #extension GL_OES_standard_derivatives : enable
 
 // Using webpack-glsl-loader to copy in shared code
 @import ./utils/inverse;
@@ -17,215 +15,22 @@
 @import ./utils/depth;
 @import ./utils/isosurface;
 
-
-/* For uniforms added by three.js, see
+/*
+For uniforms added by three.js, see
 https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 */
-    // Copied from THREE.js logbufdepth_pars_fragment.glsl
-#ifdef USE_LOGDEPTHBUF
-	uniform float logDepthBufFC;
-	#ifdef USE_LOGDEPTHBUF_EXT
-		varying float vFragDepth;
-	#endif
-#endif
 
+// Variables for log depth buffer
+@import ./logbufdepth_pars_fragment;
 
-// Crude dependency graph for ENABLE_FOO code blocks.
-// It's useful to share this between the vertex and fragment shader,
-// so if something needs to be toggled separately in those there
-// needs to be separate define names.
+// Add defines based on internal dependencies
+@import ./dependencies;
 
-#ifdef ENABLE_XRAY_MODEL
-    #define ENABLE_DEPTH 1
-#endif
+// Share uniforms between fragment and vertex shader (affected by defines!)
+@import ./uniforms;
 
-#ifdef ENABLE_SUM_MODEL
-    #define ENABLE_DEPTH 1
-#endif
-
-#ifdef ENABLE_VOLUME_MODEL
-    #define ENABLE_DEPTH 1
-#endif
-
-#ifdef ENABLE_SURFACE_MODEL
-    #ifdef ENABLE_SURFACE_LIGHT
-        #define ENABLE_FACET_PLANE 1
-    #endif
-#endif
-
-#ifdef ENABLE_ISOSURFACE_MODEL
-    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
-#endif
-
-
-#ifdef ENABLE_SURFACE_DEPTH_SHADING
-    #define ENABLE_DEPTH 1
-#endif
-
-#ifdef ENABLE_WIREFRAME
-    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
-#endif
-
-#ifdef ENABLE_FACET_PLANE
-    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
-#endif
-
-#ifdef ENABLE_EMISSION_BACK
-    #if !defined(ENABLE_EMISSION) || !defined(ENABLE_EMISSION_FIELD)
-    compile_error();
-    #endif
-    #define ENABLE_EMISSION_GRADIENT 1
-    #define ENABLE_DEPTH 1
-    #define ENABLE_VIEW_DIRECTION 1
-#endif
-
-#ifdef ENABLE_DENSITY_BACK
-    #if !defined(ENABLE_DENSITY) || !defined(ENABLE_DENSITY_FIELD)
-    compile_error();
-    #endif
-    #define ENABLE_DENSITY_GRADIENT 1
-    #define ENABLE_DEPTH 1
-    #define ENABLE_VIEW_DIRECTION 1
-#endif
-
-#ifdef ENABLE_SURFACE_LIGHT
-    #if defined(ENABLE_EMISSION)
-        #define ENABLE_EMISSION_GRADIENT 1
-    #elif defined(ENABLE_DENSITY)
-        #define ENABLE_DENSITY_GRADIENT 1
-    #endif
-    #define ENABLE_PLANES 1
-#endif
-
-#ifdef ENABLE_DEPTH
-    #define ENABLE_BARYCENTRIC_COORDINATES 1
-    #ifdef ENABLE_PERSPECTIVE_PROJECTION
-        #define ENABLE_PLANES 1
-    #endif
-#endif
-
-#ifdef ENABLE_BARYCENTRIC_DERIVATIVES
-    #define ENABLE_BARYCENTRIC_COORDINATES 1
-#endif
-
-
-// Time uniforms
-uniform float u_time;
-uniform vec4 u_oscillators;
-
-// Custom camera uniforms
-//uniform mat4 u_mvp_matrix;
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-uniform vec3 u_local_camera_position;
-#else
-uniform vec3 u_local_view_direction;
-#endif
-
-// Custom light uniforms
-uniform vec3 u_emission_color;
-#ifdef ENABLE_SURFACE_LIGHT
-uniform vec2 u_emission_intensity_range;  // [min, max]
-#endif
-
-#if defined(ENABLE_SUM_MODEL) || defined(ENABLE_VOLUME_MODEL)
-uniform float u_exposure;
-#endif
-
-#if defined(ENABLE_XRAY_MODEL) || defined(ENABLE_VOLUME_MODEL)
-uniform float u_extinction;
-#endif
-
-#ifdef ENABLE_WIREFRAME
-uniform vec3 u_wireframe_color;
-uniform float u_wireframe_alpha;
-uniform float u_wireframe_size;
-#endif
-
-#ifdef ENABLE_ISOSURFACE_MODEL
-uniform vec2 u_volume_interval;
-// Isovalue for surface n = 0
-uniform float u_isovalue;
-// Isovalue spacing for multiple surface
-uniform float u_isovalue_spacing;
-// Time period for sweep modes
-uniform float u_isovalue_sweep_period;
-#endif
-
-// #ifdef ENABLE_CELL_INDICATORS
-// uniform int u_cell_indicator_value;
-// #endif
-
-#ifdef ENABLE_DENSITY
-#ifdef ENABLE_DENSITY_FIELD
-uniform vec4 u_density_range;
-#else
-uniform float u_density_constant;
-#endif
-#endif
-
-#ifdef ENABLE_DENSITY_LUT
-uniform sampler2D t_density_lut;
-#endif
-
-
-#ifdef ENABLE_EMISSION
-#ifdef ENABLE_EMISSION_FIELD
-uniform vec4 u_emission_range;
-#else
-uniform float u_emission_constant;
-#endif
-#endif
-
-#ifdef ENABLE_EMISSION_LUT
-uniform sampler2D t_emission_lut;
-#endif
-
-
-// Varyings
-varying vec3 v_model_position;
-
-
-#ifdef ENABLE_BARYCENTRIC_COORDINATES
-varying vec4 v_barycentric_coordinates;
-#endif
-
-// #ifdef ENABLE_CELL_INDICATORS
-// varying float v_cell_indicator;                // want int or float, webgl2 required for flat keyword
-// #endif
-
-#ifdef ENABLE_DEPTH
-varying float v_max_depth;               // webgl2 required for flat keyword
-varying vec4 v_facing;                   // webgl2 required for flat keyword
-#endif
-
-#ifdef ENABLE_PLANES
-varying mat4 v_planes;                   // webgl2 required for flat keyword
-#endif
-
-#if defined(ENABLE_DEPTH) && !defined(ENABLE_PERSPECTIVE_PROJECTION)
-varying vec4 v_ray_lengths;
-#endif
-
-#ifdef ENABLE_DENSITY_FIELD
-varying float v_density;
-#endif
-
-#ifdef ENABLE_EMISSION_FIELD
-varying float v_emission;
-#endif
-
-#ifdef ENABLE_DENSITY_GRADIENT
-varying vec3 v_density_gradient;  // webgl2 required for flat keyword
-#endif
-
-#ifdef ENABLE_EMISSION_GRADIENT
-varying vec3 v_emission_gradient;  // webgl2 required for flat keyword
-#endif
-
-
-// TODO: Could pass on all vertex values to compute function error
-//       estimate, err = sum_i bc_width[i]*vertex_values[i];
-//varying vec4 v_emission_vertex_values;
+// Share varyings between fragment and vertex shader (affected by defines!)
+@import ./varyings;
 
 
 void main()

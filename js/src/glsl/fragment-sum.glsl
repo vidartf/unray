@@ -8,7 +8,7 @@ compile_error();  // Volume model requires emission
 // Take average over ray segment
 vec3 C_emit = mix(mapped_emission, mapped_emission_back, 0.5);
 #elif defined(ENABLE_EMISSION)
-// Constant or P0
+// Constant or P0 field
 vec3 C_emit = mapped_emission;
 #elif defined(ENABLE_DENSITY_BACK)
 fixme; // TODO: Currently unreachable. Ok?

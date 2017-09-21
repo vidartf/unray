@@ -1,12 +1,11 @@
 // Vertex shader for the Unray project implementing
 // variations of View Independent Cell Projection
 
-
+// Added by three.js:
 // precision highp float;
 // precision highp int;
 // precision highp sampler2D;
 // precision highp usampler2D;
-
 
 // Using webpack-glsl-loader to copy in shared code
 @import ./utils/transpose;
@@ -17,7 +16,6 @@
 @import ./utils/grad;
 @import ./utils/place;
 
-
 /*
 For uniforms added by three.js, see
 https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
@@ -26,204 +24,38 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 // Variables for log depth buffer
 @import ./logbufdepth_pars_fragment;
 
+// Add defines based on internal dependencies
+@import ./dependencies;
 
-// Crude dependency graph for ENABLE_FOO code blocks.
-// It's useful to share this between the vertex and fragment shader,
-// so if something needs to be toggled separately in those there
-// needs to be separate define names.
-
-#ifdef ENABLE_XRAY_MODEL
-    #define ENABLE_DEPTH 1
-#endif
-
-#ifdef ENABLE_SUM_MODEL
-    #define ENABLE_DEPTH 1
-#endif
-
-#ifdef ENABLE_VOLUME_MODEL
-    #define ENABLE_DEPTH 1
-#endif
-
-#ifdef ENABLE_SURFACE_MODEL
-    #define ENABLE_BARYCENTRIC_COORDINATES 1
-#endif
+// Share uniforms between fragment and vertex shader (affected by defines!)
+@import ./uniforms;
 
 
-#ifdef ENABLE_SURFACE_DEPTH_SHADING
-    #define ENABLE_DEPTH 1
-#endif
-
-#ifdef ENABLE_CELL_ORDERING
-    #define ENABLE_CELL_UV 1
-#endif
-
-#ifdef ENABLE_PERSPECTIVE_PROJECTION
-    #define ENABLE_ALL_COORDINATES 1
-#endif
-
-#ifdef ENABLE_EMISSION_BACK
-    #define ENABLE_EMISSION_FIELD 1
-    #define ENABLE_EMISSION_GRADIENT 1
-    #define ENABLE_DEPTH 1
-    #define ENABLE_VIEW_DIRECTION 1
-#endif
-
-#ifdef ENABLE_DENSITY_BACK
-    #define ENABLE_DENSITY_FIELD 1
-    #define ENABLE_DENSITY_GRADIENT 1
-    #define ENABLE_DEPTH 1
-    #define ENABLE_VIEW_DIRECTION 1
-#endif
-
-#ifdef ENABLE_SURFACE_LIGHT
-    #if defined(ENABLE_EMISSION_FIELD)
-        #define ENABLE_EMISSION_GRADIENT 1
-    #elif defined(ENABLE_DENSITY_FIELD)
-        #define ENABLE_DENSITY_GRADIENT 1
-    #endif
-    #define ENABLE_PLANES 1
-#endif
-
-#ifdef ENABLE_EMISSION_GRADIENT
-    #define ENABLE_JACOBIAN_INVERSE 1
-#endif
-
-#ifdef ENABLE_DENSITY_GRADIENT
-    #define ENABLE_JACOBIAN_INVERSE 1
-#endif
-
-#ifdef ENABLE_DEPTH
-    #define ENABLE_ALL_COORDINATES 1
-    #define ENABLE_BARYCENTRIC_COORDINATES 1
-    #define ENABLE_EDGES 1
-    #ifdef ENABLE_PERSPECTIVE_PROJECTION
-        #define ENABLE_PLANES 1
-    #endif
-#endif
-
-#ifdef ENABLE_PLANES
-    #define ENABLE_EDGES 1
-#endif
-
-#ifdef ENABLE_JACOBIAN_INVERSE
-    #define ENABLE_ALL_COORDINATES 1
-#endif
-
-#ifdef ENABLE_DENSITY_FIELD
-    #define ENABLE_VERTEX_UV 1
-#endif
-
-#ifdef ENABLE_EMISSION_FIELD
-    #define ENABLE_VERTEX_UV 1
-#endif
-
-#ifdef ENABLE_ALL_COORDINATES
-    #define ENABLE_VERTEX_UV 1
-#endif
-
-
-// Custom camera uniforms
-uniform mat4 u_mvp_matrix;
-uniform vec3 u_local_camera_position;
-
-#ifndef ENABLE_PERSPECTIVE_PROJECTION
-uniform vec3 u_local_view_direction;
-#endif
-
-
-// Input data uniforms
-#ifdef ENABLE_CELL_INDICATORS
-uniform int u_cell_indicator_value;
-#endif
-
-
-// Texture property uniforms
-#ifdef ENABLE_CELL_UV
-uniform ivec2 u_cell_texture_shape;
-#endif
-
-#ifdef ENABLE_VERTEX_UV
-uniform ivec2 u_vertex_texture_shape;
-#endif
-
-
-// Cell textures
-#ifdef ENABLE_CELL_ORDERING
-uniform sampler2D t_cells;
-#endif
-
-#ifdef ENABLE_CELL_INDICATORS
-uniform sampler2D t_cell_indicators;
-#endif
-
-// Vertex textures
-uniform sampler2D t_coordinates;
-
-#ifdef ENABLE_DENSITY_FIELD
-uniform sampler2D t_density;
-#endif
-
-#ifdef ENABLE_EMISSION_FIELD
-uniform sampler2D t_emission;
-#endif
-
-
-// Vertex attributes (local vertices 0-4 on tetrahedron)
+// Vertex attributes (per local vertices 0-4 on tetrahedron instance)
 attribute vec4 a_local_vertices;                 // webgl2 required for ivec4 attributes and gl_VertexID
 attribute vec4 a_barycentric_coordinates;
 
-// Cell attributes
+
+// Instance attributes (per tetrahedron instance)
 #ifdef ENABLE_CELL_ORDERING
-attribute float c_ordering;                      // webgl2 required for int attributes and gl_InstanceID
+    // Index of the cell currently processed, used to look up
+    // vertex indices and other per-cell data looked up in textures
+    attribute float c_ordering;                      // webgl2 required for int attributes and gl_InstanceID
 #else
-attribute vec4 c_cells;                          // webgl2 required for ivec4 attributes
-#endif
-#ifdef ENABLE_CELL_INDICATORS
-attribute float c_cell_indicators;               // webgl2 required for int attributes
-#endif
+    // If cells are unordered per-cell data can be passed as instance attributes
 
-
-// Varyings
-// Note: Not position of the model but vertex coordinate in model space
-varying vec3 v_model_position;
-
-#ifdef ENABLE_BARYCENTRIC_COORDINATES
-varying vec4 v_barycentric_coordinates;
+    // Vertex indices for this cell
+    attribute vec4 c_cells;                          // webgl2 required for ivec4 attributes
+    #ifdef ENABLE_CELL_INDICATORS
+        // Cell indicator value for this cell
+        attribute float c_cell_indicators;           // webgl2 required for int attributes
+    #endif
 #endif
 
-// #ifdef ENABLE_CELL_INDICATORS
-// varying float v_cell_indicator;           // want int or bool, webgl2 required for flat keyword
-// #endif
 
-#ifdef ENABLE_DEPTH
-varying float v_max_depth;               // webgl2 required for flat keyword
-varying vec4 v_facing;                   // webgl2 required for flat keyword
-#endif
+// Share varyings between fragment and vertex shader (affected by defines!)
+@import ./varyings;
 
-#ifdef ENABLE_PLANES
-varying mat4 v_planes;                   // webgl2 required for flat keyword
-#endif
-
-#if defined(ENABLE_DEPTH) && !defined(ENABLE_PERSPECTIVE_PROJECTION)
-varying vec4 v_ray_lengths;
-#endif
-
-// TODO: Can pack density and density_gradient in one vec4 since they're interpolated anyway
-#ifdef ENABLE_DENSITY_FIELD
-varying float v_density;
-#endif
-
-#ifdef ENABLE_DENSITY_GRADIENT
-varying vec3 v_density_gradient;         // webgl2 required for flat keyword
-#endif
-
-#ifdef ENABLE_EMISSION_FIELD
-varying float v_emission;
-#endif
-
-#ifdef ENABLE_EMISSION_GRADIENT
-varying vec3 v_emission_gradient;        // webgl2 required for flat keyword
-#endif
 
 void main()
 {
@@ -236,7 +68,7 @@ void main()
 
 
 #ifdef ENABLE_BARYCENTRIC_COORDINATES
-    // Interpolate barycentric coordinate on local tetrahedron over fragment
+    // Interpolate barycentric coordinate on local tetrahedron over faces
     v_barycentric_coordinates = a_barycentric_coordinates;
 #endif
 
@@ -294,7 +126,7 @@ void main()
 #endif
 
 
-#ifdef ENABLE_VERTEX_UV
+#ifdef ENABLE_ALL_VERTEX_UV
     // Map all vertex indices to texture locations for vertex data lookup
     vec2 vertex_uv[4];
     for (int i = 0; i < 4; ++i) {
@@ -634,5 +466,5 @@ void main()
     gl_Position = u_mvp_matrix * vec4(v_model_position, 1.0);
 
     // Adjustment for log depth buffer
-    @import ./logbufdepth_vertex;
+@import ./logbufdepth_vertex;
 }
