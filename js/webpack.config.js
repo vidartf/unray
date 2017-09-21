@@ -84,7 +84,7 @@ const embed = {
         rules: rules
     },
     externals: externals,
-}
+};
 
 
 module.exports = [

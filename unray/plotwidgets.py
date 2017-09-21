@@ -32,18 +32,18 @@ class Plot(Blackbox):
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
-
-@register
-class SurfacePlot(Plot):
-    """A surface plot widget."""
-    _model_name = Unicode('SurfacePlotModel').tag(sync=True)
-
     # Mesh must currently always be set
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
 
     # Indicators can optionally mark which cells or facets to include
     # TODO: Validate IndicatorField spaces: ["I3", "I2"]
-    restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
+    restrict = Instance(ScalarIndicators, allow_none=True).tag(sync=True, **widget_serialization)
+
+
+@register
+class SurfacePlot(Plot):
+    """A surface plot widget."""
+    _model_name = Unicode('SurfacePlotModel').tag(sync=True)
 
     # Color can be a constant or a field with color mapping
     color = Instance(ColorValued, allow_none=True).tag(sync=True, **widget_serialization)
@@ -56,13 +56,6 @@ class SurfacePlot(Plot):
 class IsosurfacePlot(Plot):
     """An isosurface plot widget."""
     _model_name = Unicode('IsosurfacePlotModel').tag(sync=True)
-
-    # Mesh must currently always be set
-    mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-
-    # Indicators can optionally mark which cells or facets to include
-    # TODO: Validate IndicatorField spaces: ["I3", "I2"]
-    restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Color can be a constant or a field with color mapping
     color = Instance(ColorValued, allow_none=False).tag(sync=True, **widget_serialization)
@@ -78,13 +71,6 @@ class IsosurfacePlot(Plot):
 class XrayPlot(Plot):
     """An xray plot widget"""
     _model_name = Unicode('XrayPlotModel').tag(sync=True)
-
-    # Mesh must currently always be set
-    mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-
-    # Indicators can optionally mark which cells or facets to include
-    # TODO: Validate IndicatorField spaces: ["I3", "I2"]
-    restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Density can be a constant or a scalar field with scalar mapping
     density = Instance(ScalarValued, allow_none=True).tag(sync=True, **widget_serialization)
@@ -103,13 +89,6 @@ class MinPlot(Plot):
     """A volumetric minimum intensity projection plot widget."""
     _model_name = Unicode('MinPlotModel').tag(sync=True)
 
-    # Mesh must currently always be set
-    mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-
-    # Indicators can optionally mark which cells or facets to include
-    # TODO: Validate IndicatorField spaces: ["I3", "I2"]
-    restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
-
     # Color field with color mapping
     color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
 
@@ -119,13 +98,6 @@ class MaxPlot(Plot):
     """A volumetric maximum intensity projection plot widget."""
     _model_name = Unicode('MaxPlotModel').tag(sync=True)
 
-    # Mesh must currently always be set
-    mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-
-    # Indicators can optionally mark which cells or facets to include
-    # TODO: Validate IndicatorField spaces: ["I3", "I2"]
-    restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
-
     # Color field with color mapping
     color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
 
@@ -134,13 +106,6 @@ class MaxPlot(Plot):
 class SumPlot(Plot):
     """A volumetric pure emission projection plot widget."""
     _model_name = Unicode('SumPlotModel').tag(sync=True)
-
-    # Mesh must currently always be set
-    mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-
-    # Indicators can optionally mark which cells or facets to include
-    # TODO: Validate IndicatorField spaces: ["I3", "I2"]
-    restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Color field with color mapping or constant color
     color = Instance(ColorValued, allow_none=False).tag(sync=True, **widget_serialization)
@@ -154,13 +119,6 @@ class SumPlot(Plot):
 class VolumePlot(Plot):
     """A direct volumetric rendering widget with a full emission-absorption model."""
     _model_name = Unicode('VolumePlotModel').tag(sync=True)
-
-    # Mesh must currently always be set
-    mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)
-
-    # Indicators can optionally mark which cells or facets to include
-    # TODO: Validate IndicatorField spaces: ["I3", "I2"]
-    restrict = Instance(IndicatorField, allow_none=True).tag(sync=True, **widget_serialization)
 
     # Color field with color mapping or a constant color
     color = Instance(ColorValued, allow_none=False).tag(sync=True, **widget_serialization)

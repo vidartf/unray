@@ -7,6 +7,11 @@ import {delete_undefined} from "./utils";
 import {default_automatic_uniforms} from "./uniforms";
 import {default_encodings} from "./encodings";
 
+// Get obj.name if obj is an object
+function get_attrib(obj, name) {
+    return obj === undefined ? undefined: obj[name];
+}
+
 export
 function compute_range(array) {
     let min = array[0];
@@ -174,7 +179,7 @@ const channel_handlers = {
 
         uniforms.u_cell_texture_shape = { value: [...texture_shape] };
 
-        const prev = uniforms.t_cells ? uniforms.t_cells.value : undefined;
+        const prev = get_attrib(uniforms.t_cells, "value");
         const value = managers.array_texture.update(
             key,
             {array: array, dtype: "int32", item_size: 4, texture_shape: texture_shape},
@@ -198,19 +203,40 @@ const channel_handlers = {
         const texture_shape = compute_texture_shape(num_vertices);
         uniforms.u_vertex_texture_shape = { value: [...texture_shape] };
 
-        const prev = uniforms.t_coordinates ? uniforms.t_coordinates.value: undefined;
+        const prev = get_attrib(uniforms.t_coordinates, "value");
         const value = managers.array_texture.update(key,
             {array: array, dtype: "float32", item_size: 3, texture_shape: texture_shape },
             prev);
         uniforms.t_coordinates = { value };
     },
     indicators: ({uniforms, defines, attributes}, desc, {data, managers}) => {
-        uniforms.u_cell_indicator_value = { value: desc.value };
-        const key = desc.field;
-        if (key) {
+        if (desc.field) {
+            if (desc.space != "I3") {
+                throw new Error("Only cell restriction has been implemented.");
+            }
+            if (desc.lut) {
+                throw new Error("LUT for restriction has not been implemented.");
+            }
+
+            const key = desc.field;
+            const uname = "t_cell_indicators";
+
             const array = data[key];
-            uniforms.t_cell_indicators = { value: managers.array_texture.update(key, array, uniforms.t_cell_indicators.value) };
-            // or
+            const dtype = "int32";
+            const item_size = 1;
+            const texture_shape = compute_texture_shape(array.length / item_size);
+            const spec = {array, dtype, item_size, texture_shape};
+
+            const prev = get_attrib(uniforms[uname], "value");
+
+            const value = managers.array_texture.update(key, spec, prev);
+            uniforms[uname] = { value };
+
+            uniforms.u_cell_indicator_value = { value: desc.value };
+
+            defines.ENABLE_CELL_INDICATORS = 1;
+
+            // FIXME: If not sorted, use attributes instead:
             // attributes.c_cell_indicators = managers.buffers.update(key, array, attributes.c_cell_indicators);
         }
     },
@@ -240,7 +266,7 @@ const channel_handlers = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+            const prev = get_attrib(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -265,7 +291,7 @@ const channel_handlers = {
             const dtype = "float32";
             const spec = {array, dtype, item_size};
 
-            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+            const prev = get_attrib(uniforms[uname], "value");
 
             const value = managers.lut_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -286,7 +312,7 @@ const channel_handlers = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+            const prev = get_attrib(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -310,7 +336,7 @@ const channel_handlers = {
             const dtype = "float32";
             const spec = {array, dtype, item_size};
 
-            const prev = uniforms[uname] ? uniforms[uname].value : undefined;
+            const prev = get_attrib(uniforms[uname], "value");
 
             const value = managers.lut_texture.update(key, spec, prev);
             uniforms[uname] = { value };

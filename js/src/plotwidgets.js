@@ -109,9 +109,44 @@ function createIsovalueParamsEncoding(params) {
 function createRestrictEncoding(restrict) {
     const encoding = {};
     const data = {};
-    if (restrict) {
 
+    const desc = {};
+
+    // Top level traits
+    const field = getNotNull(restrict, "field");
+    // const lut = restrict.get("lut");
+
+    // Non-optional field values
+    const values = getIdentifiedValue(field, "values");
+    if (values.value) {
+        const { id, value } = values;
+        data[id] = value;
+        desc.field = id;
+        desc.value = restrict.get("value");
+        desc.space = field.get("space");
+    } else {
+        throw new Error(`Missing values in field.`);
     }
+
+    // Optional LUT
+    // if (lut) {
+    //     if (lut.isArrayScalarLUT) {
+    //         const values = getIdentifiedValue(lut, "values");
+    //         if (values.value) {
+    //             const { id, value } = values;
+    //             data[id] = value;
+    //             desc.lut_field = id;
+    //             // TODO: Handle linear/log scaled LUTs somehow:
+    //             //desc.lut_space = getNotNull(lut, "space");
+    //         } else {
+    //             throw new Error(`Missing values in array LUT.`);
+    //         }
+    //     } else {
+    //         throw new Error(`"Invalid scalar LUT ${lut}`);
+    //     }
+    // }
+
+    encoding.indicators = desc;
     return { encoding, data };
 }
 
@@ -275,7 +310,7 @@ function createExposureEncoding(exposure) {
 // Merge a list of { encoding, data } objects into one
 function mergeEncodings(...encodings) {
     const dst = { encoding: {}, data: {} };
-    for (let src of encodingAndData) {
+    for (let src of encodings) {
         Object.assign(dst.encoding, src.encoding);
         Object.assign(dst.data, src.data);
     }
@@ -295,7 +330,10 @@ class PlotModel extends BlackboxModel {
     }
 
     defaults() {
-        return Object.assign(super.defaults(), module_defaults);
+        return Object.assign(super.defaults(), module_defaults, {
+            mesh: null,  // MeshModel
+            restrict: null,  // ScalarIndicatorsModel
+        });
     }
 
     constructThreeObject() {
@@ -326,6 +364,13 @@ class PlotModel extends BlackboxModel {
         this.updatePlotState(changed);
     }
 };
+PlotModel.serializers = Object.assign({},
+    BlackboxModel.serializers,
+    {
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
+    }
+);
 
 
 export
@@ -336,8 +381,6 @@ class SurfacePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel || ColorConstantModel
             wireframe: null,  // WireframeParamsModel
         };
@@ -359,10 +402,8 @@ class SurfacePlotModel extends PlotModel {
     }
 };
 SurfacePlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
         wireframe: { deserialize: widgets.unpack_models },
     }
@@ -377,8 +418,6 @@ class IsosurfacePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
             field: null,  // Field if different from color.field
             values: null,  // IsovalueParams
@@ -404,10 +443,8 @@ class IsosurfacePlotModel extends PlotModel {
     }
 };
 IsosurfacePlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
         field: { deserialize: widgets.unpack_models },
         values: { deserialize: widgets.unpack_models },
@@ -424,8 +461,6 @@ class XrayPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             density: null,  // ScalarFieldModel | ScalarConstantModel
             extinction: 1.0,
             //color: "#ffffff",  // ColorConstant
@@ -449,10 +484,8 @@ class XrayPlotModel extends PlotModel {
     }
 };
 XrayPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         density: { deserialize: widgets.unpack_models },
         //color: { deserialize: widgets.unpack_models },
     }
@@ -466,8 +499,6 @@ class MinPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
         };
     }
@@ -487,10 +518,8 @@ class MinPlotModel extends PlotModel {
     }
 };
 MinPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }
 );
@@ -504,8 +533,6 @@ class MaxPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
         };
     }
@@ -525,10 +552,8 @@ class MaxPlotModel extends PlotModel {
     }
 };
 MaxPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }
 );
@@ -542,8 +567,6 @@ class SumPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
             exposure: 0.0,
         };
@@ -565,10 +588,8 @@ class SumPlotModel extends PlotModel {
     }
 };
 SumPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }
 );
@@ -582,8 +603,6 @@ class VolumePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             density: null,  // ScalarFieldModel | ScalarConstantModel
             color: null,  // ColorFieldModel | ColorConstantModel
             extinction: 1.0,
@@ -609,10 +628,8 @@ class VolumePlotModel extends PlotModel {
     }
 };
 VolumePlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         density: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }

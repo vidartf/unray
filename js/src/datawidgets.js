@@ -215,8 +215,8 @@ class ScalarFieldModel extends widgets.WidgetModel {
         return Object.assign(super.defaults(),
             module_defaults, {
             _model_name : "ScalarFieldModel",
-            field: null,  // FieldModel
-            lut: null,  // ArrayScalarLUTModel | NamedScalarLUTModel
+            field: null,  // FieldModel (maps x -> scalar)
+            lut: null,  // ArrayScalarLUTModel (maps scalar -> scalar)
         });
     }
 }
@@ -237,8 +237,9 @@ class ScalarIndicatorsModel extends widgets.WidgetModel {
         return Object.assign(super.defaults(),
             module_defaults, {
             _model_name : "ScalarIndicatorsModel",
-            field: null,  // IndicatorFieldModel
-            lut: null,  // ArrayScalarLUTModel | NamedScalarLUTModel
+            field: null,  // IndicatorFieldModel (maps cell/face -> int)
+            lut: null,  // ArrayScalarLUTModel  // FIXME: OrdinalScalarLUTModel (maps int -> bool/int)
+            value: 1,   // integer
         });
     }
 }
