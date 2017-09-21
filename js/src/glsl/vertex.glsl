@@ -18,18 +18,13 @@
 @import ./utils/place;
 
 
-/* For uniforms added by three.js, see
+/*
+For uniforms added by three.js, see
 https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 */
-    // Copied from THREE.js logbufdepth_pars_fragment.glsl
-#ifdef USE_LOGDEPTHBUF
-	uniform float logDepthBufFC;
-	#ifdef USE_LOGDEPTHBUF_EXT
-		varying float vFragDepth;
-	#endif
-    // Definition from three.js common.glsl
-    #define EPSILON 1e-6
-#endif
+
+// Variables for log depth buffer
+@import ./logbufdepth_pars_fragment;
 
 
 // Crude dependency graph for ENABLE_FOO code blocks.
@@ -52,6 +47,7 @@ https://threejs.org/docs/index.html#api/renderers/webgl/WebGLProgram
 #ifdef ENABLE_SURFACE_MODEL
     #define ENABLE_BARYCENTRIC_COORDINATES 1
 #endif
+
 
 #ifdef ENABLE_SURFACE_DEPTH_SHADING
     #define ENABLE_DEPTH 1
@@ -637,14 +633,6 @@ void main()
     // Map model coordinate to clip space
     gl_Position = u_mvp_matrix * vec4(v_model_position, 1.0);
 
-
-    // Copied from THREE.js logbufdepth_vertex.glsl
-#ifdef USE_LOGDEPTHBUF
-	gl_Position.z = log2(max( EPSILON, gl_Position.w + 1.0 )) * logDepthBufFC;
-	#ifdef USE_LOGDEPTHBUF_EXT
-		vFragDepth = 1.0 + gl_Position.w;
-	#else
-		gl_Position.z = (gl_Position.z - 1.0) * gl_Position.w;
-	#endif
-#endif
+    // Adjustment for log depth buffer
+    @import ./logbufdepth_vertex;
 }
