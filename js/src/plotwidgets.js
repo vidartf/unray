@@ -1,7 +1,7 @@
 "use strict";
 
 import * as THREE from "three";
-import widgets from "@jupyter-widgets/base";
+import * as widgets from "@jupyter-widgets/base";
 import { BlackboxModel } from "jupyter-threejs";
 import { getArrayFromUnion, data_union_serialization } from "jupyter-datawidgets";
 

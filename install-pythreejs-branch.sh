@@ -21,3 +21,5 @@ jupyter nbextension list
 popd
 
 popd
+
+npm install ./deps/pythreejs-auto-gen-wrappers/js
