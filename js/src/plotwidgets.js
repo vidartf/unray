@@ -59,7 +59,11 @@ function getIdentifiedValue(parent, name) {
     return { id, value };
 }
 
-function setMeshEncoding(encoding, data, mesh) {
+
+function createMeshEncoding(mesh) {
+    const encoding = {};
+    const data = {};
+
     if (!mesh) {
         throw new Error("Mesh is always required.");
     }
@@ -77,6 +81,8 @@ function setMeshEncoding(encoding, data, mesh) {
         data[id] = value;
         encoding.coordinates = { field: id };
     }
+
+    return { encoding, data };
 }
 
 function checkMeshEncoding(encoding, data, mesh) {
@@ -104,14 +110,9 @@ function checkMeshEncoding(encoding, data, mesh) {
     }
 }
 
-function setRestrictEncoding(encoding, data, restrict) {
-    if (restrict) {
-        // FIXME
-        console.error("Missing implementation of restrict encoding.");
-    }
-}
-
-function setParamsEncoding(encoding, data, params, channel, keys) {
+function createParamsEncoding(params, channel, keys) {
+    const encoding = {};
+    const data = {};
     if (params) {
         const desc = {};
         for (let key of keys) {
@@ -122,44 +123,59 @@ function setParamsEncoding(encoding, data, params, channel, keys) {
         }
         encoding[channel] = desc;
     }
+    return { encoding, data };
 }
 
-function setWireframeEncoding(encoding, data, params) {
+function createWireframeParamsEncoding(params) {
     const channel = "wireframe";
     const keys = ["enable", "size", "color", "opacity"];
-    setParamsEncoding(encoding, data, params, channel, keys);
+    return createParamsEncoding(params, channel, keys);
 }
 
-function setIsovalueParamsEncoding(encoding, data, params) {
+function createIsovalueParamsEncoding(params) {
     const channel = "isovalues";
     const keys = ["mode", "value", "num_intervals", "spacing", "period"];
-    setParamsEncoding(encoding, data, params, channel, keys);
+    return createParamsEncoding(params, channel, keys);
 }
 
-function setDensityConstantEncoding(encoding, data, density) {
+function createRestrictEncoding(restrict) {
+    const encoding = {};
+    const data = {};
+    if (restrict) {
+        
+    }
+    return { encoding, data };
+}
+
+
+function createDensityConstantEncoding(density) {
     // TODO: Allow constant mapped through LUT?
+    const encoding = {};
+    const data = {};
     encoding.density = {
         constant: density.get("value"),
     };
+    return { encoding, data };
 }
 
-function setDensityFieldEncoding(encoding, data, density) {
-    const enc = {};
+function createDensityFieldEncoding(density) {
+    const encoding = {};
+    const data = {};
+
+    const desc = {};
 
     // Top level traits
     const field = getNotNull(density, "field");
     const lut = density.get("lut");
-
-    checkMeshEncoding(encoding, data, field.get("mesh"));
 
     // Non-optional field values
     const values = getIdentifiedValue(field, "values");
     if (values.value) {
         const { id, value } = values;
         data[id] = value;
-        enc.field = id;
-        enc.space = field.get("space");
-        // enc.range = field.get("range"); // FIXME
+        desc.field = id;
+        desc.space = field.get("space");
+        // desc.range = field.get("range"); // FIXME
     } else {
         throw new Error(`Missing values in field.`);
     }
@@ -171,50 +187,54 @@ function setDensityFieldEncoding(encoding, data, density) {
             if (values.value) {
                 const { id, value } = values;
                 data[id] = value;
-                enc.lut_field = id;
+                desc.lut_field = id;
                 // TODO: Handle linear/log scaled LUTs somehow:
-                //enc.lut_space = getNotNull(lut, "space");
+                //desc.lut_space = getNotNull(lut, "space");
             } else {
                 throw new Error(`Missing values in array LUT.`);
             }
         } else {
-            console.error("Invalid scalar LUT", lut);
+            throw new Error(`"Invalid scalar LUT ${lut}`);
         }
     }
 
-    // TODO: Cleaner to return enc/data and mutate encoding/data at call site
-    // Store encoded channel
-    encoding.density = enc;
+    encoding.density = desc;
+    return { encoding, data };
 }
 
-function setDensityEncoding(encoding, data, density) {
+function createDensityEncoding(density) {
     if (density) {
         if (density.isScalarConstant) {
-            setDensityConstantEncoding(encoding, data, density);
+            return createDensityConstantEncoding(density);
         } else if (density.isScalarField) {
-            setDensityFieldEncoding(encoding, data, density);
+            return createDensityFieldEncoding(density);
         } else {
-            console.error("Invalid scalar ", density);
+            throw new Error(`Invalid scalar ${density}.`);
         }
     }
+    return { encoding: {}, data: {} };
 }
 
-function setEmissionConstantEncoding(encoding, data, color) {
+function createEmissionConstantEncoding(color) {
     // TODO: Allow constant mapped through LUT?
+    const encoding = {}
+    const data = {};
     encoding.emission = {
         constant: color.get("intensity"),
         color: color.get("color"),
     };
+    return { encoding, data };
 }
 
-function setEmissionFieldEncoding(encoding, data, color) {
-    const enc = {};
+function createEmissionFieldEncoding(color) {
+    const encoding = {};
+    const data = {};
+
+    const desc = {};
 
     // Top level traits
     const field = getNotNull(color, "field");
     const lut = color.get("lut");
-
-    checkMeshEncoding(encoding, data, field.get("mesh"));
 
     // Non-optional field
     // color: ColorFieldModel
@@ -224,9 +244,9 @@ function setEmissionFieldEncoding(encoding, data, color) {
     if (values.value) {
         const { id, value } = values;
         data[id] = value;
-        enc.field = id;
-        enc.space = field.get("space");
-        // enc.range = field.get("range"); // FIXME
+        desc.field = id;
+        desc.space = field.get("space");
+        // desc.range = field.get("range"); // FIXME
     } else {
         throw new Error(`Missing required field values.`);
     }
@@ -238,9 +258,9 @@ function setEmissionFieldEncoding(encoding, data, color) {
             if (values.value) {
                 const { id, value } = values;
                 data[id] = value;
-                enc.lut_field = id;
+                desc.lut_field = id;
                 // TODO: Handle linear/log scaled LUTs somehow:
-                // enc.lut_space = getNotNull(lut, "space");
+                // desc.lut_space = getNotNull(lut, "space");
             } else {
                 throw new Error(`Missing required values in ArrayColorLUT`);
             }
@@ -250,29 +270,36 @@ function setEmissionFieldEncoding(encoding, data, color) {
             const value = getNamedColorLutArray(name);
             const id = name;
             data[id] = value;
-            enc.lut_field = id;
+            desc.lut_field = id;
             console.error("Named color LUT not implemented.");
         } else {
             console.error("Invalid color LUT", lut);
         }
     }
 
-    // TODO: Cleaner to return enc/data and mutate encoding/data at call site
-    // Store encoded channel
-    encoding.emission = enc;    
+    encoding.emission = desc;
+    return {encoding, data};
 }
 
-function setEmissionEncoding(encoding, data, color) {
+function createEmissionEncoding(color) {
     if (color) {
         if (color.isColorConstant) {
-            setEmissionConstantEncoding(encoding, data, color);
+            return createEmissionConstantEncoding(color);
         } else if (color.isColorField) {
-            setEmissionFieldEncoding(encoding, data, color);
+            return createEmissionFieldEncoding(color);
         } else {
-            console.error("Invalid color ", color);
+            throw new Error(`Invalid color ${color}`);
         }
     }
+    return { encoding: {}, data: {} };
 }
+
+
+function updateEncoding(encoding, data, changed) {
+    Object.assign(encoding, changed.encoding);
+    Object.assign(data, changed.data);
+}
+
 
 class PlotModel extends BlackboxModel {
     // Override this in every subclass
@@ -316,10 +343,6 @@ class PlotModel extends BlackboxModel {
         // Let plotState update itself (mutates this.plotState)
         this.updatePlotState(changed);
     }
-
-    log() {
-        console.log(...arguments);
-    }
 };
 
 
@@ -347,16 +370,10 @@ class SurfacePlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        setWireframeEncoding(encoding, data, this.get("wireframe"));
-        console.log("Encoding in SurfacePlot:")
-        console.log("----------------->")
-        console.log(encoding)
-        console.log("------------------")
-        console.log(data)
-        console.log("<-----------------")
+        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
+        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
+        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
+        updateEncoding(encoding, data, createWireframeParamsEncoding(this.get("wireframe")));
         return { encoding, data };
     }
 };
@@ -397,12 +414,12 @@ class IsosurfacePlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setDensityEncoding(encoding, data, this.get("field"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        setIsovalueParamsEncoding(encoding, data, this.get("values"));
-        //setWireframeEncoding(encoding, data, this.get("wireframe"));
+        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
+        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
+        updateEncoding(encoding, data, createDensityEncoding(this.get("field")));
+        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
+        updateEncoding(encoding, data, createIsovalueParamsEncoding(this.get("values")));
+        // updateEncoding(encoding, data, createWireframeParamsEncoding(this.get("wireframe")));
         return { encoding, data };
     }
 };
@@ -444,9 +461,9 @@ class XrayPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setDensityEncoding(encoding, data, this.get("density"));
+        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
+        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
+        updateEncoding(encoding, data, createDensityEncoding(this.get("density")));
         //setConstantEmissionEncoding(encoding, data, this.get("color"));
         encoding.extinction = { value: this.get("extinction") };
         return { encoding, data };
@@ -486,9 +503,9 @@ class MinPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
+        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
+        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
+        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
         return { encoding, data };
     }
 };
@@ -525,9 +542,9 @@ class MaxPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
+        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
+        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
+        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
         return { encoding, data };
     }
 };
@@ -565,9 +582,9 @@ class SumPlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
+        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
+        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
+        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
         encoding.exposure = { value: this.get("exposure") };
         return { encoding, data };
     }
@@ -608,10 +625,10 @@ class VolumePlotModel extends PlotModel {
     buildPlotEncoding() {
         const encoding = {};
         const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setDensityEncoding(encoding, data, this.get("density"));
-        setEmissionEncoding(encoding, data, this.get("color"));
+        updateEncoding(encoding, data, createMeshEncoding(this.get("mesh")));
+        updateEncoding(encoding, data, createRestrictEncoding(this.get("restrict")));
+        updateEncoding(encoding, data, createDensityEncoding(this.get("density")));
+        updateEncoding(encoding, data, createEmissionEncoding(this.get("color")));
         encoding.extinction = { value: this.get("extinction") };
         encoding.exposure = { value: this.get("exposure") };
         return { encoding, data };
