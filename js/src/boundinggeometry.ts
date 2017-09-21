@@ -5,28 +5,28 @@ import * as THREE from "three";
 import { compute_bounding_sphere, compute_bounding_box } from "./meshutils";
 
 export
-function create_bounding_sphere(coordinates) {
+function create_bounding_sphere(coordinates): THREE.Sphere {
     const bsphere = compute_bounding_sphere(coordinates);
     return new THREE.Sphere(
-        new THREE.Vector3(...bsphere.center),
+        new THREE.Vector3(bsphere.center[0], bsphere.center[1], bsphere.center[2]),
         bsphere.radius
     );
 }
 
 export
-function create_bounding_box(coordinates) {
+function create_bounding_box(coordinates): THREE.Box3 {
     const bbox = compute_bounding_box(coordinates);
     // Possible alternative:
     //geometry.boundingBox = new THREE.Box3();
     //geometry.boundingBox.setFromArray(coordinates);
     return new THREE.Box3(
-        new THREE.Vector3(...bbox.min),
-        new THREE.Vector3(...bbox.max)
+        new THREE.Vector3(bbox.min[0], bbox.min[1], bbox.min[2]),
+        new THREE.Vector3(bbox.max[0], bbox.max[1], bbox.max[2])
     );
 }
 
 export
-function create_bounding_sphere_geometry(bsphere, scale=1.0, color=0xcccccc) {
+function create_bounding_sphere_geometry(bsphere: THREE.Sphere, scale=1.0, color=0xcccccc): THREE.Mesh {
     const geometry = new THREE.SphereGeometry(bsphere.radius * scale, 32, 32);
     const material = new THREE.MeshBasicMaterial({color});
     const mesh = new THREE.Mesh(geometry, material);
@@ -35,14 +35,14 @@ function create_bounding_sphere_geometry(bsphere, scale=1.0, color=0xcccccc) {
 }
 
 export
-function create_bounding_box_geometry(bbox, scale=1.0, color=0xcccccc) {
+function create_bounding_box_geometry(bbox: THREE.Box3, scale=1.0, color=0xcccccc): THREE.Mesh {
     const dims = bbox.getSize().toArray().map(x => scale*x);
 
     // Showing only backside faces avoids hiding the model
     const side = THREE.BackSide;
     const material = new THREE.MeshBasicMaterial({color, side});
 
-    const geometry = new THREE.BoxGeometry(...dims);
+    const geometry = new THREE.BoxGeometry(dims[0], dims[1], dims[2]);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.copy(bbox.getCenter());
 
@@ -50,7 +50,7 @@ function create_bounding_box_geometry(bbox, scale=1.0, color=0xcccccc) {
 }
 
 export
-function create_bounding_box_midplanes_geometry(bbox, scale=1.0, color=0xcccccc) {
+function create_bounding_box_midplanes_geometry(bbox: THREE.Box3, scale=1.0, color=0xcccccc): THREE.Object3D {
     const dims = bbox.getSize().toArray().map(x => scale*x);
 
     const range = [0, 1, 2];
@@ -76,7 +76,7 @@ function create_bounding_box_midplanes_geometry(bbox, scale=1.0, color=0xcccccc)
     return group;
 }
 
-function bounding_box_corners(bbox, scale) {
+function bounding_box_corners(bbox: THREE.Box3, scale: number) {
     const offset = bbox.getSize().toArray().map(x => 0.5*(scale-1.0)*x);
     const u = bbox.min.toArray();
     const v = bbox.max.toArray();
@@ -87,7 +87,7 @@ function bounding_box_corners(bbox, scale) {
     return [u, v];
 }
 
-function box_edge_vertices(u, v) {
+function box_edge_vertices(u: number[], v: number[]) {
     // The four vertices of the y-z plane if x is fixed
     const yz = [
         [u[1], u[2]],
@@ -95,7 +95,7 @@ function box_edge_vertices(u, v) {
         [v[1], v[2]],
         [v[1], u[2]],
     ];
-    const points = [];
+    const points = [] as number[];
     // Hold x fixed and push edges around yz side
     for (let x of [u[0], v[0]]) {
         for (let i = 0; i < 4; ++i) {

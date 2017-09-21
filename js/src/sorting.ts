@@ -1,7 +1,7 @@
 "use strict";
 
 export
-function sort_cells(ordering, cells, coordinates, camera_position, view_direction) {
+function sort_cells(ordering, cells, coordinates, camera_position, view_direction?: any) {
     /*
     const num_tetrahedrons = cells.length / 4;
     for (let i = 0; i < num_tetrahedrons; ++i) {

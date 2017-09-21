@@ -16,27 +16,27 @@ import {sort_cells} from "./sorting";
 
 // TODO: Use this in prerender and improve sorting
 // when unsorted methods are working well
-function update_ordering(geometry, material) {
+function update_ordering(geometry: THREE.BufferGeometry, material: THREE.ShaderMaterial) {
     const u = material.uniforms;
 
     // TODO: Benchmark use of reordering array vs reordering
     //       cell data and uploading those larger buffers.
-    const dir = u.u_local_view_direction.value;
+    const dir = u['u_local_view_direction'].value;
 
     // Get cells and coordinates from texture data
-    const cells = u.t_cells.value.image.data;
-    const coordinates = u.t_coordinates.value.image.data;
+    const cells = u['t_cells'].value.image.data;
+    const coordinates = u['t_coordinates'].value.image.data;
 
     // NB! Number of cells === ordering.array.length,
     // !== cells.length / 4 which includes texture padding.
 
     // Compute cell reordering in place in geometry attribute array
-    const ordering = geometry.attributes.c_ordering;
+    const ordering = geometry.attributes['c_ordering'];
     sort_cells(ordering.array, cells, coordinates, dir);
     ordering.needsUpdate = true;
 }
 
-function prerender_update(renderer, scene, camera, geometry, material, group, mesh) {
+function prerender_update(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, geometry: THREE.BufferGeometry, material: THREE.ShaderMaterial, group: THREE.Group, mesh: THREE.Mesh) {
     // console.log("In prerender_update", {renderer, scene, camera, geometry, material, group, mesh});
     // console.log("In prerender_update", camera.getWorldPosition());
 
@@ -46,10 +46,10 @@ function prerender_update(renderer, scene, camera, geometry, material, group, me
     // FIXME: Get actual time from some start point in seconds,
     // or make it a parameter to be controlled from the outside
     const time = 0.0;
-    u.u_time.value = time;
+    u['u_time'].value = time;
 
     for (let i=0; i<4; ++i) {
-        u.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
+        u['u_oscillators'].value.setComponent(i, Math.sin((i+1) * Math.PI * time));
     }
 
     // TODO: Are all these up to date here? Need to call any update functions?
@@ -71,23 +71,23 @@ function prerender_update(renderer, scene, camera, geometry, material, group, me
 
     // Transform camera direction from world coordinates to object space
     // (only used for orthographic projection)
-    const local_view_direction = u.u_local_view_direction.value;
+    const local_view_direction = u['u_local_view_direction'].value;
     camera.getWorldDirection(local_view_direction);
     local_view_direction.applyMatrix4(Minv); // map from world space to object space
 
     // Transform camera position from world coordinates to object space
-    const local_camera_position = u.u_local_camera_position.value;
+    const local_camera_position = u['u_local_camera_position'].value;
     camera.getWorldPosition(local_camera_position);
     local_camera_position.applyMatrix4(Minv); // map from world space to object space
 
     // Compute entire MVP matrix
     const MV = new THREE.Matrix4(); // maps from object space to camera space
     MV.multiplyMatrices(V, M);
-    const MVP = u.u_mvp_matrix.value; // maps from object space to clip space
+    const MVP = u['u_mvp_matrix'].value; // maps from object space to clip space
     MVP.multiplyMatrices(P, MV);
 }
 
-function create_mesh(method, encoding, data) {
+function create_mesh(method, encoding, data): THREE.Mesh {
     // Tetrahedral mesh data is required and assumed to be present at this point
     if (encoding.cells === undefined || encoding.cells.field === undefined) {
         throw new Error("Cannot create mesh, missing cells in the encoding.")
@@ -125,7 +125,7 @@ function create_mesh(method, encoding, data) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.setDrawMode(THREE.TriangleStripDrawMode);
 
-    mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+    mesh.onBeforeRender = (renderer, scene, camera, geometry: THREE.BufferGeometry, material: THREE.ShaderMaterial, group) => {
         prerender_update(renderer, scene, camera, geometry, material, group, mesh);
     };
 
@@ -210,10 +210,10 @@ function create_plot_state(root, method) {
             const mesh = create_mesh(this.method, encoding, data);
             this.root.add(mesh);
             this.root.add(create_debugging_geometries(mesh));
-
+            // const material = mesh.material as THREE.ShaderMaterial;
             // console.log("Initialized plot mesh:", mesh);
-            // console.log("defines:", mesh.material.defines);
-            // console.log("uniforms:", mesh.material.uniforms);
+            // console.log("defines:", material.defines);
+            // console.log("uniforms:", material.uniforms);
         },
 
         // Called on later updates

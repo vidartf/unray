@@ -4,9 +4,16 @@ import * as _ from "underscore";
 
 import * as THREE from "three";
 
+
+
+export
+interface IUniformMap {
+    [key: string]: THREE.IUniform
+}
+
 // Uniforms that are set automatically by user
 export
-function default_automatic_uniforms() {
+function default_automatic_uniforms(): IUniformMap {
     const typed = {
         // Time related
         u_time: { value: 0.0, gltype: "float" },
@@ -93,7 +100,7 @@ function default_uniforms() {
 
     // Flatten groups to { u_foo: { value: 123, gltype: "float" } }
     const groups = Object.assign({}, user_data_groups);
-    const all = Object.assign({}, ...Object.values(groups));
+    const all = Object.assign({}, ...Object.keys(groups).map(key => groups[key]));
 
     // Create uniforms dict with fresh copies of values
     const values = _.mapObject(all, ({value}, key) => { return { value }; } );
@@ -114,7 +121,7 @@ function default_uniforms() {
 // object containing types keyed by variable name { u_foo: "vec3" }
 export
 function generate_declarations(gltypes, prefix) {
-    const definitions = Object.values(_.mapObject(gltypes,
+    const definitions = _.values(_.mapObject(gltypes,
         (val, key) => `${prefix} ${val} ${key};`));
     definitions.sort();
     return definitions.join("\n");

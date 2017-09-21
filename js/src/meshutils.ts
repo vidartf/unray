@@ -6,8 +6,8 @@ import { zip } from "underscore";
 export
 function compute_bounding_box(points=new Float32Array([])) {
     // Find bounding box
-    let min = points.slice(0, 3);
-    let max = points.slice(0, 3);
+    let min: Float32Array | number[] = points.slice(0, 3);
+    let max: Float32Array | number[] = points.slice(0, 3);
     for (let i = 0; i < points.length; i += 3) {
         min[0] = Math.min(min[0], points[i]);
         min[1] = Math.min(min[1], points[i + 1]);
@@ -99,7 +99,7 @@ function compute_tetrahedron_cell_orientations(cells=new Int32Array([]), vertice
 // Reorient tetrahedron cells such that det(J) is positive
 // by swapping the last two indices in each cell if necessary
 export
-function reorient_tetrahedron_cells(cells, reorient) {
+function reorient_tetrahedron_cells(cells: number[], reorient: boolean[]) {
     const num_cells = cells.length / 4;
     for (let i = 0; i < num_cells; ++i) {
         if (reorient[i]) {
@@ -120,7 +120,7 @@ function reorient_tetrahedron_cells(cells, reorient) {
 }
 
 export
-function copy_reoriented(dst, src, reorient) {
+function copy_reoriented(dst: number[], src: number[], reorient: boolean[]) {
     const N = reorient.length;
     for (let i = 0; i < N; ++i) {
         const j = 4 * i;

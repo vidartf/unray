@@ -34,8 +34,10 @@
     "test:debug": "karma start --debug=true --browsers Chrome karma.conf.js"
   },
   "devDependencies": {
+    "@types/backbone": "^1.3.36",
     "@types/mocha": "^2.2.43",
     "@types/node": "^8.0.28",
+    "@types/three": "^0.84.22",
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "eslint": "^4.7.1",
