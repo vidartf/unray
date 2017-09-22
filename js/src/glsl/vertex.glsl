@@ -88,7 +88,7 @@ void main()
 
 
 #ifdef ENABLE_CELL_INDICATORS
-    // Work in progress, this was a varying but currently is not
+    // FIXME: Work in progress, this was a varying but currently is not
     float v_cell_indicator;
 
   #ifdef ENABLE_CELL_ORDERING

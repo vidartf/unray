@@ -131,6 +131,7 @@ class ScalarIndicators(ScalarValued):
     # TODO: Validate field spaces: ["I2", "I3"]
     field = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)
     lut = Instance(ScalarLUT, allow_none=True).tag(sync=True, **widget_serialization)
+    value = CInt(1).tag(sync=True)
 
 
 # ------------------------------------------------------

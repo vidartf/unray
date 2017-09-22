@@ -11,38 +11,6 @@ import { module_defaults } from "./version";
 import { create_plot_state } from "./plotstate";
 
 
-// Copied in from figure.js before deleting that file, maybe useful somewhere
-function __recompute_near_far(center, radius, position, fov) {
-    const offset = 0.2;
-    const dist = position.distanceTo(center);
-    const near_edge = dist - radius;
-    const far_edge = dist + radius;
-    const near = Math.max(0.01 * near_edge, 0.01 * radius);
-    const far = 100 * far_edge;
-    return [near, far];
-}
-
-// Copied in from figure.js before deleting that file, documenting how renderer was previously setup
-function __setup_renderer(canvas, width, height, bgcolor) {
-    const renderer = new THREE.WebGLRenderer({
-        canvas: canvas,
-        precision: "highp",
-        alpha: true,
-        antialias: true,
-        stencil: false,
-        preserveDrawingBuffer: true,
-        depth: true,
-        logarithmicDepthBuffer: true,
-    });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(width, height);
-    renderer.setClearColor(bgcolor, 1);
-
-    // Setup scene fog
-    //scene.fog = new THREE.Fog(0xaaaaaa);
-}
-
-
 function getNotNull(model, key) {
     const value = model.get(key);
     if (!value) {
@@ -59,7 +27,11 @@ function getIdentifiedValue(parent, name) {
     return { id, value };
 }
 
-function setMeshEncoding(encoding, data, mesh) {
+
+function createMeshEncoding(mesh) {
+    const encoding = {};
+    const data = {};
+
     if (!mesh) {
         throw new Error("Mesh is always required.");
     }
@@ -77,6 +49,8 @@ function setMeshEncoding(encoding, data, mesh) {
         data[id] = value;
         encoding.coordinates = { field: id };
     }
+
+    return { encoding, data };
 }
 
 function checkMeshEncoding(encoding, data, mesh) {
@@ -104,14 +78,9 @@ function checkMeshEncoding(encoding, data, mesh) {
     }
 }
 
-function setRestrictEncoding(encoding, data, restrict) {
-    if (restrict) {
-        // FIXME
-        console.error("Missing implementation of restrict encoding.");
-    }
-}
-
-function setParamsEncoding(encoding, data, params, channel, keys) {
+function createParamsEncoding(params, channel, keys) {
+    const encoding = {};
+    const data = {};
     if (params) {
         const desc = {};
         for (let key of keys) {
@@ -122,44 +91,94 @@ function setParamsEncoding(encoding, data, params, channel, keys) {
         }
         encoding[channel] = desc;
     }
+    return { encoding, data };
 }
 
-function setWireframeEncoding(encoding, data, params) {
+function createWireframeParamsEncoding(params) {
     const channel = "wireframe";
     const keys = ["enable", "size", "color", "opacity"];
-    setParamsEncoding(encoding, data, params, channel, keys);
+    return createParamsEncoding(params, channel, keys);
 }
 
-function setIsovalueParamsEncoding(encoding, data, params) {
+function createIsovalueParamsEncoding(params) {
     const channel = "isovalues";
     const keys = ["mode", "value", "num_intervals", "spacing", "period"];
-    setParamsEncoding(encoding, data, params, channel, keys);
+    return createParamsEncoding(params, channel, keys);
 }
 
-function setDensityConstantEncoding(encoding, data, density) {
+function createRestrictEncoding(restrict) {
+    const encoding = {};
+    const data = {};
+    if (restrict) {
+        const desc = {};
+
+        // Top level traits
+        const field = getNotNull(restrict, "field");
+        const lut = restrict.get("lut");
+
+        // Non-optional field values
+        const values = getIdentifiedValue(field, "values");
+        if (values.value) {
+            const { id, value } = values;
+            data[id] = value;
+            desc.field = id;
+            desc.value = restrict.get("value");
+            desc.space = field.get("space");
+        } else {
+            throw new Error(`Missing values in field.`);
+        }
+
+        // Optional LUT
+        // if (lut) {
+        //     if (lut.isArrayScalarLUT) {
+        //         const values = getIdentifiedValue(lut, "values");
+        //         if (values.value) {
+        //             const { id, value } = values;
+        //             data[id] = value;
+        //             desc.lut_field = id;
+        //             // TODO: Handle linear/log scaled LUTs somehow:
+        //             //desc.lut_space = getNotNull(lut, "space");
+        //         } else {
+        //             throw new Error(`Missing values in array LUT.`);
+        //         }
+        //     } else {
+        //         throw new Error(`"Invalid scalar LUT ${lut}`);
+        //     }
+        // }
+
+        encoding.indicators = desc;
+    }
+    return { encoding, data };
+}
+
+function createDensityConstantEncoding(density) {
     // TODO: Allow constant mapped through LUT?
+    const encoding = {};
+    const data = {};
     encoding.density = {
         constant: density.get("value"),
     };
+    return { encoding, data };
 }
 
-function setDensityFieldEncoding(encoding, data, density) {
-    const enc = {};
+function createDensityFieldEncoding(density) {
+    const encoding = {};
+    const data = {};
+
+    const desc = {};
 
     // Top level traits
     const field = getNotNull(density, "field");
     const lut = density.get("lut");
-
-    checkMeshEncoding(encoding, data, field.get("mesh"));
 
     // Non-optional field values
     const values = getIdentifiedValue(field, "values");
     if (values.value) {
         const { id, value } = values;
         data[id] = value;
-        enc.field = id;
-        enc.space = field.get("space");
-        // enc.range = field.get("range"); // FIXME
+        desc.field = id;
+        desc.space = field.get("space");
+        // desc.range = field.get("range"); // FIXME
     } else {
         throw new Error(`Missing values in field.`);
     }
@@ -171,50 +190,54 @@ function setDensityFieldEncoding(encoding, data, density) {
             if (values.value) {
                 const { id, value } = values;
                 data[id] = value;
-                enc.lut_field = id;
+                desc.lut_field = id;
                 // TODO: Handle linear/log scaled LUTs somehow:
-                //enc.lut_space = getNotNull(lut, "space");
+                //desc.lut_space = getNotNull(lut, "space");
             } else {
                 throw new Error(`Missing values in array LUT.`);
             }
         } else {
-            console.error("Invalid scalar LUT", lut);
+            throw new Error(`"Invalid scalar LUT ${lut}`);
         }
     }
 
-    // TODO: Cleaner to return enc/data and mutate encoding/data at call site
-    // Store encoded channel
-    encoding.density = enc;
+    encoding.density = desc;
+    return { encoding, data };
 }
 
-function setDensityEncoding(encoding, data, density) {
+function createDensityEncoding(density) {
     if (density) {
         if (density.isScalarConstant) {
-            setDensityConstantEncoding(encoding, data, density);
+            return createDensityConstantEncoding(density);
         } else if (density.isScalarField) {
-            setDensityFieldEncoding(encoding, data, density);
+            return createDensityFieldEncoding(density);
         } else {
-            console.error("Invalid scalar ", density);
+            throw new Error(`Invalid scalar ${density}.`);
         }
     }
+    return { encoding: {}, data: {} };
 }
 
-function setEmissionConstantEncoding(encoding, data, color) {
+function createEmissionConstantEncoding(color) {
     // TODO: Allow constant mapped through LUT?
+    const encoding = {}
+    const data = {};
     encoding.emission = {
         constant: color.get("intensity"),
         color: color.get("color"),
     };
+    return { encoding, data };
 }
 
-function setEmissionFieldEncoding(encoding, data, color) {
-    const enc = {};
+function createEmissionFieldEncoding(color) {
+    const encoding = {};
+    const data = {};
+
+    const desc = {};
 
     // Top level traits
     const field = getNotNull(color, "field");
     const lut = color.get("lut");
-
-    checkMeshEncoding(encoding, data, field.get("mesh"));
 
     // Non-optional field
     // color: ColorFieldModel
@@ -224,9 +247,9 @@ function setEmissionFieldEncoding(encoding, data, color) {
     if (values.value) {
         const { id, value } = values;
         data[id] = value;
-        enc.field = id;
-        enc.space = field.get("space");
-        // enc.range = field.get("range"); // FIXME
+        desc.field = id;
+        desc.space = field.get("space");
+        // desc.range = field.get("range"); // FIXME
     } else {
         throw new Error(`Missing required field values.`);
     }
@@ -238,9 +261,9 @@ function setEmissionFieldEncoding(encoding, data, color) {
             if (values.value) {
                 const { id, value } = values;
                 data[id] = value;
-                enc.lut_field = id;
+                desc.lut_field = id;
                 // TODO: Handle linear/log scaled LUTs somehow:
-                // enc.lut_space = getNotNull(lut, "space");
+                // desc.lut_space = getNotNull(lut, "space");
             } else {
                 throw new Error(`Missing required values in ArrayColorLUT`);
             }
@@ -250,29 +273,51 @@ function setEmissionFieldEncoding(encoding, data, color) {
             const value = getNamedColorLutArray(name);
             const id = name;
             data[id] = value;
-            enc.lut_field = id;
+            desc.lut_field = id;
             console.error("Named color LUT not implemented.");
         } else {
             console.error("Invalid color LUT", lut);
         }
     }
 
-    // TODO: Cleaner to return enc/data and mutate encoding/data at call site
-    // Store encoded channel
-    encoding.emission = enc;
+    encoding.emission = desc;
+    return { encoding, data };
 }
 
-function setEmissionEncoding(encoding, data, color) {
+function createEmissionEncoding(color) {
     if (color) {
         if (color.isColorConstant) {
-            setEmissionConstantEncoding(encoding, data, color);
+            return createEmissionConstantEncoding(color);
         } else if (color.isColorField) {
-            setEmissionFieldEncoding(encoding, data, color);
+            return createEmissionFieldEncoding(color);
         } else {
-            console.error("Invalid color ", color);
+            throw new Error(`Invalid color ${color}`);
         }
     }
+    return { encoding: {}, data: {} };
 }
+
+function createExtinctionEncoding(extinction) {
+    const encoding = { extinction: { value: extinction } };
+    return { encoding };
+}
+
+function createExposureEncoding(exposure) {
+    const encoding = { exposure: { value: exposure } };
+    return { encoding };
+}
+
+
+// Merge a list of { encoding, data } objects into one
+function mergeEncodings(...encodings) {
+    const dst = { encoding: {}, data: {} };
+    for (let src of encodings) {
+        Object.assign(dst.encoding, src.encoding);
+        Object.assign(dst.data, src.data);
+    }
+    return dst;
+}
+
 
 class PlotModel extends BlackboxModel {
     // Override this in every subclass
@@ -286,7 +331,10 @@ class PlotModel extends BlackboxModel {
     }
 
     defaults() {
-        return Object.assign(super.defaults(), module_defaults);
+        return Object.assign(super.defaults(), module_defaults, {
+            mesh: null,  // MeshModel
+            restrict: null,  // ScalarIndicatorsModel
+        });
     }
 
     constructThreeObject() {
@@ -316,11 +364,14 @@ class PlotModel extends BlackboxModel {
         // Let plotState update itself (mutates this.plotState)
         this.updatePlotState(changed);
     }
-
-    log() {
-        console.log(...arguments);
-    }
 };
+PlotModel.serializers = Object.assign({},
+    BlackboxModel.serializers,
+    {
+        mesh: { deserialize: widgets.unpack_models },
+        restrict: { deserialize: widgets.unpack_models },
+    }
+);
 
 
 export
@@ -331,8 +382,6 @@ class SurfacePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel || ColorConstantModel
             wireframe: null,  // WireframeParamsModel
         };
@@ -345,26 +394,17 @@ class SurfacePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        setWireframeEncoding(encoding, data, this.get("wireframe"));
-        console.log("Encoding in SurfacePlot:")
-        console.log("----------------->")
-        console.log(encoding)
-        console.log("------------------")
-        console.log(data)
-        console.log("<-----------------")
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color")),
+            createWireframeParamsEncoding(this.get("wireframe"))
+        );
     }
 };
 SurfacePlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
         wireframe: { deserialize: widgets.unpack_models },
     }
@@ -379,8 +419,6 @@ class IsosurfacePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
             field: null,  // Field if different from color.field
             values: null,  // IsovalueParams
@@ -395,22 +433,19 @@ class IsosurfacePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setDensityEncoding(encoding, data, this.get("field"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        setIsovalueParamsEncoding(encoding, data, this.get("values"));
-        //setWireframeEncoding(encoding, data, this.get("wireframe"));
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createDensityEncoding(this.get("field")),
+            createEmissionEncoding(this.get("color")),
+            createIsovalueParamsEncoding(this.get("values"))
+            //createWireframeParamsEncoding(this.get("wireframe"))
+        );
     }
 };
 IsosurfacePlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
         field: { deserialize: widgets.unpack_models },
         values: { deserialize: widgets.unpack_models },
@@ -427,8 +462,6 @@ class XrayPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             density: null,  // ScalarFieldModel | ScalarConstantModel
             extinction: 1.0,
             //color: "#ffffff",  // ColorConstant
@@ -442,26 +475,22 @@ class XrayPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setDensityEncoding(encoding, data, this.get("density"));
-        //setConstantEmissionEncoding(encoding, data, this.get("color"));
-        encoding.extinction = { value: this.get("extinction") };
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createDensityEncoding(this.get("density")),
+            //createEmissionConstantEncoding(this.get("color")),
+            createExtinctionEncoding(this.get("extinction"))
+        );
     }
 };
 XrayPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         density: { deserialize: widgets.unpack_models },
         //color: { deserialize: widgets.unpack_models },
     }
 );
-
 
 export
 class MinPlotModel extends PlotModel {
@@ -471,8 +500,6 @@ class MinPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
         };
     }
@@ -484,19 +511,16 @@ class MinPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color"))
+        );
     }
 };
 MinPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }
 );
@@ -510,8 +534,6 @@ class MaxPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
         };
     }
@@ -523,19 +545,16 @@ class MaxPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color"))
+        );
     }
 };
 MaxPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }
 );
@@ -549,8 +568,6 @@ class SumPlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             color: null,  // ColorFieldModel | ColorConstantModel
             exposure: 0.0,
         };
@@ -563,20 +580,17 @@ class SumPlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        encoding.exposure = { value: this.get("exposure") };
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createEmissionEncoding(this.get("color")),
+            createExposureEncoding(this.get("exposure"))
+        );
     }
 };
 SumPlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }
 );
@@ -590,8 +604,6 @@ class VolumePlotModel extends PlotModel {
 
     plotDefaults() {
         return {
-            mesh: null,  // MeshModel
-            restrict: null,  // IndicatorFieldModel
             density: null,  // ScalarFieldModel | ScalarConstantModel
             color: null,  // ColorFieldModel | ColorConstantModel
             extinction: 1.0,
@@ -606,22 +618,19 @@ class VolumePlotModel extends PlotModel {
     }
 
     buildPlotEncoding() {
-        const encoding = {};
-        const data = {};
-        setMeshEncoding(encoding, data, this.get("mesh"));
-        setRestrictEncoding(encoding, data, this.get("restrict"));
-        setDensityEncoding(encoding, data, this.get("density"));
-        setEmissionEncoding(encoding, data, this.get("color"));
-        encoding.extinction = { value: this.get("extinction") };
-        encoding.exposure = { value: this.get("exposure") };
-        return { encoding, data };
+        return mergeEncodings(
+            createMeshEncoding(this.get("mesh")),
+            createRestrictEncoding(this.get("restrict")),
+            createDensityEncoding(this.get("density")),
+            createEmissionEncoding(this.get("color")),
+            createExtinctionEncoding(this.get("extinction")),
+            createExposureEncoding(this.get("exposure"))
+        );
     }
 };
 VolumePlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
+    PlotModel.serializers,
     {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
         density: { deserialize: widgets.unpack_models },
         color: { deserialize: widgets.unpack_models },
     }
