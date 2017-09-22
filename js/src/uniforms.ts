@@ -5,19 +5,18 @@ import * as _ from "underscore";
 import * as THREE from "three";
 
 
-export
-interface IUniform extends THREE.IUniform {
-    gltype: string;
-}
 
 export
-interface IThreeUniformMap {
+interface IUniformMap {
     [key: string]: THREE.IUniform
 }
 
-export
+interface ITypedUniform extends THREE.IUniform {
+    gltype: string;
+}
+
 interface ITypedUniformMap {
-    [key: string]: IUniform
+    [key: string]: ITypedUniform
 }
 
 export
@@ -27,7 +26,7 @@ interface IDefines {
 
 // Uniforms that are set automatically by user
 export
-function default_automatic_uniforms(): IThreeUniformMap {
+function default_automatic_uniforms(): IUniformMap {
     const typed = {
         // Time related
         u_time: { value: 0.0, gltype: "float" },
@@ -45,7 +44,6 @@ function default_automatic_uniforms(): IThreeUniformMap {
 }
 
 // Construct a uniforms dict with default values
-export
 function default_uniforms() {
 
     // Utilities like these could make the defaults list more readable:
@@ -133,7 +131,6 @@ function default_uniforms() {
 
 // Generate definitions like "uniform vec3 u_foo;" for an
 // object containing types keyed by variable name { u_foo: "vec3" }
-export
 function generate_declarations(gltypes: {[key: string]: string}, prefix: string): string {
     const definitions = _.values(_.mapObject(gltypes,
         (val, key) => `${prefix} ${val} ${key};`));

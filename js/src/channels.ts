@@ -11,7 +11,7 @@ import {
 } from "./utils";
 
 import {
-    default_automatic_uniforms, IThreeUniformMap, IDefines
+    default_automatic_uniforms, IUniformMap, IDefines
 } from "./uniforms";
 
 import * as encodings from "./encodings";
@@ -76,7 +76,7 @@ const default_defines: { [key: string]: IDefines} = {
     },
 };
 
-function update_range_uniform(uniforms: IThreeUniformMap, name: string, range: 'auto' | number[], array: number[]) {
+function update_range_uniform(uniforms: IUniformMap, name: string, range: 'auto' | number[], array: number[]) {
     if (range) {
         const newrange = range === "auto" ? compute_range(array) : range;
         uniforms[name] = { value: extended_range(newrange[0], newrange[1]) };
@@ -177,7 +177,7 @@ function __update_uniform_value(uniform: THREE.IUniform, new_value: any) {
 
 export
 interface IShaderOptions {
-    uniforms: IThreeUniformMap;
+    uniforms: IUniformMap;
     defines: IDefines;
     attributes?: any;
 }

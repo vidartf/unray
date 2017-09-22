@@ -4,7 +4,7 @@ import * as _ from "underscore";
 import * as THREE from "three";
 
 import {
-    IDefines, IThreeUniformMap
+    IDefines, IUniformMap
 } from './uniforms';
 
 import {
@@ -122,7 +122,7 @@ const method_configs: { [k in Method]: THREE.ShaderMaterialParameters | undefine
 };
 
 export
-function create_material(method: Method, uniforms: IThreeUniformMap, defines: IDefines): THREE.ShaderMaterial {
+function create_material(method: Method, uniforms: IUniformMap, defines: IDefines): THREE.ShaderMaterial {
     const fog = false;  // To enable fog, would need custom shader support
     const material_config = {
         uniforms, defines,
