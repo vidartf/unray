@@ -14,7 +14,7 @@ import { create_plot_state } from "./plotstate";
 function getNotNull(model, key) {
     const value = model.get(key);
     if (!value) {
-        console.log("Key:", key, "Model:", model);
+        console.error("Key:", key, "Model:", model);
         throw new Error(`Missing required ${key} on ${model}.`);
     }
     return value;

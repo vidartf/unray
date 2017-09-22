@@ -210,9 +210,10 @@ function create_plot_state(root, method) {
             const mesh = create_mesh(this.method, encoding, data);
             this.root.add(mesh);
             this.root.add(create_debugging_geometries(mesh));
-            console.log("Initialized plot mesh:", mesh);
-            console.log("defines:", mesh.material.defines);
-            console.log("uniforms:", mesh.material.uniforms);
+
+            // console.log("Initialized plot mesh:", mesh);
+            // console.log("defines:", mesh.material.defines);
+            // console.log("uniforms:", mesh.material.uniforms);
         },
 
         // Called on later updates
@@ -223,7 +224,7 @@ function create_plot_state(root, method) {
             // Find mesh (should be the first root node, make this more robust if needed)
             const mesh = this.root.children[0];
             update_mesh(mesh, this.method, encoding, data);
-            console.log("Updated plot mesh:", mesh);
+            // console.log("Updated plot mesh:", mesh);
         },
 
         // Method specific suggestion for background color
@@ -237,6 +238,6 @@ function create_plot_state(root, method) {
             return this.bgcolor;
         }
     };
-    console.log("Constructed plot state:", state);
+    // console.log("Constructed plot state:", state);
     return state;
 }
