@@ -10,6 +10,27 @@ import * as dw from "../src/datawidgets";
 
 import { createTestModel } from './testutils';
 
+function linspace(a, b, n) {
+    const array = new Float32Array(n);
+    for (let i=0; i<n; ++i) {
+        const c = i / (n-1);
+        array[i] = (1-c)*a + c*b;
+    }
+    return array;
+}
+
+function repeatedLinspace(a, b, n, r) {
+    const array = new Float32Array(n*r);
+    for (let i=0; i<n; ++i) {
+        const c = i / (n-1);
+        array[r*i] = (1-c)*a + c*b;
+        for (let j=1; j<r; ++j) {
+            array[r*i+j] = array[r*i];
+        }
+    }
+    return array;
+}
+
 export
 function createMesh() {
     /*
@@ -64,35 +85,52 @@ function createD1Field() {
     return createTestModel(dw.FieldModel, attribs);
 }
 
+export
+function createFaceIndicatorField() {
+    const mesh = createMesh();
+    const shared = 3;  // This is the facet shared between the two cells
+    const values = ndarray(new Int32Array([0, 1, 2, shared, 4, 5, 6, shared]));
+    const space = "I2";
+
+    const attribs = { mesh, values, space };
+    return createTestModel(dw.IndicatorFieldModel, attribs);
+}
+
+export
+function createCellIndicatorField() {
+    const mesh = createMesh();
+    const values = ndarray(new Int32Array([10, 20]));
+    const space = "I3";
+
+    const attribs = { mesh, values, space };
+    return createTestModel(dw.IndicatorFieldModel, attribs);
+}
+
+export
+function createArrayScalarLUT() {
+    const values = ndarray(linspace(0, 1, 16));
+
+    const attribs = { values };
+    return createTestModel(dw.ArrayScalarLUTModel, attribs);
+}
+
+export
+function createArrayColorLUT() {
+    const values = ndarray(repeatedLinspace(0, 1, 16, 3));
+
+    const attribs = { values };
+    return createTestModel(dw.ArrayColorLUTModel, attribs);
+}
+
+export
+function createNamedColorLUT() {
+    const name = "viridis";
+
+    const attribs = { name };
+    return createTestModel(dw.NamedColorLUTModel, attribs);
+}
+
 /*
-@pytest.fixture
-def face_indicators(mesh):
-    shared = 3  # This is the facet shared between the two cells
-    values = np.asarray([0, 1, 2, shared, 4, 5, 6, shared], dtype="int32")
-    return ur.IndicatorField(mesh=mesh, values=values, space="I2")
-
-@pytest.fixture
-def cell_indicators(mesh):
-    values = np.asarray([10, 20], dtype="int32")
-    return ur.IndicatorField(mesh=mesh, values=values, space="I3")
-
-@pytest.fixture
-def array_scalar_lut():
-    values = np.linspace(0.0, 1.0, 16, dtype="float32")
-    return ur.ArrayScalarLUT(values=values)
-
-@pytest.fixture
-def array_color_lut():
-    values = np.zeros((16, 3), dtype="float32")
-    values[:, 0] = np.linspace(0.0, 1.0, 16, dtype="float32")
-    values[:, 1] = np.linspace(0.0, 1.0, 16, dtype="float32")
-    values[:, 2] = np.linspace(0.0, 1.0, 16, dtype="float32")
-    return ur.ArrayColorLUT(values=values)
-
-@pytest.fixture
-def named_color_lut():
-    name = "viridis"
-    return ur.NamedColorLUT(name=name)
 
 @pytest.fixture
 def scalar_constant():

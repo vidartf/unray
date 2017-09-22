@@ -32,4 +32,36 @@ describe('datawidgets', function() {
         });
     });
 
+    describe('IndicatorFieldModel', function() {
+        it('should be constructable in I2 space', function() {
+            const model = factory.createFaceIndicatorField();
+            expect(model.get('_model_name')).eq("IndicatorFieldModel");
+        });
+        it('should be constructable in I3 space', function() {
+            const model = factory.createCellIndicatorField();
+            expect(model.get('_model_name')).eq("IndicatorFieldModel");
+        });
+    });
+
+    describe('ArrayScalarLUT', function() {
+        it('should be constructable', function() {
+            const model = factory.createArrayScalarLUT();
+            expect(model.get('_model_name')).eq("ArrayScalarLUTModel");
+        });
+    });
+
+    describe('ArrayColorLUT', function() {
+        it('should be constructable', function() {
+            const model = factory.createArrayColorLUT();
+            expect(model.get('_model_name')).eq("ArrayColorLUTModel");
+        });
+    });
+
+    describe('NamedColorLUT', function() {
+        it('should be constructable', function() {
+            const model = factory.createNamedColorLUT();
+            expect(model.get('_model_name')).eq("NamedColorLUTModel");
+        });
+    });
+
 });
