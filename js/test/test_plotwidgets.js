@@ -24,6 +24,34 @@ describe('plotwidgets', function() {
             const plot = createTestModel(pw.SurfacePlotModel, attribs);
             expect(plot.get('_model_name')).eq("SurfacePlotModel");
         });
+        it('should be constructable with wireframe params', function() {
+            const mesh = factory.createMesh();
+
+            const wireframe = factory.createWireframeParams();
+            wireframe.enable = true;
+
+            const attribs = { mesh, wireframe };
+            const plot = createTestModel(pw.SurfacePlotModel, attribs);
+            expect(plot.get('_model_name')).eq("SurfacePlotModel");
+
+            expect(plot.get('wireframe').enable).eq(true);
+        });
+        it('should be constructable with constant color', function() {
+            const mesh = factory.createMesh();
+            const color = factory.createColorConstant();
+
+            const attribs = { mesh, color };
+            const plot = createTestModel(pw.SurfacePlotModel, attribs);
+            expect(plot.get('_model_name')).eq("SurfacePlotModel");
+        });
+        it('should be constructable with color field', function() {
+            const mesh = factory.createMesh();
+            const color = factory.createColorField();
+
+            const attribs = { mesh, color };
+            const plot = createTestModel(pw.SurfacePlotModel, attribs);
+            expect(plot.get('_model_name')).eq("SurfacePlotModel");
+        });
     });
 
     describe('IsosurfacePlotModel', function() {
@@ -45,6 +73,22 @@ describe('plotwidgets', function() {
         it('should be constructable with only a mesh', function() {
             const mesh = factory.createMesh();
             const attribs = { mesh };
+            const plot = createTestModel(pw.XrayPlotModel, attribs);
+            expect(plot.get('_model_name')).eq("XrayPlotModel");
+        });
+        it('should be constructable with a constant density', function() {
+            const mesh = factory.createMesh();
+            const density = factory.createScalarConstant();
+
+            const attribs = { mesh, density };
+            const plot = createTestModel(pw.XrayPlotModel, attribs);
+            expect(plot.get('_model_name')).eq("XrayPlotModel");
+        });
+        it('should be constructable with a density field', function() {
+            const mesh = factory.createMesh();
+            const density = factory.createScalarField();
+
+            const attribs = { mesh, density };
             const plot = createTestModel(pw.XrayPlotModel, attribs);
             expect(plot.get('_model_name')).eq("XrayPlotModel");
         });

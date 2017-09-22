@@ -141,7 +141,7 @@ function createScalarConstant() {
 export
 function createScalarField() {
     const field = createP1Field();
-    const lut = createArrayColorLUT();
+    const lut = createArrayScalarLUT();
 
     const attribs = { field, lut };
     return createTestModel(dw.ScalarFieldModel, attribs);
@@ -150,7 +150,7 @@ function createScalarField() {
 export
 function createScalarIndicators() {
     const field = createCellIndicatorField();
-    const lut = createArrayColorLUT();
+    const lut = createArrayScalarLUT();
 
     const attribs = { field, lut };
     return createTestModel(dw.ScalarIndicatorsModel, attribs);
