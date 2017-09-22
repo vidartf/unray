@@ -91,3 +91,6 @@ type Method = 'surface' | 'isosurface' | 'max' | 'min' | 'xray' | 'sum' | 'volum
 
 export
 type IPlotData = { [key: string]: any };
+
+export
+type AttributeDict = {[key: string]: THREE.BufferAttribute};

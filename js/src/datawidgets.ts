@@ -26,7 +26,7 @@ class MeshModel extends widgets.WidgetModel {
         });
     }
 
-    initialize(attributes: any, options: {model_id: string, comm?: any, widget_manager: any}) {
+    initialize(attributes: any, options: {model_id: string, comm?: any, widget_manager: widgets.ManagerBase<any>}) {
         super.initialize(attributes, options);
         this.createPropertiesArrays();
         this.setupListeners();

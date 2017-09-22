@@ -7,7 +7,7 @@ import {
 } from "./managers";
 
 import {
-    delete_undefined, Method
+    delete_undefined, Method, IPlotData
 } from "./utils";
 
 import {
@@ -184,7 +184,7 @@ interface IShaderOptions {
 
 export
 interface IHandlerOptions {
-    data: any;
+    data: IPlotData;
     managers: IManagers;
 }
 

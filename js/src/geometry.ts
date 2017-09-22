@@ -2,7 +2,7 @@
 
 import * as THREE from "three";
 
-import { arange } from "./utils";
+import { arange, AttributeDict } from "./utils";
 import { compute_tetrahedron_cell_orientations, reorient_tetrahedron_cells } from "./meshutils";
 import { create_bounding_sphere, create_bounding_box } from "./boundinggeometry";
 
@@ -84,17 +84,17 @@ function create_geometry(sorted: boolean, cells: Int32Array, coordinates: Float3
     // copy_reoriented(dst, cells, reorient);
 
     // Setup cells of geometry (using textures or attributes)
-    const attributes = {} as any;
+    const attributes: AttributeDict = {};
     if (sorted) {
         // Need ordering, let ordering be instanced and read cells from texture
         // Initialize ordering array with contiguous indices,
         // stored as floats because webgl2 is required for integer attributes.
         // When assigned a range of integers, the c_ordering instance attribute
         // can be used as a replacement for gl_InstanceID which requires webgl2.
-        attributes.c_ordering = create_cell_ordering_attribute(num_tetrahedrons);
+        attributes['c_ordering'] = create_cell_ordering_attribute(num_tetrahedrons);
     } else {
         // Don't need ordering, pass cells as instanced buffer attribute instead
-        attributes.c_cells = create_cells_attribute(cells);
+        attributes['c_cells'] = create_cells_attribute(cells);
     }
 
     // Configure instanced geometry, each tetrahedron is an instance

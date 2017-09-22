@@ -10,7 +10,7 @@ describe('ObjectManager', function() {
     describe('#updateObject()', function() {
         it('should create a object for each new key', function() {
             // Mock callbacks
-            const ledger = [] as any[];
+            const ledger = [] as TestObj[];
             const create = (spec: Float32Array) => ({spec: spec});
             const update = (obj: TestObj, spec: Float32Array) => { obj.oldspec = obj.spec; obj.spec = spec; };
             const deleted = (obj: TestObj) => { ledger.push(obj); };
