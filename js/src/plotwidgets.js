@@ -109,44 +109,45 @@ function createIsovalueParamsEncoding(params) {
 function createRestrictEncoding(restrict) {
     const encoding = {};
     const data = {};
+    if (restrict) {
+        const desc = {};
 
-    const desc = {};
+        // Top level traits
+        const field = getNotNull(restrict, "field");
+        const lut = restrict.get("lut");
 
-    // Top level traits
-    const field = getNotNull(restrict, "field");
-    // const lut = restrict.get("lut");
+        // Non-optional field values
+        const values = getIdentifiedValue(field, "values");
+        if (values.value) {
+            const { id, value } = values;
+            data[id] = value;
+            desc.field = id;
+            desc.value = restrict.get("value");
+            desc.space = field.get("space");
+        } else {
+            throw new Error(`Missing values in field.`);
+        }
 
-    // Non-optional field values
-    const values = getIdentifiedValue(field, "values");
-    if (values.value) {
-        const { id, value } = values;
-        data[id] = value;
-        desc.field = id;
-        desc.value = restrict.get("value");
-        desc.space = field.get("space");
-    } else {
-        throw new Error(`Missing values in field.`);
+        // Optional LUT
+        // if (lut) {
+        //     if (lut.isArrayScalarLUT) {
+        //         const values = getIdentifiedValue(lut, "values");
+        //         if (values.value) {
+        //             const { id, value } = values;
+        //             data[id] = value;
+        //             desc.lut_field = id;
+        //             // TODO: Handle linear/log scaled LUTs somehow:
+        //             //desc.lut_space = getNotNull(lut, "space");
+        //         } else {
+        //             throw new Error(`Missing values in array LUT.`);
+        //         }
+        //     } else {
+        //         throw new Error(`"Invalid scalar LUT ${lut}`);
+        //     }
+        // }
+
+        encoding.indicators = desc;
     }
-
-    // Optional LUT
-    // if (lut) {
-    //     if (lut.isArrayScalarLUT) {
-    //         const values = getIdentifiedValue(lut, "values");
-    //         if (values.value) {
-    //             const { id, value } = values;
-    //             data[id] = value;
-    //             desc.lut_field = id;
-    //             // TODO: Handle linear/log scaled LUTs somehow:
-    //             //desc.lut_space = getNotNull(lut, "space");
-    //         } else {
-    //             throw new Error(`Missing values in array LUT.`);
-    //         }
-    //     } else {
-    //         throw new Error(`"Invalid scalar LUT ${lut}`);
-    //     }
-    // }
-
-    encoding.indicators = desc;
     return { encoding, data };
 }
 
