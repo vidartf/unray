@@ -208,7 +208,7 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
 
         uniforms['u_cell_texture_shape'] = { value: [...texture_shape] };
 
-        const prev = get_attrib(uniforms['t_cells'], "value") as THREE.DataTexture;
+        const prev = get_attrib<THREE.DataTexture>(uniforms['t_cells'], "value");
         const value = managers.array_texture.update(
             key,
             {array: array, dtype: "int32", item_size: 4, texture_shape: texture_shape},
@@ -234,7 +234,7 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
         const texture_shape = compute_texture_shape(num_vertices);
         uniforms['u_vertex_texture_shape'] = { value: [...texture_shape] };
 
-        const prev = get_attrib(uniforms['t_coordinates'], "value") as THREE.DataTexture;
+        const prev = get_attrib<THREE.DataTexture>(uniforms['t_coordinates'], "value");
         const value = managers.array_texture.update(key,
             {array: array, dtype: "float32", item_size: 3, texture_shape: texture_shape },
             prev);
@@ -260,7 +260,7 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = get_attrib(uniforms[uname], "value") as THREE.DataTexture;
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -303,7 +303,7 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = get_attrib(uniforms[uname], "value") as THREE.DataTexture;
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -328,7 +328,7 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
             const dtype = "float32";
             const spec = {array, dtype, item_size};
 
-            const prev = get_attrib(uniforms[uname], "value") as THREE.DataTexture;
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.lut_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -351,7 +351,7 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = get_attrib(uniforms[uname], "value") as THREE.DataTexture;
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -375,7 +375,7 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
             const dtype = "float32";
             const spec = {array, dtype, item_size};
 
-            const prev = get_attrib(uniforms[uname], "value") as THREE.DataTexture;
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.lut_texture.update(key, spec, prev);
             uniforms[uname] = { value };
@@ -441,14 +441,14 @@ function create_three_data(method: Method,
     // Combine encoding with fallback values from default_encoding
     const default_encoding = encodings.default_encodings[method];
     const user_encoding = encoding;
-    encoding = {} as any;
+    encoding = {} as encodings.IPartialEncoding;
     for (const channel in default_encoding) {
         // FIXME: Make this deep copy? Or perhaps we'll only read from this anyway?
         encoding[channel] = Object.assign({}, default_encoding[channel], user_encoding[channel]);
     }
 
     // Define initial default defines based on method
-    const defines = Object.assign({}, default_defines[method]) as IDefines;
+    const defines: IDefines = Object.assign({}, default_defines[method]);
 
     // TODO: ENABLE_CELL_ORDERING should be determined by need for sorting based on method
     defines['ENABLE_CELL_ORDERING'] = 1;

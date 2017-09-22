@@ -41,7 +41,7 @@ function getIdentifiedValue(parent: widgets.WidgetModel, name: string) {
         throw new Error(`Array "${name}" is null!`);
     }
     const id: string = dataunion.model_id || parent.model_id + "_" + name;
-    return { id, value: array.data as TypedArray };
+    return { id, value: array.data };
 }
 
 
@@ -63,26 +63,21 @@ interface IEncodingAndData {
 }
 
 function createMeshEncoding(mesh: datamodels.MeshModel): IPartialEncodingAndData {
-    const encoding = {} as encodings.IMeshEncoding;
-    const data = {} as IPlotData;
-
     if (!mesh) {
         throw new Error("Mesh is always required.");
     }
+    const data: IPlotData = {};
 
     const cells = getIdentifiedValue(mesh, "cells");
-    if (cells.value) {
-        const { id, value } = cells;
-        data[id] = value;
-        encoding.cells = { field: id };
-    }
+    data[cells.id] = cells.value;
 
     const points = getIdentifiedValue(mesh, "points");
-    if (points.value) {
-        const { id, value } = points;
-        data[id] = value;
-        encoding.coordinates = { field: id };
-    }
+    data[points.id] = points.value;
+
+    const encoding: encodings.IMeshEncoding = {
+        cells: { field: cells.id },
+        coordinates: { field: points.id },
+    };
 
     return { encoding: encoding, data };
 }
@@ -112,11 +107,11 @@ function checkMeshEncoding(encoding: encodings.IMeshEncoding, data: IPlotData, m
     }
 }
 
-function createParamsEncoding(params: widgets.WidgetModel, channel: string, keys: string[]): IPartialEncodingAndData {
-    const encoding = {} as encodings.IPartialEncoding;
-    const data = {} as IPlotData;
+function createParamsEncoding(params: widgets.WidgetModel, channel: string, keys: string[]): IPartialEncodingEntriesAndData {
+    const encoding: {[key: string]: encodings.IPartialEncodingEntry | undefined} = {};
+    const data: IPlotData = {};
     if (params) {
-        const desc = {} as any;
+        const desc: any = {};
         for (let key of keys) {
             const value = params.get(key);
             if (value !== undefined) {
@@ -128,13 +123,13 @@ function createParamsEncoding(params: widgets.WidgetModel, channel: string, keys
     return { encoding, data };
 }
 
-function createWireframeParamsEncoding(params: datamodels.WireframeParamsModel): IPartialEncodingAndData {
+function createWireframeParamsEncoding(params: datamodels.WireframeParamsModel): IPartialEncodingEntriesAndData {
     const channel = "wireframe";
     const keys = ["enable", "size", "color", "opacity"];
     return createParamsEncoding(params, channel, keys);
 }
 
-function createIsovalueParamsEncoding(params: datamodels.IsovalueParamsModel): IPartialEncodingAndData {
+function createIsovalueParamsEncoding(params: datamodels.IsovalueParamsModel): IPartialEncodingEntriesAndData {
     const channel = "isovalues";
     const keys = ["mode", "value", "num_intervals", "spacing", "period"];
     return createParamsEncoding(params, channel, keys);
@@ -142,9 +137,9 @@ function createIsovalueParamsEncoding(params: datamodels.IsovalueParamsModel): I
 
 function createRestrictEncoding(restrict: datamodels.ScalarIndicatorsModel): IPartialEncodingEntriesAndData {
     const encoding: {indicators?: encodings.IIndicatorsEncodingEntry} = {};
-    const data = {} as IPlotData;
+    const data: IPlotData = {};
     if (restrict) {
-        const desc = {} as encodings.IIndicatorsEncodingEntry;
+        const desc: Partial<encodings.IIndicatorsEncodingEntry> = {};
 
         // Top level traits
         const field = getNotNull<datamodels.FieldModel>(restrict, "field");
@@ -180,7 +175,7 @@ function createRestrictEncoding(restrict: datamodels.ScalarIndicatorsModel): IPa
         //     }
         // }
 
-        encoding.indicators = desc;
+        encoding.indicators = desc as encodings.IIndicatorsEncodingEntry;
     }
     return { encoding, data };
 }
@@ -190,15 +185,15 @@ function createDensityConstantEncoding(density: datamodels.ScalarConstantModel):
     const encoding = {
         density: {
             constant: density.get("value"),
-        } as encodings.IDensityEncodingEntry,
+        },
     };
     const data = {};
     return { encoding, data };
 }
 
 function createDensityFieldEncoding(density: datamodels.ScalarFieldModel): IPartialEncodingEntriesAndData {
-    const data = {} as IPlotData;
-    const desc = {} as encodings.IDensityEncodingEntry;
+    const desc: Partial<encodings.IDensityEncodingEntry> = {};
+    const data: IPlotData = {};
 
     // Top level traits
     const field = getNotNull<datamodels.FieldModel>(density, "field");
@@ -264,11 +259,11 @@ function createEmissionConstantEncoding(color: datamodels.ColorConstantModel): I
 }
 
 function createEmissionFieldEncoding(color: datamodels.ColorFieldModel): IPartialEncodingEntriesAndData {
-    const data = {} as IPlotData;
-    const desc = {} as encodings.IEmissionEncodingEntry;
+    const desc: Partial<encodings.IEmissionEncodingEntry> = {};
+    const data: IPlotData = {};
 
     // Top level traits
-    const field = getNotNull(color, "field") as datamodels.FieldModel;
+    const field = getNotNull<datamodels.FieldModel>(color, "field");
     const lut = color.get("lut");
 
     // Non-optional field

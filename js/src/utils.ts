@@ -60,7 +60,7 @@ function __setup_renderer(canvas: HTMLCanvasElement, width: number, height: numb
         preserveDrawingBuffer: true,
         depth: true,
         logarithmicDepthBuffer: true,
-    } as THREE.WebGLRendererParameters);
+    } as THREE.WebGLRendererParameters);  // Cast since 'depth' currently not in typings
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width, height);
     renderer.setClearColor(bgcolor, 1);

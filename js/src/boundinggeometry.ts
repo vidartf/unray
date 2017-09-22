@@ -95,7 +95,7 @@ function box_edge_vertices(u: number[], v: number[]) {
         [v[1], v[2]],
         [v[1], u[2]],
     ];
-    const points = [] as number[];
+    const points: number[] = [];
     // Hold x fixed and push edges around yz side
     for (let x of [u[0], v[0]]) {
         for (let i = 0; i < 4; ++i) {

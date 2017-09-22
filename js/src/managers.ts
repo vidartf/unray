@@ -178,6 +178,7 @@ const managers: IManagers = {
         },
         // Update
         (buffer, {array, dtype, item_size}) => {
+            // Cast due to imprecise typing int @types/three
             (buffer.array as TypedArray).set(array);
             buffer.needsUpdate = true;
         }
