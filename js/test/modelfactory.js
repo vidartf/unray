@@ -130,41 +130,76 @@ function createNamedColorLUT() {
     return createTestModel(dw.NamedColorLUTModel, attribs);
 }
 
-/*
+export
+function createScalarConstant() {
+    const value = 42;
 
-@pytest.fixture
-def scalar_constant():
-    return ur.ScalarConstant(value=42.0)
+    const attribs = { value };
+    return createTestModel(dw.ScalarConstantModel, attribs);
+}
 
-@pytest.fixture
-def scalar_field(p1field, array_scalar_lut):
-    return ur.ScalarField(field=p1field, lut=array_scalar_lut)
+export
+function createScalarField() {
+    const field = createP1Field();
+    const lut = createArrayColorLUT();
 
-@pytest.fixture
-def scalar_indicators(cell_indicators, array_scalar_lut):
-    return ur.ScalarIndicators(field=cell_indicators, lut=array_scalar_lut)
+    const attribs = { field, lut };
+    return createTestModel(dw.ScalarFieldModel, attribs);
+}
 
-@pytest.fixture
-def color_constant():
-    return ur.ColorConstant(intensity=0.5, color=r"hsl(300,50%,100%)")
+export
+function createScalarIndicators() {
+    const field = createCellIndicatorField();
+    const lut = createArrayColorLUT();
 
-@pytest.fixture
-def color_field(p1field, array_color_lut):
-    return ur.ColorField(field=p1field, lut=array_color_lut)
+    const attribs = { field, lut };
+    return createTestModel(dw.ScalarIndicatorsModel, attribs);
+}
 
-@pytest.fixture
-def cell_color_indicators(cell_indicators, array_color_lut):
-    return ur.ColorIndicators(field=cell_indicators, lut=array_color_lut)
+export
+function createColorConstant() {
+    const intensity = 0.5;
+    const color = "hsl(300,50%,100%)";
 
-@pytest.fixture
-def face_color_indicators(face_indicators, array_color_lut):
-    return ur.ColorIndicators(field=face_indicators, lut=array_color_lut)
+    const attribs = { intensity, color };
+    return createTestModel(dw.ColorConstantModel, attribs);
+}
 
-@pytest.fixture
-def wireframe_params():
-    return ur.WireframeParams()
+export
+function createColorField() {
+    const field = createP1Field();
+    const lut = createArrayColorLUT();
 
-@pytest.fixture
-def isovalue_params():
-    return ur.IsovalueParams()
-*/
+    const attribs = { field, lut };
+    return createTestModel(dw.ColorFieldModel, attribs);
+}
+
+export
+function createCellColorIndicators() {
+    const field = createCellIndicatorField();
+    const lut = createArrayColorLUT();
+
+    const attribs = { field, lut };
+    return createTestModel(dw.ColorIndicatorsModel, attribs);
+}
+
+export
+function createFaceColorIndicators() {
+    const field = createFaceIndicatorField();
+    const lut = createArrayColorLUT();
+
+    const attribs = { field, lut };
+    return createTestModel(dw.ColorIndicatorsModel, attribs);
+}
+
+export
+function createWireframeParams() {
+    const attribs = {};
+    return createTestModel(dw.WireframeParamsModel, attribs);
+}
+
+export
+function createIsovalueParams() {
+    const attribs = {};
+    return createTestModel(dw.IsovalueParamsModel, attribs);
+}
