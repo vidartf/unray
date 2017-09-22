@@ -3,7 +3,6 @@ module.exports = function (config) {
     basePath: '.',
     frameworks: [
       'mocha',
-      'chai',
       'karma-typescript',
     ],
     reporters: [

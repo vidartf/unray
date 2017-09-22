@@ -10,7 +10,7 @@ import * as dw from "../src/datawidgets";
 
 import { createTestModel } from './utils.spec';
 
-function linspace(a, b, n) {
+function linspace(a: number, b: number, n: number) {
     const array = new Float32Array(n);
     for (let i=0; i<n; ++i) {
         const c = i / (n-1);
@@ -19,7 +19,7 @@ function linspace(a, b, n) {
     return array;
 }
 
-function repeatedLinspace(a, b, n, r) {
+function repeatedLinspace(a: number, b: number, n: number, r: number) {
     const array = new Float32Array(n*r);
     for (let i=0; i<n; ++i) {
         const c = i / (n-1);

@@ -1,14 +1,14 @@
 "use strict";
 
+import expect = require('expect.js');
+
 import * as widgets from '@jupyter-widgets/base';
 import * as services from '@jupyterlab/services';
 import * as Backbone from 'backbone';
 
-import {expect} from 'chai';
-
-const expectAllCloseTo = (actual, expected, delta=1e-8) => {
+const expectAllCloseTo = (actual: number[], expected: number[], delta=1e-8) => {
   for (let i in actual) {
-    expect(actual[i]).closeTo(expected[i], delta);
+    expect(actual[i]).within(expected[i] - delta, expected[i] + delta);
   }
 };
 
@@ -28,13 +28,13 @@ class MockComm {
         this._on_msg = null;
         this._on_close = null;
     }
-    on_close(fn) {
+    on_close(fn: Function | null) {
         this._on_close = fn;
     }
-    on_msg(fn) {
+    on_msg(fn: Function | null) {
         this._on_msg = fn;
     }
-    _process_msg(msg) {
+    _process_msg(msg: services.KernelMessage.ICommMsg) {
         if (this._on_msg) {
             return this._on_msg(msg);
         } else {
@@ -72,8 +72,8 @@ class DummyManager extends widgets.ManagerBase<HTMLElement> {
 
     loadClass(className: string, moduleName: string, moduleVersion: string): Promise<any> {
         if (moduleName === '@jupyter-widgets/base') {
-            if (widgets[className]) {
-                return Promise.resolve(widgets[className]);
+            if ((widgets as any)[className]) {
+                return Promise.resolve((widgets as any)[className]);
             } else {
                 return Promise.reject(new Error(`Cannot find class ${className}`));
             }

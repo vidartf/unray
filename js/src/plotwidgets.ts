@@ -36,9 +36,12 @@ function getNotNull<T>(model: widgets.WidgetModel, key: string): T {
 
 function getIdentifiedValue(parent: widgets.WidgetModel, name: string) {
     const dataunion = getNotNull<widgets.WidgetModel>(parent, name);
-    const value = getArrayFromUnion(dataunion).data as TypedArray;
+    const array = getArrayFromUnion(dataunion);
+    if (array === null) {
+        throw new Error(`Array "${name}" is null!`);
+    }
     const id: string = dataunion.model_id || parent.model_id + "_" + name;
-    return { id, value };
+    return { id, value: array.data as TypedArray };
 }
 
 

@@ -1,6 +1,6 @@
 "use strict";
 
-import {assert, expect, should} from 'chai';
+import expect = require('expect.js');
 
 import { create_three_data } from "../src/channels";
 
@@ -24,7 +24,7 @@ describe('channels', function() {
         it('should create stuff', function() {
             const { uniforms, defines, attributes } = create_three_data(method, encoding, data);
 
-            expect(uniforms['u_cell_texture_shape'].value).deep.eq([1, 1]);
+            expect(uniforms['u_cell_texture_shape'].value).to.eql([1, 1]);
         });
     });
 
