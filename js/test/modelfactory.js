@@ -11,7 +11,7 @@ import * as dw from "../src/datawidgets";
 import { createTestModel } from './testutils';
 
 export
-function mesh() {
+function createMesh() {
     /*
     Setup a simple two cell mesh.
     Note that the fixtures for the fields etc.
@@ -34,22 +34,37 @@ function mesh() {
     return createTestModel(dw.MeshModel, attribs);
 }
 
-/*  // TODO: Convert these as well
-@pytest.fixture
-def p0field(mesh):
-    values = np.asarray([-3.0, 5.0], dtype="float32")
-    return ur.Field(mesh=mesh, values=values, space="P0")
+export
+function createP0Field() {
+    const mesh = createMesh();
+    const values = ndarray(new Float32Array([-3.0, 5.0]));
+    const space = "P0";
 
-@pytest.fixture
-def p1field(mesh):
-    values = np.asarray([0.1, -0.2, 3.0, -4.0, 0.5], dtype="float32")
-    return ur.Field(mesh=mesh, values=values, space="P1")
+    const attribs = { mesh, values, space };
+    return createTestModel(dw.FieldModel, attribs);
+}
 
-@pytest.fixture
-def d1field(mesh):
-    values = np.asarray([0.1, 0.2, 0.3, 0.4, 1.0, 2.0, 3.0, 4.0], dtype="float32")
-    return ur.Field(mesh=mesh, values=values, space="D1")
+export
+function createP1Field() {
+    const mesh = createMesh();
+    const values = ndarray(new Float32Array([0.1, -0.2, 3.0, -4.0, 0.5]));
+    const space = "P1";
 
+    const attribs = { mesh, values, space };
+    return createTestModel(dw.FieldModel, attribs);
+}
+
+export
+function createD1Field() {
+    const mesh = createMesh();
+    const values = ndarray(new Float32Array([0.1, 0.2, 0.3, 0.4, 1.0, 2.0, 3.0, 4.0]));
+    const space = "D1";
+
+    const attribs = { mesh, values, space };
+    return createTestModel(dw.FieldModel, attribs);
+}
+
+/*
 @pytest.fixture
 def face_indicators(mesh):
     shared = 3  # This is the facet shared between the two cells

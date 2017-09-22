@@ -17,7 +17,7 @@ describe('plotwidgets', function() {
     describe('SurfacePlotModel', function() {
 
         it('should be constructable', function() {
-            const mesh = factory.mesh();
+            const mesh = factory.createMesh();
             const plot = createTestModel(SurfacePlotModel, {mesh});
             expect(plot.get('_model_name')).eq("SurfacePlotModel");
         });
