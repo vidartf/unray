@@ -3,6 +3,14 @@
 import * as _ from "underscore";
 import * as THREE from "three";
 
+import {
+    IDefines, IThreeUniformMap
+} from './uniforms';
+
+import {
+    Method
+} from './utils';
+
 // Load shaders. The shaders contain lots of #ifdefs,
 // so the final shader program depends on the defines
 // built for a specific plot configuration.
@@ -46,7 +54,7 @@ const default_transparent = {
     blending: THREE.CustomBlending,
 };
 
-const method_configs = {
+const method_configs: { [k in Method]: THREE.ShaderMaterialParameters | undefined } = {
     surface: Object.assign({}, default_nontransparent),
     isosurface: Object.assign({}, default_nontransparent),
     max: Object.assign({}, default_transparent, {
@@ -93,12 +101,12 @@ const method_configs = {
         blendSrc: THREE.OneFactor,
         blendDst: THREE.OneMinusSrcAlphaFactor,
     }),
-    alt_xray: Object.assign({}, default_transparent, {
-        // dst = src .* dst + 0 * src
-        blendEquation: THREE.AddEquation,
-        blendSrc: THREE.OneFactor, // fixme
-        blendDst: THREE.OneMinusSrcAlphaFactor, // fixme
-    }),
+    // alt_xray: Object.assign({}, default_transparent, {
+    //     // dst = src .* dst + 0 * src
+    //     blendEquation: THREE.AddEquation,
+    //     blendSrc: THREE.OneFactor, // fixme
+    //     blendDst: THREE.OneMinusSrcAlphaFactor, // fixme
+    // }),
     sum: Object.assign({}, default_transparent, {
         // dst = 1 * dst + 1 * C
         blendEquation: THREE.AddEquation,
@@ -114,7 +122,7 @@ const method_configs = {
 };
 
 export
-function create_material(method, uniforms, defines): THREE.ShaderMaterial {
+function create_material(method: Method, uniforms: IThreeUniformMap, defines: IDefines): THREE.ShaderMaterial {
     const fog = false;  // To enable fog, would need custom shader support
     const material_config = {
         uniforms, defines,

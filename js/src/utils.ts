@@ -39,7 +39,7 @@ function delete_undefined(obj: {[key: string]: any}) {
 
 
 // Copied in from figure.js before deleting that file, maybe useful somewhere
-function __recompute_near_far(center, radius, position, fov) {
+function __recompute_near_far(center: THREE.Vector3, radius: number, position: THREE.Vector3, fov: number) {
     const offset = 0.2;
     const dist = position.distanceTo(center);
     const near_edge = dist - radius;
@@ -50,7 +50,7 @@ function __recompute_near_far(center, radius, position, fov) {
 }
 
 // Copied in from figure.js before deleting that file, documenting how renderer was previously setup
-function __setup_renderer(canvas, width, height, bgcolor) {
+function __setup_renderer(canvas: HTMLCanvasElement, width: number, height: number, bgcolor: THREE.Color) {
     const renderer = new THREE.WebGLRenderer({
         canvas: canvas,
         precision: "highp",
@@ -84,3 +84,10 @@ type TypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array
 
 export
 type TypedArrayConstructor = Int8ArrayConstructor | Uint8ArrayConstructor | Int16ArrayConstructor | Uint16ArrayConstructor | Int32ArrayConstructor | Uint32ArrayConstructor | Uint8ClampedArrayConstructor | Float32ArrayConstructor | Float64ArrayConstructor;
+
+
+export
+type Method = 'surface' | 'isosurface' | 'max' | 'min' | 'xray' | 'sum' | 'volume';
+
+export
+type IPlotData = { [key: string]: any };

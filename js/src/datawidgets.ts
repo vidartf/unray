@@ -47,7 +47,7 @@ class MeshModel extends widgets.WidgetModel {
         this.on('change', this.onChange, this);
     }
 
-    onChange(model, options) {
+    onChange(model: widgets.WidgetModel, options: any) {
         // Let backbone tell us which attributes have changed
         const changed = this.changedAttributes();
 
@@ -228,6 +228,11 @@ class ScalarConstantModel extends widgets.WidgetModel {
     }
 }
 
+export
+function isScalarConstant(model: any): model is ScalarConstantModel {
+    return model.isScalarConstant;
+}
+
 
 export
 class ScalarFieldModel extends widgets.WidgetModel {
@@ -249,6 +254,11 @@ class ScalarFieldModel extends widgets.WidgetModel {
             lut: { deserialize: widgets.unpack_models },
         }
     );
+}
+
+export
+function isScalarField(model: any): model is ScalarFieldModel {
+    return model.isScalarField;
 }
 
 
@@ -275,6 +285,11 @@ class ScalarIndicatorsModel extends widgets.WidgetModel {
     );
 }
 
+export
+function isScalarIndicators(model: any): model is ScalarIndicatorsModel {
+    return model.isScalarIndicators;
+}
+
 
 // ------------------------------------------
 
@@ -297,6 +312,11 @@ class ColorConstantModel extends widgets.WidgetModel {
     //     {
     //     }
     // );
+}
+
+export
+function isColorConstant(model: any): model is ColorConstantModel {
+    return model.isColorConstant;
 }
 
 
@@ -322,6 +342,11 @@ class ColorFieldModel extends widgets.WidgetModel {
     );
 }
 
+export
+function isColorField(model: any): model is ColorFieldModel {
+    return model.isColorField;
+}
+
 
 export
 class ColorIndicatorsModel extends widgets.WidgetModel {
@@ -343,6 +368,11 @@ class ColorIndicatorsModel extends widgets.WidgetModel {
             lut: { deserialize: widgets.unpack_models },
         }
     );
+}
+
+export
+function isColorIndicators(model: any): model is ColorIndicatorsModel {
+    return model.isColorIndicators;
 }
 
 // ------------------------------------------

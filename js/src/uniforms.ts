@@ -5,15 +5,29 @@ import * as _ from "underscore";
 import * as THREE from "three";
 
 
+export
+interface IUniform extends THREE.IUniform {
+    gltype: string;
+}
 
 export
-interface IUniformMap {
+interface IThreeUniformMap {
     [key: string]: THREE.IUniform
+}
+
+export
+interface ITypedUniformMap {
+    [key: string]: IUniform
+}
+
+export
+interface IDefines {
+    [key: string]: number;
 }
 
 // Uniforms that are set automatically by user
 export
-function default_automatic_uniforms(): IUniformMap {
+function default_automatic_uniforms(): IThreeUniformMap {
     const typed = {
         // Time related
         u_time: { value: 0.0, gltype: "float" },
@@ -45,7 +59,7 @@ function default_uniforms() {
     // const u_ivec4 = (...values) => ({ value: new THREE.Vector4(...values), gltype: "ivec4" });
 
     // Groups of uniforms set from user data
-    const user_data_groups = {
+    const user_data_groups: {[key: string]: ITypedUniformMap} = {
         mesh: {
             t_cells: { value: null, gltype: "sampler2D" },
             t_coordinates: { value: null, gltype: "sampler2D" },
@@ -120,7 +134,7 @@ function default_uniforms() {
 // Generate definitions like "uniform vec3 u_foo;" for an
 // object containing types keyed by variable name { u_foo: "vec3" }
 export
-function generate_declarations(gltypes, prefix) {
+function generate_declarations(gltypes: {[key: string]: string}, prefix: string): string {
     const definitions = _.values(_.mapObject(gltypes,
         (val, key) => `${prefix} ${val} ${key};`));
     definitions.sort();

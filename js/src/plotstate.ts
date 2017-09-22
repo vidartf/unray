@@ -9,10 +9,30 @@ import {
     create_bounding_box_axis_geometry,
     create_bounding_box_midplanes_geometry
 } from "./boundinggeometry";
-import {create_three_data} from "./channels";
-import {create_geometry} from "./geometry";
-import {create_material} from "./material";
-import {sort_cells} from "./sorting";
+
+import {
+    create_three_data
+} from "./channels";
+
+import {
+    create_geometry
+} from "./geometry";
+
+import {
+    create_material
+} from "./material";
+
+// import {
+//     sort_cells
+// } from "./sorting";
+
+import {
+    IEncoding, IPartialEncoding
+} from './encodings';
+
+import {
+    Method, IPlotData, TypedArray
+} from './utils';
 
 // TODO: Use this in prerender and improve sorting
 // when unsorted methods are working well
@@ -24,15 +44,17 @@ function update_ordering(geometry: THREE.BufferGeometry, material: THREE.ShaderM
     const dir = u['u_local_view_direction'].value;
 
     // Get cells and coordinates from texture data
-    const cells = u['t_cells'].value.image.data;
-    const coordinates = u['t_coordinates'].value.image.data;
+    const cells = (u['t_cells'].value as THREE.DataTexture).image.data;
+    const coordinates = (u['t_coordinates'].value as THREE.DataTexture).image.data;
 
     // NB! Number of cells === ordering.array.length,
     // !== cells.length / 4 which includes texture padding.
 
     // Compute cell reordering in place in geometry attribute array
-    const ordering = geometry.attributes['c_ordering'];
-    sort_cells(ordering.array, cells, coordinates, dir);
+    // Casting due to incorrect typing in @types/three:
+    const ordering = (geometry.attributes as any)['c_ordering'] as THREE.BufferAttribute;
+    // FIXME: Update function, and ensure signature is met:
+    //sort_cells(ordering.array as TypedArray, cells, coordinates, dir);
     ordering.needsUpdate = true;
 }
 
@@ -87,12 +109,12 @@ function prerender_update(renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam
     MVP.multiplyMatrices(P, MV);
 }
 
-function create_mesh(method, encoding, data): THREE.Mesh {
+function create_mesh(method: Method, encoding: IPartialEncoding, data: IPlotData): THREE.Mesh {
     // Tetrahedral mesh data is required and assumed to be present at this point
-    if (encoding.cells === undefined || encoding.cells.field === undefined) {
+    if (encoding.cells === undefined || !encoding.cells.field) {
         throw new Error("Cannot create mesh, missing cells in the encoding.")
     }
-    if (encoding.coordinates === undefined || encoding.coordinates.field === undefined) {
+    if (encoding.coordinates === undefined || !encoding.coordinates.field) {
         throw new Error("Cannot create mesh, missing coordinates in the encoding.")
     }
 
@@ -136,12 +158,12 @@ function create_mesh(method, encoding, data): THREE.Mesh {
     return mesh;
 }
 
-function update_mesh(mesh, method, encoding, data) {
+function update_mesh(mesh: THREE.Mesh, method: Method, encoding: IPartialEncoding, data: IPlotData) {
     // Recompute uniforms and defines (this also updates texture values etc)
     const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
 
     // Update material (let three.js determine if recompilation is necessary)
-    const mat = mesh.material;
+    const mat = mesh.material as THREE.ShaderMaterial;
     Object.keys(mat.uniforms).forEach(k => { delete mat.uniforms[k]; });
     Object.assign(mat.uniforms, uniforms);
     Object.keys(mat.defines).forEach(k => { delete mat.defines[k]; });
@@ -156,7 +178,7 @@ function update_mesh(mesh, method, encoding, data) {
     //geo.attributes.addAttribute();
 }
 
-function create_debugging_geometries(mesh) {
+function create_debugging_geometries(mesh: THREE.Mesh) {
     const root = new THREE.Group();
 
     // Add a bounding sphere representation to root for debugging
@@ -180,7 +202,7 @@ function create_debugging_geometries(mesh) {
 }
 
 
-const method_backgrounds = {
+const method_backgrounds: {[key: string]: THREE.Color | undefined} = {
     // These methods need a dark background
     max: new THREE.Color(0, 0, 0),
     max2: new THREE.Color(0, 0, 0),
@@ -203,17 +225,17 @@ interface IPlotState {
     /**
      * How to interpret encoding and data
      */
-    method: string;
+    method: Method;
 
     /**
      * Called when initial encoding and data is available
      */
-    init(encoding, data): void;
+    init(encoding: IPartialEncoding, data?: IPlotData): void;
 
     /**
      * Called on later updates
      */
-    update(encoding, data): void;
+    update(encoding: IPartialEncoding, data?: IPlotData): void;
 
     /**
      * Function to get suggestion for background color
@@ -222,7 +244,7 @@ interface IPlotState {
 }
 
 export
-function create_plot_state(root, method): IPlotState {
+function create_plot_state(root: THREE.Group, method: Method): IPlotState {
     const state = {
         // Remember the root node (a THREE.Group instance) to modify our subscene
         root: root,
@@ -231,7 +253,7 @@ function create_plot_state(root, method): IPlotState {
         method: method,
 
         // Called once initial encoding and data is available
-        init(encoding, data) {
+        init(encoding: IPartialEncoding, data: IPlotData) {
             if (this.root.children.length !== 0) {
                 console.error("Expecting init called only once.");
             }
@@ -245,7 +267,7 @@ function create_plot_state(root, method): IPlotState {
         },
 
         // Called on later updates
-        update(encoding, data) {
+        update(encoding: IPartialEncoding, data: IPlotData) {
             if (this.root.children.length === 0) {
                 throw new Error("Expecting init called once before calling update.");
             }

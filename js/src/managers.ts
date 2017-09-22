@@ -38,7 +38,7 @@ const itemsize2threeformat: { [key: number]: THREE.PixelFormat} = {
 };
 
 export
-function allocate_array_texture(dtype, item_size, texture_shape): THREE.DataTexture {
+function allocate_array_texture(dtype: string, item_size: number, texture_shape: number[]): THREE.DataTexture {
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
@@ -61,7 +61,7 @@ function allocate_array_texture(dtype, item_size, texture_shape): THREE.DataText
 }
 
 export
-function allocate_lut_texture(dtype, item_size, texture_shape): THREE.DataTexture {
+function allocate_lut_texture(dtype: string, item_size: number, texture_shape: number[]): THREE.DataTexture {
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
@@ -91,14 +91,16 @@ function allocate_lut_texture(dtype, item_size, texture_shape): THREE.DataTextur
 }
 
 export
-function update_array_texture(texture, data) {
+function update_array_texture(texture: THREE.DataTexture, data: TypedArray) {
     try {
         // Note that input data may be Int32Array or Uint32Array
         // here while image.data is currently always Float32Array
         // (see allocate_array_texture) because webgl doesn't support
         // large integer textures, but this .set operation still works
         // fine and doubles as type casting the data before uploading.
-        texture.image.data.set(data);
+
+        // Type cast due to incorrect typing of set function in library:
+        texture.image.data.set(data as Uint8ClampedArray);
     } catch(e) {
         console.error("failed to update texture", e);
     }
@@ -106,10 +108,43 @@ function update_array_texture(texture, data) {
 }
 
 
+export
+interface IArrayTextureKey {
+    array: TypedArray;
+    dtype: string;
+    item_size: number;
+    texture_shape: number[];
+}
+
+export
+interface ILutTextureKey {
+    array: TypedArray;
+    dtype: string;
+    item_size: number;
+}
+
+export
+interface ICellsBufferKey {
+    array: TypedArray;
+    dtype: string;
+    item_size: number;
+}
+
+export
+type MangerKey = IArrayTextureKey | ILutTextureKey | ICellsBufferKey;
+
+
+export
+interface IManagers {
+    array_texture: ObjectManager<IArrayTextureKey, THREE.DataTexture>;
+    lut_texture: ObjectManager<ILutTextureKey, THREE.DataTexture>;
+    cells_buffer: ObjectManager<ICellsBufferKey, THREE.InstancedBufferAttribute>;
+}
+
 // Singleton managers for each object type
 export
-const managers: {[key: string]: ObjectManager<any, THREE.DataTexture | THREE.InstancedBufferAttribute> } = {
-    array_texture: new ObjectManager<any, THREE.DataTexture>(
+const managers: IManagers = {
+    array_texture: new ObjectManager<IArrayTextureKey, THREE.DataTexture>(
         // Create
         ({array, dtype, item_size, texture_shape}) => {
             const texture = allocate_array_texture(dtype, item_size, texture_shape);
@@ -121,7 +156,7 @@ const managers: {[key: string]: ObjectManager<any, THREE.DataTexture | THREE.Ins
             update_array_texture(texture, array);
         },
     ),
-    lut_texture: new ObjectManager<any, THREE.DataTexture>(
+    lut_texture: new ObjectManager<ILutTextureKey, THREE.DataTexture>(
         // Create
         ({array, dtype, item_size}) => {
             const texture_shape = [array.length / item_size, 1];
@@ -134,7 +169,7 @@ const managers: {[key: string]: ObjectManager<any, THREE.DataTexture | THREE.Ins
             update_array_texture(texture, array);
         },
     ),
-    cells_buffer: new ObjectManager<any, THREE.InstancedBufferAttribute>(
+    cells_buffer: new ObjectManager<ICellsBufferKey, THREE.InstancedBufferAttribute>(
         // Create
         ({array, dtype, item_size}) => {
             const buffer = new THREE.InstancedBufferAttribute(array, item_size, 1);

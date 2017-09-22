@@ -2,20 +2,20 @@
 
 export
 class ObjectManager<T, U> {
-    constructor(create: (spec: T) => U, update: (object: U, spec: T) => void, deleted?: (spec: T) => void) {
+    constructor(create: (spec: T) => U, update: (object: U, spec: T) => void, deleted?: (object: U) => void) {
         this.createCb = create;
         this.updateCb = update;
         this.deletedCb = deleted;
     }
 
-    increment(object): void {
+    increment(object: U): void {
         this.objectCount.set(object, (this.objectCount.get(object) || 0) + 1);
     }
 
-    decrement(object): number {
+    decrement(object: U): number {
         const count = (this.objectCount.get(object) || 0) - 1;
         if (count === 0) {
-            const key = this.object2key[object];
+            const key = this.object2key.get(object)!;
 
             this.object2key.delete(object);
             this.key2object.delete(key);
@@ -56,7 +56,7 @@ class ObjectManager<T, U> {
 
     createCb: (spec: T) => U;
     updateCb: (object: U, spec: T) => void;
-    deletedCb?: (spec: T) => void;
+    deletedCb?: (object: U) => void;
 
     object2key = new Map<U, string>();
     key2object = new Map<string, U>();

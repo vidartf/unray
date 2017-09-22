@@ -7,7 +7,7 @@ import { compute_tetrahedron_cell_orientations, reorient_tetrahedron_cells } fro
 import { create_bounding_sphere, create_bounding_box } from "./boundinggeometry";
 
 export
-function create_instanced_tetrahedron_geometry(num_tetrahedrons): THREE.InstancedBufferGeometry {
+function create_instanced_tetrahedron_geometry(num_tetrahedrons: number): THREE.InstancedBufferGeometry {
     // This is the coordinates of our reference tetrahedron,
     // assumed a few places via face numbering etc.,
     // included here for reference
@@ -59,19 +59,19 @@ function create_instanced_tetrahedron_geometry(num_tetrahedrons): THREE.Instance
 }
 
 export
-function create_cell_ordering_attribute(num_tetrahedrons): THREE.InstancedBufferAttribute {
+function create_cell_ordering_attribute(num_tetrahedrons: number): THREE.InstancedBufferAttribute {
     const attrib = new THREE.InstancedBufferAttribute(arange(num_tetrahedrons), 1, 1);
     attrib.setDynamic(true);
     return attrib;
 }
 
 export
-function create_cells_attribute(cells): THREE.InstancedBufferAttribute {
+function create_cells_attribute(cells: Int32Array): THREE.InstancedBufferAttribute {
     return new THREE.InstancedBufferAttribute(cells, 4, 1);
 }
 
 export
-function create_geometry(sorted, cells, coordinates): THREE.InstancedBufferGeometry {
+function create_geometry(sorted: boolean, cells: Int32Array, coordinates: Float32Array): THREE.InstancedBufferGeometry {
     // Assuming tetrahedral mesh
     const num_tetrahedrons = cells.length / 4;
 

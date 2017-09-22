@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { compute_bounding_sphere, compute_bounding_box } from "./meshutils";
 
 export
-function create_bounding_sphere(coordinates): THREE.Sphere {
+function create_bounding_sphere(coordinates: Float32Array): THREE.Sphere {
     const bsphere = compute_bounding_sphere(coordinates);
     return new THREE.Sphere(
         new THREE.Vector3(bsphere.center[0], bsphere.center[1], bsphere.center[2]),
@@ -14,7 +14,7 @@ function create_bounding_sphere(coordinates): THREE.Sphere {
 }
 
 export
-function create_bounding_box(coordinates): THREE.Box3 {
+function create_bounding_box(coordinates: Float32Array): THREE.Box3 {
     const bbox = compute_bounding_box(coordinates);
     // Possible alternative:
     //geometry.boundingBox = new THREE.Box3();
@@ -113,7 +113,7 @@ function box_edge_vertices(u: number[], v: number[]) {
 }
 
 export
-function create_bounding_box_axis_geometry(bbox, scale=1.0, color="#000000"): THREE.LineSegments {
+function create_bounding_box_axis_geometry(bbox: THREE.Box3, scale=1.0, color="#000000"): THREE.LineSegments {
     const [u, v] = bounding_box_corners(bbox, scale);
     const vertices = box_edge_vertices(u, v);
     const geometry = new THREE.BufferGeometry();

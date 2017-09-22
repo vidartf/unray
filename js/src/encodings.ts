@@ -141,6 +141,7 @@ export interface IMeshEncoding {
     cells: ICellsEncodingEntry;
     coordinates: ICoordinatesEncodingEntry;
     indicators?: IIndicatorsEncodingEntry;
+    [key: string]: IEncodingEntry | undefined;
 }
 
 export interface ISurfaceEntries  {
@@ -259,6 +260,7 @@ interface IEncodingMap {
     min: IMinEncoding;
     max: IMaxEncoding;
     volume: IVolumeEncoding;
+    [key: string]: IEncoding;
 }
 
 export
@@ -270,6 +272,7 @@ interface IPartialEncodingMap {
     min: IPartialMinEncoding;
     max: IPartialMaxEncoding;
     volume: IPartialVolumeEncoding;
+    [key: string]: IPartialEncoding;
 }
 
 
