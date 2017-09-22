@@ -4,8 +4,8 @@ import {assert, expect, should} from 'chai';
 
 import * as ndarray from 'ndarray';
 
-import { MeshModel } from "../src/datawidgets";
-import { SurfacePlotModel } from "../src/plotwidgets";
+import * as dw from "../src/datawidgets";
+import * as pw from "../src/plotwidgets";
 
 import { createTestModel } from './testutils';
 
@@ -15,13 +15,87 @@ import * as factory from "./modelfactory";
 describe('plotwidgets', function() {
 
     describe('SurfacePlotModel', function() {
-
-        it('should be constructable', function() {
+        it('should fail to construct if not given a mesh', function() {
+            expect(() => createTestModel(pw.SurfacePlotModel, {})).to.throw();
+        });
+        it('should be constructable with only a mesh', function() {
             const mesh = factory.createMesh();
-            const plot = createTestModel(SurfacePlotModel, {mesh});
+            const attribs = { mesh };
+            const plot = createTestModel(pw.SurfacePlotModel, attribs);
             expect(plot.get('_model_name')).eq("SurfacePlotModel");
         });
+    });
 
+    describe('IsosurfacePlotModel', function() {
+        it('should fail to construct if not given a mesh', function() {
+            expect(() => createTestModel(pw.IsosurfacePlotModel, {})).to.throw();
+        });
+        it('should be constructable with only a mesh', function() {
+            const mesh = factory.createMesh();
+            const attribs = { mesh };
+            const plot = createTestModel(pw.IsosurfacePlotModel, attribs);
+            expect(plot.get('_model_name')).eq("IsosurfacePlotModel");
+        });
+    });
+
+    describe('XrayPlotModel', function() {
+        it('should fail to construct if not given a mesh', function() {
+            expect(() => createTestModel(pw.XrayPlotModel, {})).to.throw();
+        });
+        it('should be constructable with only a mesh', function() {
+            const mesh = factory.createMesh();
+            const attribs = { mesh };
+            const plot = createTestModel(pw.XrayPlotModel, attribs);
+            expect(plot.get('_model_name')).eq("XrayPlotModel");
+        });
+    });
+
+    describe('SumPlotModel', function() {
+        it('should fail to construct if not given a mesh', function() {
+            expect(() => createTestModel(pw.SumPlotModel, {})).to.throw();
+        });
+        it('should be constructable with only a mesh', function() {
+            const mesh = factory.createMesh();
+            const attribs = { mesh };
+            const plot = createTestModel(pw.SumPlotModel, attribs);
+            expect(plot.get('_model_name')).eq("SumPlotModel");
+        });
+    });
+
+    describe('MinPlotModel', function() {
+        it('should fail to construct if not given a mesh', function() {
+            expect(() => createTestModel(pw.MinPlotModel, {})).to.throw();
+        });
+        it('should be constructable with only a mesh', function() {
+            const mesh = factory.createMesh();
+            const attribs = { mesh };
+            const plot = createTestModel(pw.MinPlotModel, attribs);
+            expect(plot.get('_model_name')).eq("MinPlotModel");
+        });
+    });
+
+    describe('MaxPlotModel', function() {
+        it('should fail to construct if not given a mesh', function() {
+            expect(() => createTestModel(pw.MaxPlotModel, {})).to.throw();
+        });
+        it('should be constructable with only a mesh', function() {
+            const mesh = factory.createMesh();
+            const attribs = { mesh };
+            const plot = createTestModel(pw.MaxPlotModel, attribs);
+            expect(plot.get('_model_name')).eq("MaxPlotModel");
+        });
+    });
+
+    describe('VolumePlotModel', function() {
+        it('should fail to construct if not given a mesh', function() {
+            expect(() => createTestModel(pw.VolumePlotModel, {})).to.throw();
+        });
+        it('should be constructable with only a mesh', function() {
+            const mesh = factory.createMesh();
+            const attribs = { mesh };
+            const plot = createTestModel(pw.VolumePlotModel, attribs);
+            expect(plot.get('_model_name')).eq("VolumePlotModel");
+        });
     });
 
 });
