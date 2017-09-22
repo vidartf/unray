@@ -1,6 +1,8 @@
 "use strict";
 
 import * as widgets from '@jupyter-widgets/base';
+import * as services from '@jupyterlab/services';
+import * as Backbone from 'backbone';
 
 import {expect} from 'chai';
 
@@ -45,17 +47,20 @@ class MockComm {
         }
     }
     send() {}
+
+    comm_id: string;
+    _on_msg: Function | null = null;
+    _on_close: Function | null = null;
 }
 
 export
-class DummyManager extends widgets.ManagerBase {
+class DummyManager extends widgets.ManagerBase<HTMLElement> {
     constructor() {
         super();
         this.el = window.document.createElement('div');
-        this.testClasses = {};
     }
 
-    display_view(msg, view, options) {
+    display_view(msg: services.KernelMessage.IMessage, view: Backbone.View<Backbone.Model>, options: any) {
         // TODO: make this a spy
         // TODO: return an html element
         return Promise.resolve(view).then(view => {
@@ -65,7 +70,7 @@ class DummyManager extends widgets.ManagerBase {
         });
     }
 
-    loadClass(className, moduleName, moduleVersion) {
+    loadClass(className: string, moduleName: string, moduleVersion: string): Promise<any> {
         if (moduleName === '@jupyter-widgets/base') {
             if (widgets[className]) {
                 return Promise.resolve(widgets[className]);
@@ -90,10 +95,23 @@ class DummyManager extends widgets.ManagerBase {
     _create_comm() {
         return Promise.resolve(new MockComm());
     }
+
+    el: HTMLElement;
+
+    testClasses: { [key: string]: any } = {};
 }
 
 export
-function createTestModel(constructor, attributes, widget_manager) {
+interface ModelConstructor<T> {
+    new (attributes?: any, options?: any): T;
+}
+
+export
+function createTestModel<T extends widgets.WidgetModel>(
+    constructor: ModelConstructor<T>,
+    attributes?: any,
+    widget_manager?: DummyManager,
+    ): T {
   let id = widgets.uuid();
   let modelOptions = {
       widget_manager: widget_manager || new DummyManager(),

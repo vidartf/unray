@@ -6,7 +6,7 @@ import { MeshModel } from "../src/datawidgets";
 
 import { createTestModel } from './utils.spec';
 
-import * as factory from "./modelfactory";
+import * as factory from "./modelfactory.spec";
 
 describe('datawidgets', function() {
 

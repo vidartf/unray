@@ -99,7 +99,7 @@ function compute_tetrahedron_cell_orientations(cells=new Int32Array([]), vertice
 // Reorient tetrahedron cells such that det(J) is positive
 // by swapping the last two indices in each cell if necessary
 export
-function reorient_tetrahedron_cells(cells: number[], reorient: boolean[]) {
+function reorient_tetrahedron_cells(cells: Int32Array | number[], reorient: Uint8Array | boolean[]) {
     const num_cells = cells.length / 4;
     for (let i = 0; i < num_cells; ++i) {
         if (reorient[i]) {
@@ -120,7 +120,7 @@ function reorient_tetrahedron_cells(cells: number[], reorient: boolean[]) {
 }
 
 export
-function copy_reoriented(dst: number[], src: number[], reorient: boolean[]) {
+function copy_reoriented(dst: Int32Array | number[], src: Int32Array | number[], reorient: Uint8Array | number[] | boolean[]) {
     const N = reorient.length;
     for (let i = 0; i < N; ++i) {
         const j = 4 * i;

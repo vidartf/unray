@@ -1,19 +1,19 @@
 "use strict";
 
 export
-class ObjectManager {
-    constructor(create, update, deleted) {
+class ObjectManager<T, U> {
+    constructor(create: (spec: T) => U, update: (object: U, spec: T) => void, deleted?: (spec: T) => void) {
         this.createCb = create;
         this.updateCb = update;
         this.deletedCb = deleted;
     }
 
     increment(object): void {
-        this.objectCount.set(object, (this.objectCount.get(object) | 0) + 1);
+        this.objectCount.set(object, (this.objectCount.get(object) || 0) + 1);
     }
 
     decrement(object): number {
-        const count = (this.objectCount.get(object) | 0) - 1;
+        const count = (this.objectCount.get(object) || 0) - 1;
         if (count === 0) {
             const key = this.object2key[object];
 
@@ -21,14 +21,16 @@ class ObjectManager {
             this.key2object.delete(key);
             this.objectCount.delete(object);
 
-            this.deletedCb(object);
+            if (this.deletedCb) {
+                this.deletedCb(object);
+            }
         } else {
             this.objectCount.set(object, count);
         }
         return count;
     }
 
-    update(key: string, spec, previousObject?: any): void {
+    update(key: string, spec: T, previousObject?: U): U {
         let object = this.key2object.get(key);
         if (object) {
             // Update object in place if it's in the cache
@@ -52,11 +54,11 @@ class ObjectManager {
         return object;
     }
 
-    createCb: (spec: any) => any;
-    updateCb: (object: any, spec: any) => void;
-    deletedCb: (spec: any) => void;
+    createCb: (spec: T) => U;
+    updateCb: (object: U, spec: T) => void;
+    deletedCb?: (spec: T) => void;
 
-    object2key = new Map<any, string>();
-    key2object = new Map<string, any>();
-    objectCount = new Map<any, number>();
+    object2key = new Map<U, string>();
+    key2object = new Map<string, U>();
+    objectCount = new Map<U, number>();
 };

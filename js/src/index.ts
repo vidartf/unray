@@ -6,6 +6,7 @@
 // url for the notebook is not known at build time and is therefore computed
 // dynamically.
 // eslint-disable-next-line no-undef
+declare var __webpack_public_path__: string;
 __webpack_public_path__ = document.querySelector("body")!.getAttribute("data-base-url") + "nbextensions/unray/";
 
 // Export the npm package version number

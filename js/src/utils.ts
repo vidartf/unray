@@ -1,5 +1,11 @@
 "use strict";
 
+import * as THREE from 'three';
+
+import {
+  WidgetModel, ManagerBase
+} from '@jupyter-widgets/base';
+
 // Build Float32Array with numbers from 0 to n-1
 export
 function arange(n: number) {
@@ -54,7 +60,7 @@ function __setup_renderer(canvas, width, height, bgcolor) {
         preserveDrawingBuffer: true,
         depth: true,
         logarithmicDepthBuffer: true,
-    });
+    } as THREE.WebGLRendererParameters);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width, height);
     renderer.setClearColor(bgcolor, 1);
@@ -62,3 +68,19 @@ function __setup_renderer(canvas, width, height, bgcolor) {
     // Setup scene fog
     //scene.fog = new THREE.Fog(0xaaaaaa);
 }
+
+
+export
+interface ISerializers {
+  [key: string]: {
+    deserialize?: (value?: any, manager?: ManagerBase<any>) => any;
+    serialize?: (value?: any, widget?: WidgetModel) => any;
+  }
+}
+
+
+export
+type TypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Uint8ClampedArray | Float32Array | Float64Array;
+
+export
+type TypedArrayConstructor = Int8ArrayConstructor | Uint8ArrayConstructor | Int16ArrayConstructor | Uint16ArrayConstructor | Int32ArrayConstructor | Uint32ArrayConstructor | Uint8ClampedArrayConstructor | Float32ArrayConstructor | Float64ArrayConstructor;

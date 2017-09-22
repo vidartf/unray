@@ -8,7 +8,7 @@ import * as ndarray from 'ndarray';
 
 import * as dw from "../src/datawidgets";
 
-import { createTestModel } from './testutils';
+import { createTestModel } from './utils.spec';
 
 function linspace(a, b, n) {
     const array = new Float32Array(n);

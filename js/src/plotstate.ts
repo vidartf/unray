@@ -194,7 +194,35 @@ const method_backgrounds = {
 };
 
 export
-function create_plot_state(root, method) {
+interface IPlotState {
+    /**
+     * The root node
+     */
+    root: THREE.Group;
+
+    /**
+     * How to interpret encoding and data
+     */
+    method: string;
+
+    /**
+     * Called when initial encoding and data is available
+     */
+    init(encoding, data): void;
+
+    /**
+     * Called on later updates
+     */
+    update(encoding, data): void;
+
+    /**
+     * Function to get suggestion for background color
+     */
+    get_bgcolor(): THREE.Color;
+}
+
+export
+function create_plot_state(root, method): IPlotState {
     const state = {
         // Remember the root node (a THREE.Group instance) to modify our subscene
         root: root,

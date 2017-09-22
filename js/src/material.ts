@@ -1,6 +1,6 @@
 "use strict";
 
-import _ from "underscore";
+import * as _ from "underscore";
 import * as THREE from "three";
 
 // Load shaders. The shaders contain lots of #ifdefs,
@@ -114,7 +114,7 @@ const method_configs = {
 };
 
 export
-function create_material(method, uniforms, defines) {
+function create_material(method, uniforms, defines): THREE.ShaderMaterial {
     const fog = false;  // To enable fog, would need custom shader support
     const material_config = {
         uniforms, defines,

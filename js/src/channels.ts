@@ -10,7 +10,7 @@ import {
 } from "./uniforms";
 
 import {
-    default_encodings, IEncoding, ICellsEncodingEntry
+    default_encodings, IPartialEncoding, ICellsEncodingEntry, IEncodingMap
 } from "./encodings";
 
 // Get obj.name if obj is an object
@@ -227,7 +227,7 @@ const channel_handlers = {
         const texture_shape = compute_texture_shape(num_vertices);
         uniforms['u_vertex_texture_shape'] = { value: [...texture_shape] };
 
-        const prev = get_attrib(uniforms.['t_coordinates'], "value");
+        const prev = get_attrib(uniforms['t_coordinates'], "value");
         const value = managers.array_texture.update(key,
             {array: array, dtype: "float32", item_size: 3, texture_shape: texture_shape },
             prev);
@@ -256,9 +256,9 @@ const channel_handlers = {
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
 
-            uniforms.u_cell_indicator_value = { value: desc.value };
+            uniforms['u_cell_indicator_value'] = { value: desc.value };
 
-            defines.ENABLE_CELL_INDICATORS = 1;
+            defines['ENABLE_CELL_INDICATORS'] = 1;
 
             // FIXME: If not sorted, use attributes instead:
             // attributes.c_cell_indicators = managers.buffers.update(key, array, attributes.c_cell_indicators);
@@ -411,7 +411,7 @@ const channel_handlers = {
 };
 
 export
-function create_three_data(method: string, encoding: { [key: string]: IEncoding}, data) {
+function create_three_data(method: string, encoding: IPartialEncoding, data) {
     // const cell_texture_shape = compute_texture_shape(num_tetrahedrons);
     // const vertex_texture_shape = compute_texture_shape(num_vertices);
 
@@ -421,14 +421,14 @@ function create_three_data(method: string, encoding: { [key: string]: IEncoding}
     // Combine encoding with fallback values from default_encoding
     const default_encoding = default_encodings[method];
     const user_encoding = encoding;
-    encoding = {};
+    encoding = {} as any;
     for (let channel in default_encoding) {
         // FIXME: Make this deep copy? Or perhaps we'll only read from this anyway?
         encoding[channel] = Object.assign({}, default_encoding[channel], user_encoding[channel]);
     }
 
     // Define initial default defines based on method
-    const defines = Object.assign({}, ...default_defines[method]) as IDefines;
+    const defines = Object.assign({}, default_defines[method]) as IDefines;
 
     // TODO: ENABLE_CELL_ORDERING should be determined by need for sorting based on method
     defines['ENABLE_CELL_ORDERING'] = 1;

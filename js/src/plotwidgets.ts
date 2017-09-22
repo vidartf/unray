@@ -8,10 +8,17 @@ import { getArrayFromUnion, data_union_serialization } from "jupyter-datawidgets
 //import _ from "underscore";
 
 import { module_defaults } from "./version";
-import { create_plot_state } from "./plotstate";
+import { create_plot_state, IPlotState } from "./plotstate";
+import { ISerializers } from './utils';
+import * as encodings from './encodings';
 
 
-function getNotNull(model, key) {
+function getNamedColorLutArray(name: string) {
+    // FIXME Implement something like this using d3
+}
+
+
+function getNotNull(model: widgets.WidgetModel, key: string) {
     const value = model.get(key);
     if (!value) {
         console.error("Key:", key, "Model:", model);
@@ -20,16 +27,27 @@ function getNotNull(model, key) {
     return value;
 }
 
-function getIdentifiedValue(parent, name) {
+function getIdentifiedValue(parent: widgets.WidgetModel, name: string) {
     const dataunion = getNotNull(parent, name);
     const value = getArrayFromUnion(dataunion).data;
-    const id = dataunion.model_id || parent.model_id + "_" + name;
+    const id: string = dataunion.model_id || parent.model_id + "_" + name;
     return { id, value };
 }
 
 
-function createMeshEncoding(mesh) {
-    const encoding = {};
+interface IPartialEncoding {
+    encoding: Partial<encodings.IEncoding>;
+    data?: { [key: string]: any };
+}
+
+export
+interface IEncodingAndData {
+    encoding: encodings.IEncoding;
+    data?: { [key: string]: any };
+}
+
+function createMeshEncoding(mesh): IPartialEncoding {
+    const encoding = {} as Partial<encodings.IMeshEncoding>;
     const data = {};
 
     if (!mesh) {
@@ -50,7 +68,7 @@ function createMeshEncoding(mesh) {
         encoding.coordinates = { field: id };
     }
 
-    return { encoding, data };
+    return { encoding: encoding, data };
 }
 
 function checkMeshEncoding(encoding, data, mesh) {
@@ -78,7 +96,7 @@ function checkMeshEncoding(encoding, data, mesh) {
     }
 }
 
-function createParamsEncoding(params, channel, keys) {
+function createParamsEncoding(params, channel, keys): IPartialEncoding {
     const encoding = {};
     const data = {};
     if (params) {
@@ -94,23 +112,23 @@ function createParamsEncoding(params, channel, keys) {
     return { encoding, data };
 }
 
-function createWireframeParamsEncoding(params) {
+function createWireframeParamsEncoding(params): IPartialEncoding {
     const channel = "wireframe";
     const keys = ["enable", "size", "color", "opacity"];
     return createParamsEncoding(params, channel, keys);
 }
 
-function createIsovalueParamsEncoding(params) {
+function createIsovalueParamsEncoding(params): IPartialEncoding {
     const channel = "isovalues";
     const keys = ["mode", "value", "num_intervals", "spacing", "period"];
     return createParamsEncoding(params, channel, keys);
 }
 
-function createRestrictEncoding(restrict) {
-    const encoding = {};
+function createRestrictEncoding(restrict): IPartialEncoding {
+    const encoding: {indicators?: encodings.IIndicatorsEncodingEntry} = {};
     const data = {};
     if (restrict) {
-        const desc = {};
+        const desc = {} as encodings.IIndicatorsEncodingEntry;
 
         // Top level traits
         const field = getNotNull(restrict, "field");
@@ -151,21 +169,21 @@ function createRestrictEncoding(restrict) {
     return { encoding, data };
 }
 
-function createDensityConstantEncoding(density) {
+function createDensityConstantEncoding(density): IPartialEncoding {
     // TODO: Allow constant mapped through LUT?
-    const encoding = {};
-    const data = {};
-    encoding.density = {
-        constant: density.get("value"),
+    const encoding = {
+        density: {
+            constant: density.get("value"),
+        } as encodings.IDensityEncodingEntry,
     };
+    const data = {};
     return { encoding, data };
 }
 
-function createDensityFieldEncoding(density) {
-    const encoding = {};
+function createDensityFieldEncoding(density): IPartialEncoding {
     const data = {};
 
-    const desc = {};
+    const desc = {} as encodings.IDensityEncodingEntry;
 
     // Top level traits
     const field = getNotNull(density, "field");
@@ -201,11 +219,11 @@ function createDensityFieldEncoding(density) {
         }
     }
 
-    encoding.density = desc;
+    const encoding = { density: desc };
     return { encoding, data };
 }
 
-function createDensityEncoding(density) {
+function createDensityEncoding(density): IPartialEncoding {
     if (density) {
         if (density.isScalarConstant) {
             return createDensityConstantEncoding(density);
@@ -218,22 +236,22 @@ function createDensityEncoding(density) {
     return { encoding: {}, data: {} };
 }
 
-function createEmissionConstantEncoding(color) {
+function createEmissionConstantEncoding(color): IPartialEncoding {
     // TODO: Allow constant mapped through LUT?
-    const encoding = {}
     const data = {};
-    encoding.emission = {
-        constant: color.get("intensity"),
-        color: color.get("color"),
+    const encoding = {
+        emission: {
+            constant: color.get("intensity") as number,
+            color: color.get("color") as string,
+        }
     };
-    return { encoding, data };
+    return { encoding, data } as IPartialEncoding;
 }
 
-function createEmissionFieldEncoding(color) {
-    const encoding = {};
+function createEmissionFieldEncoding(color): IPartialEncoding {
     const data = {};
 
-    const desc = {};
+    const desc = {} as encodings.IEmissionEncodingEntry;
 
     // Top level traits
     const field = getNotNull(color, "field");
@@ -269,7 +287,6 @@ function createEmissionFieldEncoding(color) {
             }
         } else if (lut.isNamedColorLUT) {
             const name = getNotNull(lut, "name");
-            // FIXME Implement something like this using d3
             const value = getNamedColorLutArray(name);
             const id = name;
             data[id] = value;
@@ -280,11 +297,11 @@ function createEmissionFieldEncoding(color) {
         }
     }
 
-    encoding.emission = desc;
+    const encoding = { emission: desc };
     return { encoding, data };
 }
 
-function createEmissionEncoding(color) {
+function createEmissionEncoding(color): IPartialEncoding {
     if (color) {
         if (color.isColorConstant) {
             return createEmissionConstantEncoding(color);
@@ -297,38 +314,35 @@ function createEmissionEncoding(color) {
     return { encoding: {}, data: {} };
 }
 
-function createExtinctionEncoding(extinction) {
+function createExtinctionEncoding(extinction: number): IPartialEncoding {
     const encoding = { extinction: { value: extinction } };
     return { encoding };
 }
 
-function createExposureEncoding(exposure) {
+function createExposureEncoding(exposure): IPartialEncoding {
     const encoding = { exposure: { value: exposure } };
     return { encoding };
 }
 
 
 // Merge a list of { encoding, data } objects into one
-function mergeEncodings(...encodings) {
-    const dst = { encoding: {}, data: {} };
+function mergeEncodings(...encodings): IEncodingAndData {
+    const dst = { encoding: {}, data: {} } as IPartialEncoding;
     for (let src of encodings) {
         Object.assign(dst.encoding, src.encoding);
         Object.assign(dst.data, src.data);
     }
-    return dst;
+    return dst as IEncodingAndData;
 }
 
 
-class PlotModel extends BlackboxModel {
+export
+abstract class PlotModel extends BlackboxModel {
     // Override this in every subclass
-    getPlotMethod() {
-        throw new Error("Missing implementation of getPlotMethod.");
-    }
+    abstract getPlotMethod(): string;
 
     // Override this in every subclass
-    buildPlotEncoding() {
-        throw new Error("Missing implementation of buildPlotEncoding.");
-    }
+    abstract buildPlotEncoding(): IEncodingAndData;
 
     defaults() {
         return Object.assign(super.defaults(), module_defaults, {
@@ -337,7 +351,7 @@ class PlotModel extends BlackboxModel {
         });
     }
 
-    constructThreeObject() {
+    constructThreeObject(): THREE.Group {
         const root = new THREE.Group();
         this.plotState = create_plot_state(root, this.getPlotMethod());
         const { encoding, data } = this.buildPlotEncoding();
@@ -364,14 +378,17 @@ class PlotModel extends BlackboxModel {
         // Let plotState update itself (mutates this.plotState)
         this.updatePlotState(changed);
     }
+
+    plotState: IPlotState;
+
+    static serializers: ISerializers = Object.assign({},
+        BlackboxModel.serializers,
+        {
+            mesh: { deserialize: widgets.unpack_models },
+            restrict: { deserialize: widgets.unpack_models },
+        }
+    );
 };
-PlotModel.serializers = Object.assign({},
-    BlackboxModel.serializers,
-    {
-        mesh: { deserialize: widgets.unpack_models },
-        restrict: { deserialize: widgets.unpack_models },
-    }
-);
 
 
 export
@@ -401,14 +418,15 @@ class SurfacePlotModel extends PlotModel {
             createWireframeParamsEncoding(this.get("wireframe"))
         );
     }
-};
-SurfacePlotModel.serializers = Object.assign({},
-    PlotModel.serializers,
-    {
-        color: { deserialize: widgets.unpack_models },
-        wireframe: { deserialize: widgets.unpack_models },
-    }
-);
+
+    static serializers: ISerializers = Object.assign({},
+        PlotModel.serializers,
+        {
+            color: { deserialize: widgets.unpack_models },
+            wireframe: { deserialize: widgets.unpack_models },
+        }
+    );
+}
 
 
 export
@@ -442,16 +460,17 @@ class IsosurfacePlotModel extends PlotModel {
             //createWireframeParamsEncoding(this.get("wireframe"))
         );
     }
-};
-IsosurfacePlotModel.serializers = Object.assign({},
-    PlotModel.serializers,
-    {
-        color: { deserialize: widgets.unpack_models },
-        field: { deserialize: widgets.unpack_models },
-        values: { deserialize: widgets.unpack_models },
-        //wireframe: { deserialize: widgets.unpack_models },
-    }
-);
+
+    static serializers: ISerializers = Object.assign({},
+        PlotModel.serializers,
+        {
+            color: { deserialize: widgets.unpack_models },
+            field: { deserialize: widgets.unpack_models },
+            values: { deserialize: widgets.unpack_models },
+            //wireframe: { deserialize: widgets.unpack_models },
+        }
+    );
+}
 
 
 export
@@ -483,14 +502,15 @@ class XrayPlotModel extends PlotModel {
             createExtinctionEncoding(this.get("extinction"))
         );
     }
-};
-XrayPlotModel.serializers = Object.assign({},
-    PlotModel.serializers,
-    {
-        density: { deserialize: widgets.unpack_models },
-        //color: { deserialize: widgets.unpack_models },
-    }
-);
+
+    static serializers: ISerializers = Object.assign({},
+        PlotModel.serializers,
+        {
+            density: { deserialize: widgets.unpack_models },
+            //color: { deserialize: widgets.unpack_models },
+        }
+    );
+}
 
 export
 class MinPlotModel extends PlotModel {
@@ -517,13 +537,14 @@ class MinPlotModel extends PlotModel {
             createEmissionEncoding(this.get("color"))
         );
     }
-};
-MinPlotModel.serializers = Object.assign({},
-    PlotModel.serializers,
-    {
-        color: { deserialize: widgets.unpack_models },
-    }
-);
+
+    static serializers: ISerializers = Object.assign({},
+        PlotModel.serializers,
+        {
+            color: { deserialize: widgets.unpack_models },
+        }
+    );
+}
 
 
 export
@@ -551,13 +572,14 @@ class MaxPlotModel extends PlotModel {
             createEmissionEncoding(this.get("color"))
         );
     }
-};
-MaxPlotModel.serializers = Object.assign({},
-    PlotModel.serializers,
-    {
-        color: { deserialize: widgets.unpack_models },
-    }
-);
+
+    static serializers: ISerializers = Object.assign({},
+        PlotModel.serializers,
+        {
+            color: { deserialize: widgets.unpack_models },
+        }
+    );
+}
 
 
 export
@@ -587,13 +609,14 @@ class SumPlotModel extends PlotModel {
             createExposureEncoding(this.get("exposure"))
         );
     }
-};
-SumPlotModel.serializers = Object.assign({},
-    PlotModel.serializers,
-    {
-        color: { deserialize: widgets.unpack_models },
-    }
-);
+
+    static serializers: ISerializers = Object.assign({},
+        PlotModel.serializers,
+        {
+            color: { deserialize: widgets.unpack_models },
+        }
+    );
+}
 
 
 export
@@ -627,11 +650,12 @@ class VolumePlotModel extends PlotModel {
             createExposureEncoding(this.get("exposure"))
         );
     }
-};
-VolumePlotModel.serializers = Object.assign({},
-    PlotModel.serializers,
-    {
-        density: { deserialize: widgets.unpack_models },
-        color: { deserialize: widgets.unpack_models },
-    }
-);
+
+    static serializers: ISerializers = Object.assign({},
+        PlotModel.serializers,
+        {
+            density: { deserialize: widgets.unpack_models },
+            color: { deserialize: widgets.unpack_models },
+        }
+    );
+}

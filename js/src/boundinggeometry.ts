@@ -113,7 +113,7 @@ function box_edge_vertices(u: number[], v: number[]) {
 }
 
 export
-function create_bounding_box_axis_geometry(bbox, scale=1.0, color="#000000") {
+function create_bounding_box_axis_geometry(bbox, scale=1.0, color="#000000"): THREE.LineSegments {
     const [u, v] = bounding_box_corners(bbox, scale);
     const vertices = box_edge_vertices(u, v);
     const geometry = new THREE.BufferGeometry();

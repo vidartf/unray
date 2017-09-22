@@ -1,15 +1,19 @@
 {
-    "compilerOptions": {
-      "declaration": true,
-      "noImplicitAny": false,
-      "lib": ["dom", "es6"],
-      "noEmitOnError": true,
-      "strictNullChecks": true,
-      "module": "commonjs",
-      "moduleResolution": "node",
-      "target": "ES6",
-      "outDir": "../lib",
-      "skipLibCheck": true,
-      "sourceMap": true
-    }
-  }
+  "compilerOptions": {
+    "declaration": true,
+    "noImplicitAny": false,
+    "lib": ["dom", "es6"],
+    "noEmitOnError": true,
+    "strictNullChecks": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES6",
+    "outDir": "./build",
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": [
+    "**/*.ts",
+    "../src/typings.d.ts"
+  ]
+}

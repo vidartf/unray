@@ -9,7 +9,7 @@ import * as pw from "../src/plotwidgets";
 
 import { createTestModel } from './utils.spec';
 
-import * as factory from "./modelfactory";
+import * as factory from "./modelfactory.spec";
 
 
 describe('plotwidgets', function() {
@@ -28,13 +28,13 @@ describe('plotwidgets', function() {
             const mesh = factory.createMesh();
 
             const wireframe = factory.createWireframeParams();
-            wireframe.enable = true;
+            wireframe.set('enable', true);
 
             const attribs = { mesh, wireframe };
             const plot = createTestModel(pw.SurfacePlotModel, attribs);
             expect(plot.get('_model_name')).eq("SurfacePlotModel");
 
-            expect(plot.get('wireframe').enable).eq(true);
+            expect(plot.get('wireframe').get('enable')).eq(true);
         });
         it('should be constructable with constant color', function() {
             const mesh = factory.createMesh();

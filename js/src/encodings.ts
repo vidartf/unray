@@ -32,8 +32,9 @@ interface ICoordinatesEncodingEntry {
 export
 interface IIndicatorsEncodingEntry {
     field: string | null;
-    values: any;
+    value: number;
     lut_field: string | null;
+    space: IndicatorFieldType,
 }
 
 /**
@@ -121,110 +122,160 @@ type IEncodingEntry = ICellsEncodingEntry | ICoordinatesEncodingEntry | IIndicat
      IDensityEncodingEntry | IEmissionEncodingEntry | IWireframeEncodingEntry | IIsoValuesEncodingEntry |
      ILightEncodingEntry | IExtinctionEncodingEntry | IExposureEncodingEntry;
 
+/**
+ * Any partial encoding entry interface type
+*/
+export
+type IPartialEncodingEntry = Partial<ICellsEncodingEntry> | Partial<ICoordinatesEncodingEntry> |
+    Partial<IIndicatorsEncodingEntry> | Partial<IDensityEncodingEntry> |
+    Partial<IEmissionEncodingEntry> | Partial<IWireframeEncodingEntry> |
+    Partial<IIsoValuesEncodingEntry> | Partial<ILightEncodingEntry> |
+    Partial<IExtinctionEncodingEntry> | Partial<IExposureEncodingEntry>;
+
 
 
 /**
- * Base encoding interface with common entries
+ * Base encoding interface for mesh data.
  */
-export
-interface IBaseEncoding {
+export interface IMeshEncoding {
     cells: ICellsEncodingEntry;
     coordinates: ICoordinatesEncodingEntry;
+    indicators?: IIndicatorsEncodingEntry;
 }
 
-/**
- * Base encoding interface with indicator entry
- */
-export
-interface IBaseIndicatorEncoding extends IBaseEncoding {
-    indicators: IIndicatorsEncodingEntry;
-}
-
-/**
- * Encoding of a mesh
- */
-export
-interface IMeshEncoding extends IBaseIndicatorEncoding {
+export interface ISurfaceEntries  {
     wireframe: IWireframeEncodingEntry;
     light: ILightEncodingEntry;
-}
-
-/**
- * Encoding of a surface
- */
-export
-interface ISurfaceEncoding extends IMeshEncoding {
     emission: IEmissionEncodingEntry;
 }
 
-/**
- * Encoding of an iso-surface
- */
-export
-interface IIsoSurfaceEncoding extends IBaseEncoding {
+export interface IIsoSurfaceEntries {
     wireframe: IWireframeEncodingEntry;
     isovalues: IIsoValuesEncodingEntry;
     emission: IEmissionEncodingEntry;
     density: IDensityEncodingEntry;
 }
 
+export interface IXrayEntries {
+    density: IDensityEncodingEntry;
+    extinction: IExtinctionEncodingEntry;
+}
+
+export interface ISumEntries {
+    emission: IEmissionEncodingEntry;
+    exposure: IExposureEncodingEntry;
+}
+
+export interface IMinEntries {
+    emission: IEmissionEncodingEntry;
+}
+
+export interface IMaxEntries {
+    emission: IEmissionEncodingEntry;
+}
+
+export interface IVolumeEntries {
+    density: IDensityEncodingEntry;
+    emission: IEmissionEncodingEntry;
+    extinction: IExtinctionEncodingEntry;
+    exposure: IExposureEncodingEntry;
+}
+
+
+/**
+ * Encoding of a surface
+ */
+export
+type ISurfaceEncoding = IMeshEncoding & ISurfaceEntries;
+export
+type IPartialSurfaceEncoding = IMeshEncoding & Partial<ISurfaceEntries>;
+
+
+/**
+ * Encoding of an iso-surface
+ */
+export
+type IIsoSurfaceEncoding = IMeshEncoding & IIsoSurfaceEntries;
+export
+type IPartialIsoSurfaceEncoding = IMeshEncoding & Partial<IIsoSurfaceEntries>;
+
 /**
  * Encoding of an Xray volume
  */
 export
-interface IXrayEncoding extends IBaseIndicatorEncoding {
-    density: IDensityEncodingEntry;
-    extinction: IExtinctionEncodingEntry;
-}
+type IXrayEncoding = IMeshEncoding & IXrayEntries;
+export
+type IPartialXrayEncoding = IMeshEncoding & Partial<IXrayEntries>;
 
 /**
  * Encoding of a sum volume
  */
 export
-interface ISumEncoding extends IBaseIndicatorEncoding {
-    emission: IEmissionEncodingEntry;
-    exposure: IExposureEncodingEntry;
-}
+type ISumEncoding = IMeshEncoding & ISumEntries;
+export
+type IPartialSumEncoding = IMeshEncoding & Partial<ISumEntries>;
 
 /**
  * Encoding of a min volume
  */
 export
-interface IMinEncoding extends IBaseIndicatorEncoding {
-    emission: IEmissionEncodingEntry;
-}
+type IMinEncoding = IMeshEncoding & IMinEntries;
+export
+type IPartialMinEncoding = IMeshEncoding & Partial<IMinEntries>;
 
 /**
  * Encoding of a max volume
  */
 export
-interface IMaxEncoding extends IBaseIndicatorEncoding {
-    emission: IEmissionEncodingEntry;
-}
+type IMaxEncoding = IMeshEncoding & IMaxEntries;
+export
+type IPartialMaxEncoding = IMeshEncoding & Partial<IMaxEntries>;
 
 /**
  * Encoding of a generic volume
  */
 export
-interface IVolumeEncoding extends IBaseIndicatorEncoding {
-    density: IDensityEncodingEntry;
-    emission: IEmissionEncodingEntry;
-    extinction: IExtinctionEncodingEntry;
-    exposure: IExposureEncodingEntry;
-}
+type IVolumeEncoding = IMeshEncoding & IVolumeEntries;
+export
+type IPartialVolumeEncoding = IMeshEncoding & Partial<IVolumeEntries>;
 
 
 /**
  * Any encoding interface type
  */
 export
-type IEncoding = IMeshEncoding | ISurfaceEncoding | IIsoSurfaceEncoding |
-     IXrayEncoding | ISumEncoding | IMinEncoding | IMaxEncoding | IVolumeEncoding;
+type IEncoding = ISurfaceEncoding | IIsoSurfaceEncoding | IXrayEncoding |
+     ISumEncoding | IMinEncoding | IMaxEncoding | IVolumeEncoding;
+export
+type IPartialEncoding = IPartialSurfaceEncoding | IPartialIsoSurfaceEncoding | IPartialXrayEncoding |
+    IPartialSumEncoding | IPartialMinEncoding | IPartialMaxEncoding | IPartialVolumeEncoding;
+
+export
+interface IEncodingMap {
+    surface: ISurfaceEncoding;
+    isosurface: IIsoSurfaceEncoding;
+    xray: IXrayEncoding;
+    sum: ISumEncoding;
+    min: IMinEncoding;
+    max: IMaxEncoding;
+    volume: IVolumeEncoding;
+}
+
+export
+interface IPartialEncodingMap {
+    surface: IPartialSurfaceEncoding;
+    isosurface: IPartialIsoSurfaceEncoding;
+    xray: IPartialXrayEncoding;
+    sum: IPartialSumEncoding;
+    min: IPartialMinEncoding;
+    max: IPartialMaxEncoding;
+    volume: IPartialVolumeEncoding;
+}
 
 
 // Build default encodings for each method
 export
-function create_default_encodings() {
+function create_default_encodings(): IEncodingMap {
     // Reusable channel defaults
     const cells = {
         field: null,
@@ -280,7 +331,6 @@ function create_default_encodings() {
 
     // Compose method defaults from channels
     const default_encodings = {
-        mesh: { cells, coordinates, indicators, wireframe, light } as IMeshEncoding,
         surface: { cells, coordinates, indicators, wireframe, emission, light } as ISurfaceEncoding,
         isosurface: { cells, coordinates, indicators, wireframe, isovalues, emission, density } as IIsoSurfaceEncoding,
         xray: { cells, coordinates, indicators, density, extinction } as IXrayEncoding,

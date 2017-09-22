@@ -2,20 +2,22 @@ import {assert, expect, should} from 'chai';
 
 import {ObjectManager} from "../src/object_manager";
 
+interface TestObj {spec: Float32Array, oldspec?: Float32Array}
+
 describe('ObjectManager', function() {
     describe('#updateObject()', function() {
         it('should create a object for each new key', function() {
             // Mock callbacks
-            const ledger = [];
+            const ledger = [] as any[];
             const create = (spec) => ({spec: spec});
             const update = (obj, spec) => { obj.oldspec = obj.spec; obj.spec = spec; };
             const deleted = (obj) => { ledger.push(obj); };
 
             // The object under test
-            const manager = new ObjectManager(create, update, deleted);
+            const manager = new ObjectManager<Float32Array, TestObj>(create, update, deleted);
             // Check some internal state
             expect(manager.objectCount.size).eq(0);
-            
+
             // Add single object
             const key0 = "key0";
             const spec0 = new Float32Array([3]);
@@ -23,7 +25,7 @@ describe('ObjectManager', function() {
             expect(obj0.spec).eq(spec0);
             expect(manager.objectCount.size).eq(1);
             expect(manager.objectCount.get(obj0)).eq(1);
-            
+
             // Add another object under different key
             const key1 = "key1";
             const spec1 = new Float32Array([5]);
@@ -33,7 +35,7 @@ describe('ObjectManager', function() {
             expect(manager.objectCount.get(obj1)).eq(1);
 
             expect(manager.objectCount.get(obj0)).eq(1);
-            
+
             // Passing a new spec for existing function triggers update
             const spec0b = new Float32Array([7]);
             const obj0b = manager.update(key0, spec0b, obj0);
@@ -41,7 +43,7 @@ describe('ObjectManager', function() {
             expect(obj0b.oldspec).eq(spec0);
             expect(obj0b).eq(obj0);
             expect(manager.objectCount.get(obj0)).eq(1);
-            
+
             // Passing prev object matching key doesn't do anything
             // const spec1b = new Float32Array([9]);
             // const obj1b = manager.update(key1, spec1b, obj1);

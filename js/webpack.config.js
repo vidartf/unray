@@ -18,7 +18,7 @@ const externals = ['@jupyter-widgets/base', 'jupyter-datawidgets', 'three', 'jup
 const rules = [
 //    { test: /\.js$/, enforce: "pre", loader: 'eslint-loader' },
     { test: /\.ts$/, loader: 'ts-loader' },
-    { test: /\.js$/, loader: "source-map-loader" },
+    //{ test: /\.js$/, loader: "source-map-loader" },
     { test: /\.json$/, loader: 'json-loader' },
     { test: /\.glsl$/, loader: 'webpack-glsl-loader' },
 ];

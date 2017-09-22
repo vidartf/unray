@@ -9,5 +9,8 @@ node_modules/
 unray/static/index.*
 unray/static/lib
 
+# Coverage data
+js/coverage
+
 # OS X
 .DS_Store
