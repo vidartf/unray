@@ -2,17 +2,22 @@
 // It contains some requirejs configuration and the `load_ipython_extension`
 // which is required for any notebook extension.
 
-// Configure requirejs
-if (window.require) {
-    window.require.config({
-        map: {
-            "*" : {
-                "unray": "nbextensions/unray/index",
-                "@jupyter-widgets/base": "nbextensions/jupyter-widgets/extension"
+define(function() {
+    "use strict";
+    // Configure requirejs
+    if (window.require) {
+        window.require.config({
+            map: {
+                "*" : {
+                    "unray": "nbextensions/unray/index",
+                    "@jupyter-widgets/base": "nbextensions/jupyter-widgets/extension"
+                }
             }
-        }
-    });
-}
+        });
+    }
 
-// Export the required load_ipython_extention
-export const load_ipython_extension = function() {};
+    // Export the required load_ipython_extention
+    return {
+        load_ipython_extension : function() {}
+    };
+});
