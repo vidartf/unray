@@ -453,7 +453,7 @@ function create_three_data(method: Method,
     // TODO: ENABLE_CELL_ORDERING should be determined by need for sorting based on method
     defines['ENABLE_CELL_ORDERING'] = 1;
 
-    // TODO: ENABLE_PERSPECTIVE_PROJECTION should be determined by camera type
+    // Should be updated by camera type in pre-render step:
     defines['ENABLE_PERSPECTIVE_PROJECTION'] = 1;
 
     // Initialize uniforms that are set by time and view changes

@@ -71,7 +71,7 @@
 
 #if defined(ENABLE_EMISSION_GRADIENT) || defined(ENABLE_DENSITY_GRADIENT)
     // If we need one or more function gradients,
-    // we need the Jacobian inverse of the coordinate field 
+    // we need the Jacobian inverse of the coordinate field
     #define ENABLE_JACOBIAN_INVERSE 1
 #endif
 
@@ -79,9 +79,7 @@
     #define ENABLE_ALL_COORDINATES 1
     #define ENABLE_BARYCENTRIC_COORDINATES 1
     #define ENABLE_EDGES 1
-    #ifdef ENABLE_PERSPECTIVE_PROJECTION
-        #define ENABLE_PLANES 1
-    #endif
+    #define ENABLE_PLANES 1
 #endif
 
 #ifdef ENABLE_BARYCENTRIC_DERIVATIVES
@@ -90,6 +88,10 @@
 
 #ifdef ENABLE_PLANES
     #define ENABLE_EDGES 1
+#endif
+
+#ifdef ENABLE_EDGES
+    #define ENABLE_ALL_COORDINATES 1
 #endif
 
 #ifdef ENABLE_JACOBIAN_INVERSE

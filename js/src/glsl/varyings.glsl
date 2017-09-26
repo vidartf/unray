@@ -19,7 +19,7 @@ varying vec3 v_model_position;  // TODO: Rename, easily mixed with position of t
     flat varying float v_max_depth;
     flat varying vec4 v_facing;
 
-    #if defined(ENABLE_PERSPECTIVE_PROJECTION)
+    #ifndef ENABLE_PERSPECTIVE_PROJECTION
         varying vec4 v_ray_lengths;
     #endif
 #endif
