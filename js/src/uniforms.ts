@@ -1,12 +1,32 @@
 "use strict";
 
-import _ from "underscore";
+import * as _ from "underscore";
 
 import * as THREE from "three";
 
+
+
+export
+interface IUniformMap {
+    [key: string]: THREE.IUniform
+}
+
+interface ITypedUniform extends THREE.IUniform {
+    gltype: string;
+}
+
+interface ITypedUniformMap {
+    [key: string]: ITypedUniform
+}
+
+export
+interface IDefines {
+    [key: string]: number;
+}
+
 // Uniforms that are set automatically by user
 export
-function default_automatic_uniforms() {
+function default_automatic_uniforms(): IUniformMap {
     const typed = {
         // Time related
         u_time: { value: 0.0, gltype: "float" },
@@ -24,7 +44,6 @@ function default_automatic_uniforms() {
 }
 
 // Construct a uniforms dict with default values
-export
 function default_uniforms() {
 
     // Utilities like these could make the defaults list more readable:
@@ -38,7 +57,7 @@ function default_uniforms() {
     // const u_ivec4 = (...values) => ({ value: new THREE.Vector4(...values), gltype: "ivec4" });
 
     // Groups of uniforms set from user data
-    const user_data_groups = {
+    const user_data_groups: {[key: string]: ITypedUniformMap} = {
         mesh: {
             t_cells: { value: null, gltype: "sampler2D" },
             t_coordinates: { value: null, gltype: "sampler2D" },
@@ -92,8 +111,8 @@ function default_uniforms() {
     };
 
     // Flatten groups to { u_foo: { value: 123, gltype: "float" } }
-    const groups = Object.assign({}, automatic_groups, user_data_groups);
-    const all = Object.assign({}, ...Object.values(groups));
+    const groups = Object.assign({}, user_data_groups);
+    const all = Object.assign({}, ...Object.keys(groups).map(key => groups[key]));
 
     // Create uniforms dict with fresh copies of values
     const values = _.mapObject(all, ({value}, key) => { return { value }; } );
@@ -112,9 +131,8 @@ function default_uniforms() {
 
 // Generate definitions like "uniform vec3 u_foo;" for an
 // object containing types keyed by variable name { u_foo: "vec3" }
-export
-function generate_declarations(gltypes, prefix) {
-    const definitions = Object.values(_.mapObject(gltypes,
+function generate_declarations(gltypes: {[key: string]: string}, prefix: string): string {
+    const definitions = _.values(_.mapObject(gltypes,
         (val, key) => `${prefix} ${val} ${key};`));
     definitions.sort();
     return definitions.join("\n");

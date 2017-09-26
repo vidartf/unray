@@ -3,27 +3,33 @@ module.exports = function (config) {
     basePath: '.',
     frameworks: [
       'mocha',
-      'chai',
+      'karma-typescript',
     ],
     reporters: [
       'mocha',
+      'karma-typescript',
     ],
     files: [
-      'test/index.js'
+      { pattern: "test/**/*.ts" },
+      { pattern: "src/**/*.ts" }
     ],
     preprocessors: {
-      'test/index.js': ['webpack', 'sourcemap']
+      '**/*.ts': ['karma-typescript']
     },
-    webpack: {
-      module: {
-        rules: [
-            { test: /\.glsl$/, loader: 'webpack-glsl-loader' },
-        ]
-      },
-      devtool: 'inline-source-map'
-  },
     port: 9876,
     colors: true,
-    logLevel: config.LOG_INFO
+    logLevel: config.LOG_INFO,
+
+    karmaTypescriptConfig: {
+      tsconfig: 'test/tsconfig.json',
+      reports: {
+        "text-summary": "",
+        "html": "coverage",
+        "lcovonly": {
+          "directory": "coverage",
+          "filename": "coverage.lcov"
+        }
+      }
+    }
   });
 };

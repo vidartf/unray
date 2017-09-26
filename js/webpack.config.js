@@ -17,25 +17,16 @@ const externals = ['@jupyter-widgets/base', 'jupyter-datawidgets', 'three', 'jup
 // stored in a separate local variable.
 const rules = [
 //    { test: /\.js$/, enforce: "pre", loader: 'eslint-loader' },
+    { test: /\.ts$/, loader: 'ts-loader' },
+    //{ test: /\.js$/, loader: "source-map-loader" },
+    { test: /\.json$/, loader: 'json-loader' },
     { test: /\.glsl$/, loader: 'webpack-glsl-loader' },
 ];
 
-
-// Notebook extension
-//
-// This bundle only contains the part of the JavaScript that is run on
-// load of the notebook. This section generally only performs
-// some configuration for requirejs, and provides the legacy
-// "load_ipython_extension" function which is required for any notebook
-// extension.
-const extension = {
-    entry: './src/extension.js',
-    output: {
-        filename: 'extension.js',
-        path: static_path,
-        libraryTarget: 'amd'
-    }
-};
+const resolve = {
+  // Add '.ts' and '.tsx' as resolvable extensions.
+  extensions: [".webpack.js", ".web.js", ".ts", ".js"]
+}
 
 
 // Bundle for the notebook containing the custom widget views and models
@@ -44,7 +35,7 @@ const extension = {
 // custom widget.
 // It must be an amd module
 const index = {
-    entry: './src/index.js',
+    entry: './src/index.ts',
     output: {
         filename: 'index.js',
         path: static_path,
@@ -52,9 +43,10 @@ const index = {
     },
     devtool: 'source-map',
     module: {
-        rules: rules
+        rules
     },
-    externals: externals,
+    externals,
+    resolve,
 };
 
 
@@ -72,7 +64,7 @@ const index = {
 // The target bundle is always `dist/index.js`, which is the path required
 // by the custom widget embedder.
 const embed = {
-    entry: './src/embed.js',
+    entry: './src/embed.ts',
     output: {
         filename: 'index.js',
         path: dist_path,
@@ -81,14 +73,14 @@ const embed = {
     },
     devtool: 'source-map',
     module: {
-        rules: rules
+        rules,
     },
-    externals: externals,
+    externals,
+    resolve,
 };
 
 
 module.exports = [
-    extension,
     index,
     embed
 ];

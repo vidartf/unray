@@ -1,6 +1,6 @@
 "use strict";
 
-import _ from "underscore";
+import * as _ from "underscore";
 import * as THREE from "three";
 
 import {
@@ -9,34 +9,56 @@ import {
     create_bounding_box_axis_geometry,
     create_bounding_box_midplanes_geometry
 } from "./boundinggeometry";
-import {create_three_data} from "./channels";
-import {create_geometry} from "./geometry";
-import {create_material} from "./material";
-import {sort_cells} from "./sorting";
+
+import {
+    create_three_data
+} from "./channels";
+
+import {
+    create_geometry
+} from "./geometry";
+
+import {
+    create_material
+} from "./material";
+
+// import {
+//     sort_cells
+// } from "./sorting";
+
+import {
+    IEncoding, IPartialEncoding
+} from './encodings';
+
+import {
+    Method, IPlotData, TypedArray
+} from './utils';
 
 // TODO: Use this in prerender and improve sorting
 // when unsorted methods are working well
-function update_ordering(geometry, material) {
+function update_ordering(geometry: THREE.BufferGeometry, material: THREE.ShaderMaterial) {
     const u = material.uniforms;
 
     // TODO: Benchmark use of reordering array vs reordering
     //       cell data and uploading those larger buffers.
-    const dir = u.u_local_view_direction.value;
+    const dir = u['u_local_view_direction'].value;
 
     // Get cells and coordinates from texture data
-    const cells = u.t_cells.value.image.data;
-    const coordinates = u.t_coordinates.value.image.data;
+    const cells = (u['t_cells'].value as THREE.DataTexture).image.data;
+    const coordinates = (u['t_coordinates'].value as THREE.DataTexture).image.data;
 
     // NB! Number of cells === ordering.array.length,
     // !== cells.length / 4 which includes texture padding.
 
     // Compute cell reordering in place in geometry attribute array
-    const ordering = geometry.attributes.c_ordering;
-    sort_cells(ordering.array, cells, coordinates, dir);
+    // Casting due to incorrect typing in @types/three:
+    const ordering = (geometry.attributes as any)['c_ordering'] as THREE.BufferAttribute;
+    // FIXME: Update function, and ensure signature is met:
+    //sort_cells(ordering.array as TypedArray, cells, coordinates, dir);
     ordering.needsUpdate = true;
 }
 
-function prerender_update(renderer, scene, camera, geometry, material, group, mesh) {
+function prerender_update(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, geometry: THREE.BufferGeometry, material: THREE.ShaderMaterial, group: THREE.Group, mesh: THREE.Mesh) {
     // console.log("In prerender_update", {renderer, scene, camera, geometry, material, group, mesh});
     // console.log("In prerender_update", camera.getWorldPosition());
 
@@ -46,10 +68,10 @@ function prerender_update(renderer, scene, camera, geometry, material, group, me
     // FIXME: Get actual time from some start point in seconds,
     // or make it a parameter to be controlled from the outside
     const time = 0.0;
-    u.u_time.value = time;
+    u['u_time'].value = time;
 
     for (let i=0; i<4; ++i) {
-        u.u_oscillators.value.setComponent(i, Math.sin((i+1) * Math.PI * time));
+        u['u_oscillators'].value.setComponent(i, Math.sin((i+1) * Math.PI * time));
     }
 
     // TODO: Are all these up to date here? Need to call any update functions?
@@ -71,28 +93,28 @@ function prerender_update(renderer, scene, camera, geometry, material, group, me
 
     // Transform camera direction from world coordinates to object space
     // (only used for orthographic projection)
-    const local_view_direction = u.u_local_view_direction.value;
+    const local_view_direction = u['u_local_view_direction'].value;
     camera.getWorldDirection(local_view_direction);
     local_view_direction.applyMatrix4(Minv); // map from world space to object space
 
     // Transform camera position from world coordinates to object space
-    const local_camera_position = u.u_local_camera_position.value;
+    const local_camera_position = u['u_local_camera_position'].value;
     camera.getWorldPosition(local_camera_position);
     local_camera_position.applyMatrix4(Minv); // map from world space to object space
 
     // Compute entire MVP matrix
     const MV = new THREE.Matrix4(); // maps from object space to camera space
     MV.multiplyMatrices(V, M);
-    const MVP = u.u_mvp_matrix.value; // maps from object space to clip space
+    const MVP = u['u_mvp_matrix'].value; // maps from object space to clip space
     MVP.multiplyMatrices(P, MV);
 }
 
-function create_mesh(method, encoding, data) {
+function create_mesh(method: Method, encoding: IPartialEncoding, data: IPlotData): THREE.Mesh {
     // Tetrahedral mesh data is required and assumed to be present at this point
-    if (encoding.cells === undefined || encoding.cells.field === undefined) {
+    if (encoding.cells === undefined || !encoding.cells.field) {
         throw new Error("Cannot create mesh, missing cells in the encoding.")
     }
-    if (encoding.coordinates === undefined || encoding.coordinates.field === undefined) {
+    if (encoding.coordinates === undefined || !encoding.coordinates.field) {
         throw new Error("Cannot create mesh, missing coordinates in the encoding.")
     }
 
@@ -125,7 +147,7 @@ function create_mesh(method, encoding, data) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.setDrawMode(THREE.TriangleStripDrawMode);
 
-    mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+    mesh.onBeforeRender = (renderer, scene, camera, geometry: THREE.BufferGeometry, material: THREE.ShaderMaterial, group) => {
         prerender_update(renderer, scene, camera, geometry, material, group, mesh);
     };
 
@@ -136,12 +158,12 @@ function create_mesh(method, encoding, data) {
     return mesh;
 }
 
-function update_mesh(mesh, method, encoding, data) {
+function update_mesh(mesh: THREE.Mesh, method: Method, encoding: IPartialEncoding, data: IPlotData) {
     // Recompute uniforms and defines (this also updates texture values etc)
     const {uniforms, defines, attributes} = create_three_data(method, encoding, data);
 
     // Update material (let three.js determine if recompilation is necessary)
-    const mat = mesh.material;
+    const mat = mesh.material as THREE.ShaderMaterial;
     Object.keys(mat.uniforms).forEach(k => { delete mat.uniforms[k]; });
     Object.assign(mat.uniforms, uniforms);
     Object.keys(mat.defines).forEach(k => { delete mat.defines[k]; });
@@ -156,7 +178,7 @@ function update_mesh(mesh, method, encoding, data) {
     //geo.attributes.addAttribute();
 }
 
-function create_debugging_geometries(mesh) {
+function create_debugging_geometries(mesh: THREE.Mesh) {
     const root = new THREE.Group();
 
     // Add a bounding sphere representation to root for debugging
@@ -180,7 +202,7 @@ function create_debugging_geometries(mesh) {
 }
 
 
-const method_backgrounds = {
+const method_backgrounds: {[key: string]: THREE.Color | undefined} = {
     // These methods need a dark background
     max: new THREE.Color(0, 0, 0),
     max2: new THREE.Color(0, 0, 0),
@@ -194,7 +216,35 @@ const method_backgrounds = {
 };
 
 export
-function create_plot_state(root, method) {
+interface IPlotState {
+    /**
+     * The root node
+     */
+    root: THREE.Group;
+
+    /**
+     * How to interpret encoding and data
+     */
+    method: Method;
+
+    /**
+     * Called when initial encoding and data is available
+     */
+    init(encoding: IPartialEncoding, data?: IPlotData): void;
+
+    /**
+     * Called on later updates
+     */
+    update(encoding: IPartialEncoding, data?: IPlotData): void;
+
+    /**
+     * Function to get suggestion for background color
+     */
+    get_bgcolor(): THREE.Color;
+}
+
+export
+function create_plot_state(root: THREE.Group, method: Method): IPlotState {
     const state = {
         // Remember the root node (a THREE.Group instance) to modify our subscene
         root: root,
@@ -203,21 +253,21 @@ function create_plot_state(root, method) {
         method: method,
 
         // Called once initial encoding and data is available
-        init(encoding, data) {
+        init(encoding: IPartialEncoding, data: IPlotData) {
             if (this.root.children.length !== 0) {
                 console.error("Expecting init called only once.");
             }
             const mesh = create_mesh(this.method, encoding, data);
             this.root.add(mesh);
             this.root.add(create_debugging_geometries(mesh));
-
+            // const material = mesh.material as THREE.ShaderMaterial;
             // console.log("Initialized plot mesh:", mesh);
-            // console.log("defines:", mesh.material.defines);
-            // console.log("uniforms:", mesh.material.uniforms);
+            // console.log("defines:", material.defines);
+            // console.log("uniforms:", material.uniforms);
         },
 
         // Called on later updates
-        update(encoding, data) {
+        update(encoding: IPartialEncoding, data: IPlotData) {
             if (this.root.children.length === 0) {
                 throw new Error("Expecting init called once before calling update.");
             }

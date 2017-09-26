@@ -8,6 +8,10 @@ import {
     getArrayFromUnion, data_union_serialization, listenToUnion
 } from "jupyter-datawidgets";
 
+import {
+    ISerializers
+} from './utils';
+
 
 export
 class MeshModel extends widgets.WidgetModel {
@@ -22,17 +26,28 @@ class MeshModel extends widgets.WidgetModel {
         });
     }
 
-    createPropertiesArrays() {
-        super.createPropertiesArrays();
+    initialize(attributes: any, options: {model_id: string, comm?: any, widget_manager: widgets.ManagerBase<any>}) {
+        super.initialize(attributes, options);
+        this.createPropertiesArrays();
+        this.setupListeners();
+    }
 
+    createPropertiesArrays() {
         // This will ensure changes to the data in these trigger a change event
         // regardless of whether they are arrays or datawidgets:
         // The change events will trigger a rerender when object is added to scene
-        this.datawidget_properties.push("cells", "points");
+        this.datawidget_properties = ["cells", "points"];
     }
 
-    onChange(model, options) {
-        super.onChange(model, options);
+    setupListeners() {
+        // Handle changes in data widgets/union properties
+        this.datawidget_properties.forEach(function(propName) {
+            listenToUnion(this, propName, this.onChange.bind(this), false);
+        }, this);
+        this.on('change', this.onChange, this);
+    }
+
+    onChange(model: widgets.WidgetModel, options: any) {
         // Let backbone tell us which attributes have changed
         const changed = this.changedAttributes();
 
@@ -40,14 +55,17 @@ class MeshModel extends widgets.WidgetModel {
 
         // TODO: Reorient cells on change event
     }
-};
-MeshModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        cells: data_union_serialization,
-        points: data_union_serialization,
-    }
-);
+
+    datawidget_properties: string[];
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            cells: data_union_serialization,
+            points: data_union_serialization,
+        }
+    );
+}
 
 
 export
@@ -63,14 +81,15 @@ class FieldModel extends widgets.WidgetModel {
             space: "P1",
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            mesh: { deserialize: widgets.unpack_models },
+            values: data_union_serialization,
+        }
+    );
 }
-FieldModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        mesh: { deserialize: widgets.unpack_models },
-        values: data_union_serialization,
-    }
-);
 
 
 export
@@ -86,14 +105,15 @@ class IndicatorFieldModel extends widgets.WidgetModel {
             space: "I3",
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            mesh: { deserialize: widgets.unpack_models },
+            values: data_union_serialization,
+        }
+    );
 }
-IndicatorFieldModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        mesh: { deserialize: widgets.unpack_models },
-        values: data_union_serialization,
-    }
-);
 
 
 export
@@ -146,13 +166,14 @@ class ArrayScalarLUTModel extends widgets.WidgetModel {
             //space: "linear",
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            values: data_union_serialization,
+        }
+    );
 }
-ArrayScalarLUTModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        values: data_union_serialization,
-    }
-);
 
 
 export
@@ -167,13 +188,14 @@ class ArrayColorLUTModel extends widgets.WidgetModel {
             space: "rgb",
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            values: data_union_serialization,
+        }
+    );
 }
-ArrayColorLUTModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        values: data_union_serialization,
-    }
-);
 
 
 export
@@ -206,6 +228,11 @@ class ScalarConstantModel extends widgets.WidgetModel {
     }
 }
 
+export
+function isScalarConstant(model: any): model is ScalarConstantModel {
+    return model.isScalarConstant;
+}
+
 
 export
 class ScalarFieldModel extends widgets.WidgetModel {
@@ -219,14 +246,20 @@ class ScalarFieldModel extends widgets.WidgetModel {
             lut: null,  // ArrayScalarLUTModel (maps scalar -> scalar)
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            field: { deserialize: widgets.unpack_models },
+            lut: { deserialize: widgets.unpack_models },
+        }
+    );
 }
-ScalarFieldModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        field: { deserialize: widgets.unpack_models },
-        lut: { deserialize: widgets.unpack_models },
-    }
-);
+
+export
+function isScalarField(model: any): model is ScalarFieldModel {
+    return model.isScalarField;
+}
 
 
 export
@@ -242,14 +275,20 @@ class ScalarIndicatorsModel extends widgets.WidgetModel {
             value: 1,   // integer
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            field: { deserialize: widgets.unpack_models },
+            lut: { deserialize: widgets.unpack_models },
+        }
+    );
 }
-ScalarIndicatorsModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        field: { deserialize: widgets.unpack_models },
-        lut: { deserialize: widgets.unpack_models },
-    }
-);
+
+export
+function isScalarIndicators(model: any): model is ScalarIndicatorsModel {
+    return model.isScalarIndicators;
+}
 
 
 // ------------------------------------------
@@ -267,12 +306,18 @@ class ColorConstantModel extends widgets.WidgetModel {
             color: "#ffffff",
         });
     }
+
+    // static serializers: ISerializers = Object.assign({},
+    //     widgets.WidgetModel.serializers,
+    //     {
+    //     }
+    // );
 }
-// ColorConstantModel.serializers = Object.assign({},
-//     widgets.WidgetModel.serializers,
-//     {
-//     }
-// );
+
+export
+function isColorConstant(model: any): model is ColorConstantModel {
+    return model.isColorConstant;
+}
 
 
 export
@@ -287,14 +332,20 @@ class ColorFieldModel extends widgets.WidgetModel {
             lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            field: { deserialize: widgets.unpack_models },
+            lut: { deserialize: widgets.unpack_models },
+        }
+    );
 }
-ColorFieldModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        field: { deserialize: widgets.unpack_models },
-        lut: { deserialize: widgets.unpack_models },
-    }
-);
+
+export
+function isColorField(model: any): model is ColorFieldModel {
+    return model.isColorField;
+}
 
 
 export
@@ -309,13 +360,19 @@ class ColorIndicatorsModel extends widgets.WidgetModel {
             lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
         });
     }
+
+    static serializers: ISerializers = Object.assign({},
+        widgets.WidgetModel.serializers,
+        {
+            field: { deserialize: widgets.unpack_models },
+            lut: { deserialize: widgets.unpack_models },
+        }
+    );
 }
-ColorIndicatorsModel.serializers = Object.assign({},
-    widgets.WidgetModel.serializers,
-    {
-        field: { deserialize: widgets.unpack_models },
-        lut: { deserialize: widgets.unpack_models },
-    }
-);
+
+export
+function isColorIndicators(model: any): model is ColorIndicatorsModel {
+    return model.isColorIndicators;
+}
 
 // ------------------------------------------

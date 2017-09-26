@@ -1,4 +1,6 @@
-import {assert, expect, should} from 'chai';
+"use strict";
+
+import expect = require('expect.js');
 
 import {
     compute_bounding_box,
@@ -8,7 +10,7 @@ import {
     copy_reoriented
   } from '../src/meshutils';
 
-import { expectAllCloseTo } from './testutils';
+import { expectAllCloseTo } from './utils.spec';
 
 
 describe('meshutils', function() {
@@ -16,9 +18,9 @@ describe('meshutils', function() {
     const bounds = compute_bounding_box(new Float32Array([0.0, -1.0, +1.0, 2.0, -4.0, 6.0]));
 
     it('should return correct types', function() {
-      expect(bounds.min).to.be.an("Array");
-      expect(bounds.max).to.be.an("Array");
-      expect(bounds.center).to.be.an("Array");
+      expect(Array.isArray(bounds.min)).to.be(true);
+      expect(Array.isArray(bounds.max)).to.be(true);
+      expect(Array.isArray(bounds.center)).to.be(true);
     });
 
     it('should return correct min and max values', function() {
@@ -32,13 +34,14 @@ describe('meshutils', function() {
     const bounds = compute_bounding_sphere(new Float32Array([0.0, -1.0, +1.0, 2.0, -4.0, 6.0]));
 
     it('should return correct types', function() {
-      expect(bounds.center).to.be.an("Array");
+      expect(Array.isArray(bounds.center)).to.be(true);
       expect(bounds.radius).to.be.a("number");
     });
 
     it('should return correct center and radius', function() {
       expectAllCloseTo(bounds.center, [1.0, -2.5, 3.5]);
-      expect(bounds.radius).to.be.closeTo(Math.sqrt(1*1 + 1.5*1.5 + 2.5*2.5), 1e-8);
+      let expected = Math.sqrt(1*1 + 1.5*1.5 + 2.5*2.5);
+      expect(bounds.radius).to.be.within(expected - 1e-8, expected + 1e-8);
     });
   });
 
@@ -60,26 +63,26 @@ describe('meshutils', function() {
     copy_reoriented(cells1, orig_cells, [1, 1]);
 
     it('should have no effect to reorient with all flagged as 0', function() {
-      expect(cells0).deep.eq(orig_cells);
+      expect(cells0).to.eql(orig_cells);
     });
     it('should reorient all', function() {
-      expect(cells1).deep.eq(orig_cells_reoriented);
+      expect(cells1).to.eql(orig_cells_reoriented);
     });
 
     const reorient = compute_tetrahedron_cell_orientations(orig_cells, points);
     const reorient_inv = compute_tetrahedron_cell_orientations(orig_cells_reoriented, points);
 
     it('should compute opposite orientations', function() {
-      expect(reorient[0]).eq(1 - reorient_inv[0]);
-      expect(reorient[1]).eq(1 - reorient_inv[1]);
+      expect(reorient[0]).to.be(1 - reorient_inv[0]);
+      expect(reorient[1]).to.be(1 - reorient_inv[1]);
     });
     it('should compute the correct orientation for original cells', function() {
-      expect(reorient[0]).eq(1);
-      expect(reorient[1]).eq(0);
+      expect(reorient[0]).to.be(1);
+      expect(reorient[1]).to.be(0);
     });
     it('should compute the correct orientation for reoriented cells', function() {
-      expect(reorient_inv[0]).eq(0);
-      expect(reorient_inv[1]).eq(1);
+      expect(reorient_inv[0]).to.be(0);
+      expect(reorient_inv[1]).to.be(1);
     });
 
     const cells2 = new Int32Array(orig_cells);
@@ -87,10 +90,10 @@ describe('meshutils', function() {
     const reorient2 = compute_tetrahedron_cell_orientations(cells2, points);
 
     it('should change all cells to have positive jacobian determinant', function() {
-      expect(cells2).deep.eq(new Int32Array([0,1,3,2,0,1,2,4]));
+      expect(cells2).to.eql(new Int32Array([0,1,3,2,0,1,2,4]));
     });
     it('should not require reorientation again', function() {
-      expect(reorient2).deep.eq(new Uint8Array([0, 0]));
+      expect(reorient2).to.eql(new Uint8Array([0, 0]));
     });
   });
 });

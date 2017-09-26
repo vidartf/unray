@@ -4,8 +4,12 @@ import * as THREE from "three";
 
 import {ObjectManager} from "./object_manager";
 
+import {
+    TypedArray
+} from './utils';
+
 export
-const dtype2threetype = {
+const dtype2threetype: { [key: string]: THREE.TextureDataType} = {
     float32: THREE.FloatType,
     uint32: THREE.UnsignedIntType,
     uint16: THREE.UnsignedIntType,
@@ -27,14 +31,14 @@ const dtype2threetype = {
 // };
 
 export
-const itemsize2threeformat = {
+const itemsize2threeformat: { [key: number]: THREE.PixelFormat} = {
     1: THREE.AlphaFormat,
     3: THREE.RGBFormat,
     4: THREE.RGBAFormat
 };
 
 export
-function allocate_array_texture(dtype, item_size, texture_shape) {
+function allocate_array_texture(dtype: string, item_size: number, texture_shape: number[]): THREE.DataTexture {
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
@@ -57,7 +61,7 @@ function allocate_array_texture(dtype, item_size, texture_shape) {
 }
 
 export
-function allocate_lut_texture(dtype, item_size, texture_shape) {
+function allocate_lut_texture(dtype: string, item_size: number, texture_shape: number[]): THREE.DataTexture {
     // Textures using Int32Array and Uint32Array require webgl2,
     // so currently just ignoring the dtype during prototyping.
     // Some redesign may be in order once the prototype is working,
@@ -87,14 +91,16 @@ function allocate_lut_texture(dtype, item_size, texture_shape) {
 }
 
 export
-function update_array_texture(texture, data) {
+function update_array_texture(texture: THREE.DataTexture, data: TypedArray) {
     try {
         // Note that input data may be Int32Array or Uint32Array
         // here while image.data is currently always Float32Array
         // (see allocate_array_texture) because webgl doesn't support
         // large integer textures, but this .set operation still works
         // fine and doubles as type casting the data before uploading.
-        texture.image.data.set(data);
+
+        // Type cast due to incorrect typing of set function in library:
+        texture.image.data.set(data as Uint8ClampedArray);
     } catch(e) {
         console.error("failed to update texture", e);
     }
@@ -102,10 +108,43 @@ function update_array_texture(texture, data) {
 }
 
 
+export
+interface IArrayTextureKey {
+    array: TypedArray;
+    dtype: string;
+    item_size: number;
+    texture_shape: number[];
+}
+
+export
+interface ILutTextureKey {
+    array: TypedArray;
+    dtype: string;
+    item_size: number;
+}
+
+export
+interface ICellsBufferKey {
+    array: TypedArray;
+    dtype: string;
+    item_size: number;
+}
+
+export
+type MangerKey = IArrayTextureKey | ILutTextureKey | ICellsBufferKey;
+
+
+export
+interface IManagers {
+    array_texture: ObjectManager<IArrayTextureKey, THREE.DataTexture>;
+    lut_texture: ObjectManager<ILutTextureKey, THREE.DataTexture>;
+    cells_buffer: ObjectManager<ICellsBufferKey, THREE.InstancedBufferAttribute>;
+}
+
 // Singleton managers for each object type
 export
-const managers = {
-    array_texture: new ObjectManager(
+const managers: IManagers = {
+    array_texture: new ObjectManager<IArrayTextureKey, THREE.DataTexture>(
         // Create
         ({array, dtype, item_size, texture_shape}) => {
             const texture = allocate_array_texture(dtype, item_size, texture_shape);
@@ -117,7 +156,7 @@ const managers = {
             update_array_texture(texture, array);
         },
     ),
-    lut_texture: new ObjectManager(
+    lut_texture: new ObjectManager<ILutTextureKey, THREE.DataTexture>(
         // Create
         ({array, dtype, item_size}) => {
             const texture_shape = [array.length / item_size, 1];
@@ -130,7 +169,7 @@ const managers = {
             update_array_texture(texture, array);
         },
     ),
-    cells_buffer: new ObjectManager(
+    cells_buffer: new ObjectManager<ICellsBufferKey, THREE.InstancedBufferAttribute>(
         // Create
         ({array, dtype, item_size}) => {
             const buffer = new THREE.InstancedBufferAttribute(array, item_size, 1);
@@ -139,7 +178,8 @@ const managers = {
         },
         // Update
         (buffer, {array, dtype, item_size}) => {
-            buffer.array.set(array);
+            // Cast due to imprecise typing int @types/three
+            (buffer.array as TypedArray).set(array);
             buffer.needsUpdate = true;
         }
     ),

@@ -2,18 +2,27 @@
 
 import * as THREE from "three";
 
-import {managers} from "./managers";
-import {delete_undefined} from "./utils";
-import {default_automatic_uniforms} from "./uniforms";
-import {default_encodings} from "./encodings";
+import {
+    managers, IManagers
+} from "./managers";
+
+import {
+    delete_undefined, Method, IPlotData
+} from "./utils";
+
+import {
+    default_automatic_uniforms, IUniformMap, IDefines
+} from "./uniforms";
+
+import * as encodings from "./encodings";
 
 // Get obj.name if obj is an object
-function get_attrib(obj, name) {
+function get_attrib<T>(obj: any, name: string): T | undefined {
     return obj === undefined ? undefined: obj[name];
 }
 
 export
-function compute_range(array) {
+function compute_range(array: number[]): number[] {
     let min = array[0];
     let max = array[0];
     for (let v of array) {
@@ -24,14 +33,14 @@ function compute_range(array) {
 }
 
 export
-function extended_range(min, max) {
+function extended_range(min: number, max: number) {
     let range = max - min;
     let scale = range > 0.0 ? 1.0 / range : 1.0;
     return [min, max, range, scale];
 }
 
 export
-function compute_texture_shape(size) {
+function compute_texture_shape(size: number) {
     if (size <= 0) {
         throw new Error(`Expecting a positive size ${size}`);
     }
@@ -40,7 +49,7 @@ function compute_texture_shape(size) {
     return [width, height];
 }
 
-const default_defines = {
+const default_defines: { [key: string]: IDefines} = {
     surface: {
         ENABLE_SURFACE_MODEL: 1,
         // Enable this for debugging, shading by depth:
@@ -67,15 +76,15 @@ const default_defines = {
     },
 };
 
-function update_range_uniform(uniforms, name, range, array) {
+function update_range_uniform(uniforms: IUniformMap, name: string, range: 'auto' | number[], array: number[]) {
     if (range) {
         const newrange = range === "auto" ? compute_range(array) : range;
-        uniforms[name] = { value: extended_range(...newrange) };
+        uniforms[name] = { value: extended_range(newrange[0], newrange[1]) };
     }
 }
 
 // TODO: Use or delete
-function __allocate_value(item_size) {
+function __allocate_value(item_size: number) {
     switch (item_size)
     {
     case 1:
@@ -96,7 +105,7 @@ function __allocate_value(item_size) {
 }
 
 // TODO: Use or delete
-function __update_uniform_value(uniform, new_value) {
+function __update_uniform_value(uniform: THREE.IUniform, new_value: any) {
     if (typeof uniform.value === "number") {
         uniform.value = new_value;
     } else if (uniform.value.isVector2) {  // TODO: Clean up this verbosity, did this to get rid of some errors quickly
@@ -166,8 +175,28 @@ function __update_uniform_value(uniform, new_value) {
         }
 */
 
-const channel_handlers = {
-    cells: ({uniforms, defines, attributes}, desc, {data, managers}) => {
+export
+interface IShaderOptions {
+    uniforms: IUniformMap;
+    defines: IDefines;
+    attributes?: any;
+}
+
+export
+interface IHandlerOptions {
+    data: IPlotData;
+    managers: IManagers;
+}
+
+export
+type ChannelHandler = (shaderOptions: IShaderOptions,
+                       desc: encodings.IEncodingEntry,
+                       handlerOptions?: IHandlerOptions) => void;
+
+const channel_handlers: {[key: string]: ChannelHandler} = {
+    cells: (shaderOptions: IShaderOptions, desc: encodings.ICellsEncodingEntry, handlerOptions: IHandlerOptions) => {
+        const {uniforms, defines, attributes} = shaderOptions;
+        const {data, managers} = handlerOptions;
         if (!desc.field) {
             throw new Error("Missing required cells field");
         }
@@ -177,22 +206,24 @@ const channel_handlers = {
         const num_tetrahedrons = array.length / 4;
         const texture_shape = compute_texture_shape(num_tetrahedrons);
 
-        uniforms.u_cell_texture_shape = { value: [...texture_shape] };
+        uniforms['u_cell_texture_shape'] = { value: [...texture_shape] };
 
-        const prev = get_attrib(uniforms.t_cells, "value");
+        const prev = get_attrib<THREE.DataTexture>(uniforms['t_cells'], "value");
         const value = managers.array_texture.update(
             key,
             {array: array, dtype: "int32", item_size: 4, texture_shape: texture_shape},
             prev);
-        uniforms.t_cells = { value };
+        uniforms['t_cells'] = { value };
 
         if (0) {  // Use attributes if unsorted: c_cells, c_ordering
-            attributes.c_cells = managers.buffers.update(
-                desc.field, data[desc.field], attributes.c_cells);
+            //attributes.c_cells = managers.buffers.update(
+            //    desc.field, data[desc.field], attributes.c_cells);
             // attributes.c_ordering = FIXME;
         }
     },
-    coordinates: ({uniforms, defines}, desc, {data, managers}) => {
+    coordinates: (shaderOptions: IShaderOptions, desc: encodings.ICellsEncodingEntry, handlerOptions: IHandlerOptions) => {
+        const {uniforms, defines, attributes} = shaderOptions;
+        const {data, managers} = handlerOptions;
         if (!desc.field) {
             throw new Error("Missing required coordinates field");
         }
@@ -201,20 +232,22 @@ const channel_handlers = {
 
         const num_vertices = array.length / 3;
         const texture_shape = compute_texture_shape(num_vertices);
-        uniforms.u_vertex_texture_shape = { value: [...texture_shape] };
+        uniforms['u_vertex_texture_shape'] = { value: [...texture_shape] };
 
-        const prev = get_attrib(uniforms.t_coordinates, "value");
+        const prev = get_attrib<THREE.DataTexture>(uniforms['t_coordinates'], "value");
         const value = managers.array_texture.update(key,
             {array: array, dtype: "float32", item_size: 3, texture_shape: texture_shape },
             prev);
-        uniforms.t_coordinates = { value };
+        uniforms['t_coordinates'] = { value };
     },
-    indicators: ({uniforms, defines, attributes}, desc, {data, managers}) => {
+    indicators: (shaderOptions: IShaderOptions, desc: encodings.IIndicatorsEncodingEntry, handlerOptions: IHandlerOptions) => {
+        const {uniforms, defines, attributes} = shaderOptions;
+        const {data, managers} = handlerOptions;
         if (desc.field) {
             if (desc.space != "I3") {
                 throw new Error("Only cell restriction has been implemented.");
             }
-            if (desc.lut) {
+            if ((desc as any).lut) {
                 throw new Error("LUT for restriction has not been implemented.");
             }
 
@@ -227,34 +260,38 @@ const channel_handlers = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = get_attrib(uniforms[uname], "value");
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
 
-            uniforms.u_cell_indicator_value = { value: desc.value };
+            uniforms['u_cell_indicator_value'] = { value: desc.value };
 
-            defines.ENABLE_CELL_INDICATORS = 1;
+            defines['ENABLE_CELL_INDICATORS'] = 1;
 
             // FIXME: If not sorted, use attributes instead:
             // attributes.c_cell_indicators = managers.buffers.update(key, array, attributes.c_cell_indicators);
         }
     },
-    wireframe: ({uniforms, defines}, desc) => {
+    wireframe: (shaderOptions: IShaderOptions, desc: encodings.IWireframeEncodingEntry) => {
+        const {uniforms, defines} = shaderOptions;
         if (desc.enable) {
-            defines.ENABLE_WIREFRAME = 1;
-            uniforms.u_wireframe_color = { value: new THREE.Color(desc.color) };
-            uniforms.u_wireframe_alpha = { value: desc.opacity };
-            uniforms.u_wireframe_size = { value: desc.size };
+            defines['ENABLE_WIREFRAME'] = 1;
+            uniforms['u_wireframe_color'] = { value: new THREE.Color(desc.color) };
+            uniforms['u_wireframe_alpha'] = { value: desc.opacity };
+            uniforms['u_wireframe_size'] = { value: desc.size };
         }
     },
-    light: ({uniforms, defines}, desc) => {
-        uniforms.u_emission_intensity_range = { value: [...desc.emission_intensity_range] };
+    light: (shaderOptions: IShaderOptions, desc: encodings.ILightEncodingEntry) => {
+        const {uniforms, defines} = shaderOptions;
+        uniforms['u_emission_intensity_range'] = { value: [...desc.emission_intensity_range] };
 
-        defines.ENABLE_SURFACE_LIGHT = 1;
+        defines['ENABLE_SURFACE_LIGHT'] = 1;
     },
-    density: ({uniforms, defines}, desc, {data, managers}) => {
-        defines.ENABLE_DENSITY = 1;
+    density: (shaderOptions: IShaderOptions, desc: encodings.IDensityEncodingEntry, handlerOptions: IHandlerOptions) => {
+        const {uniforms, defines} = shaderOptions;
+        const {data, managers} = handlerOptions;
+        defines['ENABLE_DENSITY'] = 1;
 
         if (desc.field) {
             const key = desc.field;
@@ -266,20 +303,20 @@ const channel_handlers = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = get_attrib(uniforms[uname], "value");
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
 
-            defines.ENABLE_DENSITY_FIELD = 1;
+            defines['ENABLE_DENSITY_FIELD'] = 1;
             if (desc.space !== "P0") {
                 // TODO: Rename ENABLE_DENSITY_BACK -> ENABLE_DENSITY_LINEAR
-                defines.ENABLE_DENSITY_BACK = 1;
+                defines['ENABLE_DENSITY_BACK'] = 1;
             }
 
             update_range_uniform(uniforms, "u_density_range", desc.range, array);
         } else {
-            uniforms.u_density_constant = { value: desc.constant };
+            uniforms['u_density_constant'] = { value: desc.constant };
         }
 
         if (desc.lut_field) {
@@ -291,16 +328,18 @@ const channel_handlers = {
             const dtype = "float32";
             const spec = {array, dtype, item_size};
 
-            const prev = get_attrib(uniforms[uname], "value");
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.lut_texture.update(key, spec, prev);
             uniforms[uname] = { value };
 
-            defines.ENABLE_DENSITY_LUT = 1;
+            defines['ENABLE_DENSITY_LUT'] = 1;
         }
     },
-    emission: ({uniforms, defines}, desc, {data, managers}) => {
-        defines.ENABLE_EMISSION = 1;
+    emission: (shaderOptions: IShaderOptions, desc: encodings.IEmissionEncodingEntry, handlerOptions: IHandlerOptions) => {
+        const {uniforms, defines} = shaderOptions;
+        const {data, managers} = handlerOptions;
+        defines['ENABLE_EMISSION'] = 1;
 
         if (desc.field) {
             const key = desc.field;
@@ -312,55 +351,56 @@ const channel_handlers = {
             const texture_shape = compute_texture_shape(array.length / item_size);
             const spec = {array, dtype, item_size, texture_shape};
 
-            const prev = get_attrib(uniforms[uname], "value");
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.array_texture.update(key, spec, prev);
             uniforms[uname] = { value };
 
-            defines.ENABLE_EMISSION_FIELD = 1;
+            defines['ENABLE_EMISSION_FIELD'] = 1;
             if (desc.space !== "P0") {
-                defines.ENABLE_EMISSION_BACK = 1;
+                defines['ENABLE_EMISSION_BACK'] = 1;
             }
 
             update_range_uniform(uniforms, "u_emission_range", desc.range, array);
         } else {
-            uniforms.u_emission_constant = { value: desc.constant };
+            uniforms['u_emission_constant'] = { value: desc.constant };
         }
 
         if (desc.lut_field) {
             const key = desc.lut_field;
             const uname = "t_emission_lut";
-            
+
             const array = data[key];
             const item_size = 3;
             const dtype = "float32";
             const spec = {array, dtype, item_size};
 
-            const prev = get_attrib(uniforms[uname], "value");
+            const prev = get_attrib<THREE.DataTexture>(uniforms[uname], "value");
 
             const value = managers.lut_texture.update(key, spec, prev);
             uniforms[uname] = { value };
 
-            defines.ENABLE_EMISSION_LUT = 1;
+            defines['ENABLE_EMISSION_LUT'] = 1;
         }
 
         // This should always have a valid value
-        uniforms.u_emission_color = { value: new THREE.Color(desc.color) };
+        uniforms['u_emission_color'] = { value: new THREE.Color(desc.color) };
     },
-    isovalues: ({uniforms, defines}, desc) => {
-        uniforms.u_isovalue = { value: desc.value };
+    isovalues: (shaderOptions: IShaderOptions, desc: encodings.IIsoValuesEncodingEntry) => {
+        const {uniforms, defines} = shaderOptions;
+        uniforms['u_isovalue'] = { value: desc.value };
 
         const scale_modes = ["linear", "log", "power"];
-        if (scale_modes.includes(desc.mode)) {
-            uniforms.u_isovalue_spacing = { value: desc.spacing };
+        if (scale_modes.indexOf(desc.mode) !== -1) {
+            uniforms['u_isovalue_spacing'] = { value: desc.spacing };
         }
 
         if (desc.mode === "sweep") {
-            uniforms.u_isovalue_sweep_period = { value: desc.period };
+            uniforms['u_isovalue_sweep_period'] = { value: desc.period };
         }
 
         // TODO: Use a single define instead?
-        const mode2define = (mode) => {
+        const mode2define = (mode: encodings.IIsoValuesEncodingEntry['mode']) => {
             switch (mode) {
             case "single":
                 return { USING_ISOSURFACE_MODE_SINGLE: 1 };
@@ -378,16 +418,20 @@ const channel_handlers = {
         };
         Object.assign(defines, mode2define(desc.mode));
     },
-    extinction: ({uniforms, defines}, desc) => {
-        uniforms.u_extinction = { value: desc.value };
+    extinction: (shaderOptions: IShaderOptions, desc: encodings.IExtinctionEncodingEntry) => {
+        const {uniforms} = shaderOptions;
+        uniforms['u_extinction'] = { value: desc.value };
     },
-    exposure: ({uniforms, defines}, desc) => {
-        uniforms.u_exposure = { value: Math.pow(2.0, desc.value) };
+    exposure: (shaderOptions: IShaderOptions, desc: encodings.IExposureEncodingEntry) => {
+        const {uniforms} = shaderOptions;
+        uniforms['u_exposure'] = { value: Math.pow(2.0, desc.value) };
     },
 };
 
 export
-function create_three_data(method, encoding, data) {
+function create_three_data(method: Method,
+                           encoding: encodings.IPartialEncoding,
+                           data: IHandlerOptions['data']) {
     // const cell_texture_shape = compute_texture_shape(num_tetrahedrons);
     // const vertex_texture_shape = compute_texture_shape(num_vertices);
 
@@ -395,22 +439,22 @@ function create_three_data(method, encoding, data) {
     //const defaults = default_uniforms();
 
     // Combine encoding with fallback values from default_encoding
-    const default_encoding = default_encodings[method];
+    const default_encoding = encodings.default_encodings[method];
     const user_encoding = encoding;
-    encoding = {};
-    for (let channel in default_encoding) {
+    encoding = {} as encodings.IPartialEncoding;
+    for (const channel in default_encoding) {
         // FIXME: Make this deep copy? Or perhaps we'll only read from this anyway?
         encoding[channel] = Object.assign({}, default_encoding[channel], user_encoding[channel]);
     }
 
     // Define initial default defines based on method
-    const defines = Object.assign({}, default_defines[method]);
+    const defines: IDefines = Object.assign({}, default_defines[method]);
 
     // TODO: ENABLE_CELL_ORDERING should be determined by need for sorting based on method
-    defines.ENABLE_CELL_ORDERING = 1;
+    defines['ENABLE_CELL_ORDERING'] = 1;
 
     // TODO: ENABLE_PERSPECTIVE_PROJECTION should be determined by camera type
-    defines.ENABLE_PERSPECTIVE_PROJECTION = 1;
+    defines['ENABLE_PERSPECTIVE_PROJECTION'] = 1;
 
     // Initialize uniforms that are set by time and view changes
     const uniforms = default_automatic_uniforms();
@@ -433,7 +477,7 @@ function create_three_data(method, encoding, data) {
     for (let channel in encoding) {
         // This modifies uniforms in place
         const update_uniforms = channel_handlers[channel];
-        const desc = encoding[channel];
+        const desc = encoding[channel]!;
         if (!update_uniforms) {
             throw new Error(`Missing channel handler for channel ${channel}`);
         }

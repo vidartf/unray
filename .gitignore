@@ -6,7 +6,11 @@ build/
 node_modules/
 
 # Compiled javascript
-unray/static/
+unray/static/index.*
+unray/static/lib
+
+# Coverage data
+js/coverage
 
 # OS X
 .DS_Store
