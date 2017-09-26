@@ -108,5 +108,12 @@ function create_geometry(sorted: boolean, cells: Int32Array, coordinates: Float3
     geometry.boundingSphere = create_bounding_sphere(coordinates);
     geometry.boundingBox = create_bounding_box(coordinates);
 
+    geometry.computeBoundingBox = () => {
+        geometry.boundingBox = create_bounding_box(coordinates);
+    };
+    geometry.computeBoundingSphere = () => {
+        geometry.boundingSphere = create_bounding_sphere(coordinates);
+    };
+
     return geometry;
 }
