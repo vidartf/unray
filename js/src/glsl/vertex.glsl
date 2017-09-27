@@ -436,13 +436,8 @@ void main()
     // vec3 x[4] = reorder(coordinates, local_vertices);  // TODO: Possibly easier for compiler to optimize something like this
     vec3 x0 = getitem(coordinates, local_vertices[0]);
     vec3 x1 = getitem(coordinates, local_vertices[1]);
-    vec3 x2 = getitem(coordinates, local_vertices[2]);
-    vec3 x3 = getitem(coordinates, local_vertices[3]);
 
-    // Compute the normal vector of the tetrahedon face opposing this vertex
-    vec3 edge_a = x2 - x1;
-    vec3 edge_b = x3 - x1;
-    vec3 n = normalize(cross(edge_a, edge_b));
+    vec3 n = getitem(v_planes, local_vertex_id).xyz;
 
     // Compute the distance from the current vertex
     // to its orthogonal projection on the opposing face
@@ -459,6 +454,18 @@ void main()
     // access to all ray lengths interpolated across the rasterized
     // triangle in the fragment shader.
     v_ray_lengths = with_nonzero_at(local_vertex_id, ray_length);
+
+    const float front_facing_eps = 1e-2;
+
+    for (int i = 0; i < 4; ++i) {
+        v_facing[i] = -1.0;
+        for (int j = 0; j < 4; ++j) {
+            if (j != i && dot(v_planes[i].xyz, view_direction) <= front_facing_eps) {
+                v_facing[i] = +1.0;
+                break;
+            }
+        }
+    }
 #endif
 
 

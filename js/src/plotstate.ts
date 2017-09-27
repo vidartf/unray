@@ -64,6 +64,16 @@ function prerender_update(renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam
 
     // Just in time updates of uniform values
     const u = material.uniforms;
+    const isPerspective = (camera as any).isPerspectiveCamera;
+    const currentPerspective = !!material.defines['ENABLE_PERSPECTIVE_PROJECTION'];
+    if (isPerspective !== currentPerspective) {
+        if (isPerspective) {
+            material.defines['ENABLE_PERSPECTIVE_PROJECTION'] = 1;
+        } else {
+            delete material.defines['ENABLE_PERSPECTIVE_PROJECTION'];
+        }
+        material.needsUpdate = true;
+    }
 
     // FIXME: Get actual time from some start point in seconds,
     // or make it a parameter to be controlled from the outside
