@@ -51,6 +51,15 @@ class SurfacePlot(Plot):
     # Wireframe parameters are packed in their own model, None means disabled
     wireframe = Instance(WireframeParams, allow_none=True).tag(sync=True, **widget_serialization)
 
+    def dashboard(self):
+        "Create a combined dashboard for this plot."
+        traits = [self.color, self.wireframe]
+        children = []
+        for t in traits:
+            if t and hasattr(t, "dashboard"):
+                children.append(t.dashboard())
+        return widgets.VBox(children=children)
+
 
 @register
 class IsosurfacePlot(Plot):
@@ -65,6 +74,15 @@ class IsosurfacePlot(Plot):
 
     # Configuration of values to show
     values = Instance(IsovalueParams, allow_none=False).tag(sync=True, **widget_serialization)
+
+    def dashboard(self):
+        "Create a combined dashboard for this plot."
+        traits = [self.color, self.field, self.values]
+        children = []
+        for t in traits:
+            if t and hasattr(t, "dashboard"):
+                children.append(t.dashboard())
+        return widgets.VBox(children=children)
 
 
 @register
@@ -83,6 +101,24 @@ class XrayPlot(Plot):
     # TODO: To do this properly need some other blend equation setup
     #color = Color("#ffffff").tag(sync=True)
 
+    def dashboard(self):
+        "Create a combined dashboard for this plot."
+        traits = [self.density]
+        children = []
+        for t in traits:
+            if t and hasattr(t, "dashboard"):
+                children.append(t.dashboard())
+
+        w = widgets.FloatSlider(value=self.extinction, min=0, max=5, description="Extinction")
+        widgets.jslink((w, "value"), (self, "extinction"))
+        children.append(w)
+
+        # w = widgets.ColorPicker(value=self.color)
+        # widgets.jslink((w, "value"), (self, "color"))
+        # children.append(w)
+
+        return widgets.VBox(children=children)
+
 
 @register
 class MinPlot(Plot):
@@ -92,6 +128,15 @@ class MinPlot(Plot):
     # Color field with color mapping
     color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
 
+    def dashboard(self):
+        "Create a combined dashboard for this plot."
+        traits = [self.color]
+        children = []
+        for t in traits:
+            if t and hasattr(t, "dashboard"):
+                children.append(t.dashboard())
+        return widgets.VBox(children=children)
+
 
 @register
 class MaxPlot(Plot):
@@ -100,6 +145,15 @@ class MaxPlot(Plot):
 
     # Color field with color mapping
     color = Instance(ColorField, allow_none=False).tag(sync=True, **widget_serialization)
+
+    def dashboard(self):
+        "Create a combined dashboard for this plot."
+        traits = [self.color]
+        children = []
+        for t in traits:
+            if t and hasattr(t, "dashboard"):
+                children.append(t.dashboard())
+        return widgets.VBox(children=children)
 
 
 @register
@@ -113,6 +167,20 @@ class SumPlot(Plot):
     # Exposure level (color is scaled by 2**exposure)
     # TODO: Validate in range [-10, 10]
     exposure = CFloat(0.0).tag(sync=True)
+
+    def dashboard(self):
+        "Create a combined dashboard for this plot."
+        traits = [self.color]
+        children = []
+        for t in traits:
+            if t and hasattr(t, "dashboard"):
+                children.append(t.dashboard())
+
+        w = widgets.FloatSlider(value=self.exposure, min=-4, max=+4, description="Exposure")
+        widgets.jslink((w, "value"), (self, "exposure"))
+        children.append(w)
+
+        return widgets.VBox(children=children)
 
 
 @register
@@ -133,3 +201,21 @@ class VolumePlot(Plot):
     # Exposure level (color is scaled by 2**exposure)
     # TODO: Validate in range [-10, 10]
     exposure = CFloat(0.0).tag(sync=True)
+
+    def dashboard(self):
+        "Create a combined dashboard for this plot."
+        traits = [self.color]
+        children = []
+        for t in traits:
+            if t and hasattr(t, "dashboard"):
+                children.append(t.dashboard())
+
+        w = widgets.FloatSlider(value=self.extinction, min=0, max=5, description="Extinction")
+        widgets.jslink((w, "value"), (self, "extinction"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.exposure, min=-4, max=+4, description="Exposure")
+        widgets.jslink((w, "value"), (self, "exposure"))
+        children.append(w)
+
+        return widgets.VBox(children=children)

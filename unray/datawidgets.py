@@ -19,6 +19,11 @@ class BaseWidget(widgets.Widget):
     _model_module = Unicode(widget_module_name).tag(sync=True)
     _model_module_version = Unicode(widget_module_version).tag(sync=True)
 
+    def dashboard(self):
+        "Create a default empty dashboard."
+        # return widgets.HBox()
+        return widgets.HTML(value=r"<em>No dashboard implemented</em>")
+
 
 # ------------------------------------------------------
 
