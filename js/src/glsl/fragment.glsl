@@ -48,7 +48,6 @@ void main()
 //     }
 // #endif
 
-
     // Fragment position in model space
     vec3 position = v_model_position;
 
