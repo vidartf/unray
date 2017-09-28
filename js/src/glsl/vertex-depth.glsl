@@ -6,7 +6,7 @@ for (int i = 0; i < 6; ++i) {
 }
 
 
-#if !defined(ENABLE_PERSPECTIVE_PROJECTION)
+#ifndef ENABLE_PERSPECTIVE_PROJECTION
     // The vertex attribute local_vertices[1..3] is carefully
     // chosen to be ccw winded seen from outside the tetrahedron
     // such that n computed below will point away from local_vertices[0]

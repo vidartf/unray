@@ -38,10 +38,6 @@
     #define ENABLE_BARYCENTRIC_DERIVATIVES 1
 #endif
 
-#ifdef ENABLE_FACET_PLANE
-    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
-#endif
-
 #ifdef ENABLE_EMISSION_BACK
     #if !(defined(ENABLE_EMISSION) && defined(ENABLE_EMISSION_FIELD))
     #error Inconsistent emission defines
@@ -80,6 +76,16 @@
     #define ENABLE_BARYCENTRIC_COORDINATES 1
     #define ENABLE_EDGES 1
     #define ENABLE_PLANES 1
+    #define ENABLE_FACET_INDEX 1
+#endif
+
+#ifdef ENABLE_FACET_PLANE
+    #define ENABLE_FACET_INDEX 1
+    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
+#endif
+
+#ifdef ENABLE_FACET_INDEX
+    #define ENABLE_BARYCENTRIC_DERIVATIVES 1
 #endif
 
 #ifdef ENABLE_BARYCENTRIC_DERIVATIVES

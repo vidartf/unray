@@ -6,10 +6,10 @@
     // Check all faces (we don't know which face we're on,
     // but that's always a front face and will be skipped)
     for (int i = 0; i < 4; ++i) {
-        // Only back faces can be exit points
-        // TODO: Might be possible to simplify or improve by
-        //       using (i != facet) to skip the current facet
-        if (v_facing[i] < 0.0) {
+        // Skip the current facet (i != facet), and
+        // only back faces can be exit points (v_facing[i] < 0.0)
+        // TODO: With the current facet check, the facing check may be superfluous
+        if (i != facet && v_facing[i] < 0.0) {
             // Compute depth of ray from entry point to this face
             vec3 n = v_planes[i].xyz;
             float ray_length = (v_planes[i].w - dot(n, position)) / dot(n, view_direction);
@@ -30,9 +30,7 @@
         depth = 0.0;
     }
     depth = clamp(depth, 0.0, v_max_depth);
-
 #else
-
     // !defined(ENABLE_PERSPECTIVE_PROJECTION)
     float depth = compute_depth(
         v_ray_lengths, v_barycentric_coordinates,

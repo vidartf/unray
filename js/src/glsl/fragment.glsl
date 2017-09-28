@@ -67,8 +67,11 @@ void main()
 #endif
 
     // Determine which facet we're on and fetch the normal vector
-#ifdef ENABLE_FACET_PLANE
+#ifdef ENABLE_FACET_INDEX
     int facet = smallest_index(bc_width);
+#endif
+
+#ifdef ENABLE_FACET_PLANE
     vec4 facet_plane = getitem(v_planes, facet);
 #endif
 
