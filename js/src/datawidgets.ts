@@ -14,17 +14,7 @@ import {
 
 
 export
-class MeshModel extends widgets.WidgetModel {
-    get isMesh() { return true; }
-
-    defaults() {
-        return Object.assign(super.defaults(), module_defaults, {
-            _model_name : "MeshModel",
-            auto_orient: true,
-            cells: null,  // ndarray
-            points: null,  // ndarray
-        });
-    }
+class BaseModel extends widgets.WidgetModel {
 
     initialize(attributes: any, options: {model_id: string, comm?: any, widget_manager: widgets.ManagerBase<any>}) {
         super.initialize(attributes, options);
@@ -33,18 +23,45 @@ class MeshModel extends widgets.WidgetModel {
     }
 
     createPropertiesArrays() {
-        // This will ensure changes to the data in these trigger a change event
-        // regardless of whether they are arrays or datawidgets:
-        // The change events will trigger a rerender when object is added to scene
-        this.datawidget_properties = ["cells", "points"];
+        this.datawidget_properties = [];
+        this.child_model_properties = [];
     }
 
     setupListeners() {
+        // Handle changes in child model instance props
+        for (let propName of this.child_model_properties) {
+            // register listener for current child value
+            var curValue = this.get(propName) as BaseModel;
+            if (curValue) {
+                this.listenTo(curValue, 'change', this.onChildChanged.bind(this));
+                this.listenTo(curValue, 'childchange', this.onChildChanged.bind(this));
+            }
+
+            // make sure to (un)hook listeners when child points to new object
+            this.on('change:' + propName, (model: BaseModel, value: BaseModel, options: any) => {
+                const prevModel = this.previous(propName) as BaseModel;
+                const currModel = value;
+                if (prevModel) {
+                    this.stopListening(prevModel);
+                }
+                if (currModel) {
+                    this.listenTo(currModel, 'change', this.onChildChanged.bind(this));
+                    this.listenTo(currModel, 'childchange', this.onChildChanged.bind(this));
+                }
+            }, this);
+        };
+
         // Handle changes in data widgets/union properties
-        this.datawidget_properties.forEach(function(propName) {
-            listenToUnion(this, propName, this.onChange.bind(this), false);
-        }, this);
+        for (let propName of this.datawidget_properties) {
+            listenToUnion(this, propName, this.onChildChanged.bind(this), false);
+        };
         this.on('change', this.onChange, this);
+    }
+
+    onChildChanged(model: widgets.WidgetModel, options: any) {
+        console.log('child changed: ' + model.model_id);
+        // Propagate up hierarchy:
+        this.trigger('childchange', this);
     }
 
     onChange(model: widgets.WidgetModel, options: any) {
@@ -57,9 +74,33 @@ class MeshModel extends widgets.WidgetModel {
     }
 
     datawidget_properties: string[];
+    child_model_properties: string[];
+}
+
+
+export
+class MeshModel extends BaseModel {
+    get isMesh() { return true; }
+
+    defaults() {
+        return Object.assign(super.defaults(), module_defaults, {
+            _model_name : "MeshModel",
+            auto_orient: true,
+            cells: null,  // ndarray
+            points: null,  // ndarray
+        });
+    }
+
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        // This will ensure changes to the data in these trigger a change event
+        // regardless of whether they are arrays or datawidgets:
+        // The change events will trigger a rerender when object is added to scene
+        this.datawidget_properties.push("cells", "points");
+    }
 
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             cells: data_union_serialization,
             points: data_union_serialization,
@@ -69,7 +110,7 @@ class MeshModel extends widgets.WidgetModel {
 
 
 export
-class FieldModel extends widgets.WidgetModel {
+class FieldModel extends BaseModel {
     get isField() { return true; }
 
     defaults() {
@@ -82,8 +123,14 @@ class FieldModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.datawidget_properties.push("values");
+        this.child_model_properties.push("mesh");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             mesh: { deserialize: widgets.unpack_models },
             values: data_union_serialization,
@@ -93,7 +140,7 @@ class FieldModel extends widgets.WidgetModel {
 
 
 export
-class IndicatorFieldModel extends widgets.WidgetModel {
+class IndicatorFieldModel extends BaseModel {
     get isIndicatorField() { return true; }
 
     defaults() {
@@ -106,8 +153,14 @@ class IndicatorFieldModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.datawidget_properties.push("values");
+        this.child_model_properties.push("mesh");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             mesh: { deserialize: widgets.unpack_models },
             values: data_union_serialization,
@@ -117,7 +170,7 @@ class IndicatorFieldModel extends widgets.WidgetModel {
 
 
 export
-class WireframeParamsModel extends widgets.WidgetModel {
+class WireframeParamsModel extends BaseModel {
     get isWireframeParams() { return true; }
 
     defaults() {
@@ -136,7 +189,7 @@ class WireframeParamsModel extends widgets.WidgetModel {
 
 
 export
-class IsovalueParamsModel extends widgets.WidgetModel {
+class IsovalueParamsModel extends BaseModel {
     get isIsovalueParam() { return true; }
 
     defaults() {
@@ -155,7 +208,7 @@ class IsovalueParamsModel extends widgets.WidgetModel {
 
 
 export
-class ArrayScalarLUTModel extends widgets.WidgetModel {
+class ArrayScalarLUTModel extends BaseModel {
     get isArrayScalarLUT() { return true; }
 
     defaults() {
@@ -167,8 +220,13 @@ class ArrayScalarLUTModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.datawidget_properties.push("values");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             values: data_union_serialization,
         }
@@ -177,7 +235,7 @@ class ArrayScalarLUTModel extends widgets.WidgetModel {
 
 
 export
-class ArrayColorLUTModel extends widgets.WidgetModel {
+class ArrayColorLUTModel extends BaseModel {
     get isArrayColorLUT() { return true; }
 
     defaults() {
@@ -189,8 +247,13 @@ class ArrayColorLUTModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.datawidget_properties.push("values");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             values: data_union_serialization,
         }
@@ -199,7 +262,7 @@ class ArrayColorLUTModel extends widgets.WidgetModel {
 
 
 export
-class NamedColorLUTModel extends widgets.WidgetModel {
+class NamedColorLUTModel extends BaseModel {
     get isNamedColorLUT() { return true; }
 
     defaults() {
@@ -216,7 +279,7 @@ class NamedColorLUTModel extends widgets.WidgetModel {
 
 
 export
-class ScalarConstantModel extends widgets.WidgetModel {
+class ScalarConstantModel extends BaseModel {
     get isScalarConstant() { return true; }
 
     defaults() {
@@ -235,7 +298,7 @@ function isScalarConstant(model: any): model is ScalarConstantModel {
 
 
 export
-class ScalarFieldModel extends widgets.WidgetModel {
+class ScalarFieldModel extends BaseModel {
     get isScalarField() { return true; }
 
     defaults() {
@@ -247,8 +310,13 @@ class ScalarFieldModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_model_properties.push("field", "lut");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             field: { deserialize: widgets.unpack_models },
             lut: { deserialize: widgets.unpack_models },
@@ -263,7 +331,7 @@ function isScalarField(model: any): model is ScalarFieldModel {
 
 
 export
-class ScalarIndicatorsModel extends widgets.WidgetModel {
+class ScalarIndicatorsModel extends BaseModel {
     get isScalarIndicators() { return true; }
 
     defaults() {
@@ -276,8 +344,13 @@ class ScalarIndicatorsModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_model_properties.push("field", "lut");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             field: { deserialize: widgets.unpack_models },
             lut: { deserialize: widgets.unpack_models },
@@ -295,7 +368,7 @@ function isScalarIndicators(model: any): model is ScalarIndicatorsModel {
 
 
 export
-class ColorConstantModel extends widgets.WidgetModel {
+class ColorConstantModel extends BaseModel {
     get isColorConstant() { return true; }
 
     defaults() {
@@ -308,7 +381,7 @@ class ColorConstantModel extends widgets.WidgetModel {
     }
 
     // static serializers: ISerializers = Object.assign({},
-    //     widgets.WidgetModel.serializers,
+    //     BaseModel.serializers,
     //     {
     //     }
     // );
@@ -321,7 +394,7 @@ function isColorConstant(model: any): model is ColorConstantModel {
 
 
 export
-class ColorFieldModel extends widgets.WidgetModel {
+class ColorFieldModel extends BaseModel {
     get isColorField() { return true; }
 
     defaults() {
@@ -333,8 +406,13 @@ class ColorFieldModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_model_properties.push("field", "lut");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             field: { deserialize: widgets.unpack_models },
             lut: { deserialize: widgets.unpack_models },
@@ -349,7 +427,7 @@ function isColorField(model: any): model is ColorFieldModel {
 
 
 export
-class ColorIndicatorsModel extends widgets.WidgetModel {
+class ColorIndicatorsModel extends BaseModel {
     get isColorIndicators() { return true; }
 
     defaults() {
@@ -361,8 +439,13 @@ class ColorIndicatorsModel extends widgets.WidgetModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_model_properties.push("field", "lut");
+    }
+
     static serializers: ISerializers = Object.assign({},
-        widgets.WidgetModel.serializers,
+        BaseModel.serializers,
         {
             field: { deserialize: widgets.unpack_models },
             lut: { deserialize: widgets.unpack_models },
