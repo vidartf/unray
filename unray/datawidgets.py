@@ -304,7 +304,7 @@ class WireframeParams(BaseWidget):
         widgets.jslink((w, "value"), (self, "enable"))
         children.append(w)
 
-        w = widgets.FloatSlider(value=self.size, min=0.005, max=0.1, step=0.005, readout_format=".3f", description="Width")
+        w = widgets.FloatSlider(value=self.size, min=0.005, max=0.1, step=0.005, readout_format=".3f", description="Size")
         widgets.jslink((w, "value"), (self, "size"))
         children.append(w)
 
@@ -338,6 +338,10 @@ class IsovalueParams(BaseWidget):
             options=[(v.capitalize(), v) for v in isosurface_types],
             description="Mode")
         traitlets.link((w, "value"), (self, "mode"))
+        children.append(w)
+
+        w = widgets.FloatText(value=self.value, description="Value of (first) isosurface")
+        widgets.jslink((w, "value"), (self, "value"))
         children.append(w)
 
         w = widgets.FloatSlider(value=self.num_intervals, min=0.0, step=0.1, readout_format=".1f", description="Number of intervals")
