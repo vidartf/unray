@@ -37,7 +37,7 @@ function create_default_encodings(): IEncodingMap {
     };
     const wireframe = {
         enable: false,
-        size: 0.001,
+        size: 0.01,
         color: "#000000",
         opacity: 1.0,
     };

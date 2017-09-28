@@ -179,7 +179,7 @@ class WireframeParamsModel extends BaseModel {
             _model_name : "WireframeParamsModel",
 
             enable: true,
-            size: 0.001,
+            size: 0.01,
             color: "#000000",
             opacity: 1.0,
             decay: 0.5,
