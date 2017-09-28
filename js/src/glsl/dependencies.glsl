@@ -44,7 +44,7 @@
 
 #ifdef ENABLE_EMISSION_BACK
     #if !(defined(ENABLE_EMISSION) && defined(ENABLE_EMISSION_FIELD))
-    compile_error();  // Inconsistent emission defines
+    #error Inconsistent emission defines
     #endif
     #define ENABLE_EMISSION_GRADIENT 1
     #define ENABLE_DEPTH 1
@@ -53,7 +53,7 @@
 
 #ifdef ENABLE_DENSITY_BACK
     #if !(defined(ENABLE_DENSITY) && defined(ENABLE_DENSITY_FIELD))
-    compile_error();  // Inconsistent density defines
+    #error Inconsistent density defines
     #endif
     #define ENABLE_DENSITY_GRADIENT 1
     #define ENABLE_DEPTH 1

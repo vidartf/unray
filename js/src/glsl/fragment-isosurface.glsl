@@ -1,6 +1,8 @@
+#line 1000
+
 // Config check
 #if !(defined(ENABLE_EMISSION_BACK) || defined(ENABLE_DENSITY_BACK))
-compile_error();  // Isosurface needs front and back values
+#error Isosurface needs front and back values
 #endif
 
 
@@ -55,7 +57,7 @@ if (!find_isovalue_power_spacing(value, back, front, u_isovalue, u_isovalue_spac
     discard;
 }
 #else
-compile_error(); // Missing valid USING_ISOSURFACE_* define
+#error Missing valid USING_ISOSURFACE_* define
 #endif
 
 
