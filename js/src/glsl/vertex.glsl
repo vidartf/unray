@@ -150,6 +150,9 @@ void main()
     mat3 Jinv = inverse(transpose(mat3(edge[2], edge[3], edge[1])));
 #endif
 
+#ifdef ENABLE_PLANES
+@import ./vertex-planes;
+#endif
 
 #ifdef ENABLE_DEPTH
 @import ./vertex-depth;

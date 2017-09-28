@@ -1,8 +1,6 @@
-#line 1000
-
 // Config check
 #if !(defined(ENABLE_EMISSION_BACK) || defined(ENABLE_DENSITY_BACK))
-#error Isosurface needs front and back values
+#error Isosurface needs front and back values.
 #endif
 
 
@@ -57,7 +55,7 @@ if (!find_isovalue_power_spacing(value, back, front, u_isovalue, u_isovalue_spac
     discard;
 }
 #else
-#error Missing valid USING_ISOSURFACE_* define
+#error Missing valid USING_ISOSURFACE_* define.
 #endif
 
 
@@ -93,6 +91,7 @@ float cos_V_N = abs(dot(surface_normal, view_direction));
 float k_emit = mix(u_emission_intensity_range.x, u_emission_intensity_range.y, cos_V_N);
 C *= k_emit;
 #endif
+
 
 // Opaque since isosurface is contained in [back, front] unless discarded
 float a = 1.0;
