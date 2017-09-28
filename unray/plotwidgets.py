@@ -25,6 +25,8 @@ from .datawidgets import ColorLUT, ArrayColorLUT, NamedColorLUT
 from .datawidgets import ColorValued, ColorConstant, ColorField, ColorIndicators
 from .datawidgets import WireframeParams, IsovalueParams
 
+from .datawidgets import _gather_dashboards, _make_accordion
+
 
 @register
 class Plot(Blackbox):
@@ -53,12 +55,9 @@ class SurfacePlot(Plot):
 
     def dashboard(self):
         "Create a combined dashboard for this plot."
-        traits = [self.color, self.wireframe]
-        children = []
-        for t in traits:
-            if t and hasattr(t, "dashboard"):
-                children.append(t.dashboard())
-        return widgets.VBox(children=children)
+        names = ["restrict", "color", "wireframe"]
+        children, titles = _gather_dashboards(self, names)
+        return _make_accordion(children, titles)
 
 
 @register
@@ -77,12 +76,9 @@ class IsosurfacePlot(Plot):
 
     def dashboard(self):
         "Create a combined dashboard for this plot."
-        traits = [self.color, self.field, self.values]
-        children = []
-        for t in traits:
-            if t and hasattr(t, "dashboard"):
-                children.append(t.dashboard())
-        return widgets.VBox(children=children)
+        names = ["restrict", "color", "field", "values"]
+        children, titles = _gather_dashboards(self, names)
+        return _make_accordion(children, titles)
 
 
 @register
@@ -103,21 +99,20 @@ class XrayPlot(Plot):
 
     def dashboard(self):
         "Create a combined dashboard for this plot."
-        traits = [self.density]
-        children = []
-        for t in traits:
-            if t and hasattr(t, "dashboard"):
-                children.append(t.dashboard())
+        names = ["restrict", "density"]
+        children, titles = _gather_dashboards(self, names)
 
         w = widgets.FloatSlider(value=self.extinction, min=0, max=5, description="Extinction")
         widgets.jslink((w, "value"), (self, "extinction"))
         children.append(w)
+        titles.append("Extinction")
 
         # w = widgets.ColorPicker(value=self.color)
         # widgets.jslink((w, "value"), (self, "color"))
         # children.append(w)
+        # titles.append("Color")
 
-        return widgets.VBox(children=children)
+        return _make_accordion(children, titles)
 
 
 @register
@@ -130,12 +125,9 @@ class MinPlot(Plot):
 
     def dashboard(self):
         "Create a combined dashboard for this plot."
-        traits = [self.color]
-        children = []
-        for t in traits:
-            if t and hasattr(t, "dashboard"):
-                children.append(t.dashboard())
-        return widgets.VBox(children=children)
+        names = ["restrict", "color"]
+        children, titles = _gather_dashboards(self, names)
+        return _make_accordion(children, titles)
 
 
 @register
@@ -148,12 +140,8 @@ class MaxPlot(Plot):
 
     def dashboard(self):
         "Create a combined dashboard for this plot."
-        traits = [self.color]
-        children = []
-        for t in traits:
-            if t and hasattr(t, "dashboard"):
-                children.append(t.dashboard())
-        return widgets.VBox(children=children)
+        children, titles = _gather_dashboards(self, ["restrict", "color"])
+        return _make_accordion(children, titles)
 
 
 @register
@@ -170,17 +158,14 @@ class SumPlot(Plot):
 
     def dashboard(self):
         "Create a combined dashboard for this plot."
-        traits = [self.color]
-        children = []
-        for t in traits:
-            if t and hasattr(t, "dashboard"):
-                children.append(t.dashboard())
+        children, titles = _gather_dashboards(self, ["restrict", "color"])
 
         w = widgets.FloatSlider(value=self.exposure, min=-4, max=+4, description="Exposure")
         widgets.jslink((w, "value"), (self, "exposure"))
         children.append(w)
+        titles.append("Exposure")
 
-        return widgets.VBox(children=children)
+        return _make_accordion(children, titles)
 
 
 @register
@@ -204,18 +189,16 @@ class VolumePlot(Plot):
 
     def dashboard(self):
         "Create a combined dashboard for this plot."
-        traits = [self.color]
-        children = []
-        for t in traits:
-            if t and hasattr(t, "dashboard"):
-                children.append(t.dashboard())
+        children, titles = _gather_dashboards(self, ["restrict", "color"])
 
         w = widgets.FloatSlider(value=self.extinction, min=0, max=5, description="Extinction")
         widgets.jslink((w, "value"), (self, "extinction"))
         children.append(w)
+        titles.append("Extinction")
 
         w = widgets.FloatSlider(value=self.exposure, min=-4, max=+4, description="Exposure")
         widgets.jslink((w, "value"), (self, "exposure"))
         children.append(w)
+        titles.append("Exposure")
 
-        return widgets.VBox(children=children)
+        return _make_accordion(children, titles)
