@@ -79,7 +79,7 @@ def test_face_color_indicators(face_color_indicators):
 def test_wireframe_params(wireframe_params):
     expected = [
         ("enable", True),
-        ("size", 0.001),
+        ("size", 0.01),
         ("color", "#000000"),
         ("opacity", 1.0),
     ]
