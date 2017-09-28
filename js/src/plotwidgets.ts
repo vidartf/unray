@@ -360,6 +360,45 @@ abstract class PlotModel extends BlackboxModel {
         });
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models = ['mesh', 'restrict'];
+    }
+
+    setupListeners() {
+        super.setupListeners();
+        // Handle changes in child model instance props
+        for (let propName of this.child_data_models) {
+            // register listener for current child value
+            var curValue = this.get(propName) as widgets.WidgetModel;
+            if (curValue) {
+                this.listenTo(curValue, 'change', this.onDataChildChanged.bind(this));
+                this.listenTo(curValue, 'childchange', this.onDataChildChanged.bind(this));
+            }
+
+            // make sure to (un)hook listeners when child points to new object
+            this.on('change:' + propName, (model: widgets.WidgetModel, value: widgets.WidgetModel, options: any) => {
+                const prevModel = this.previous(propName) as widgets.WidgetModel;
+                const currModel = value;
+                if (prevModel) {
+                    this.stopListening(prevModel);
+                }
+                if (currModel) {
+                    this.listenTo(currModel, 'change', this.onDataChildChanged.bind(this));
+                    this.listenTo(currModel, 'childchange', this.onDataChildChanged.bind(this));
+                }
+            }, this);
+        };
+    }
+
+    onDataChildChanged(model: widgets.WidgetModel, options: any) {
+        // One of the child data widgets has changed, ensure THREE
+        // object gets updated:
+        this.syncToThreeObj();
+        // Then ensure we let pythreejs know our object is changed:
+        this.trigger('childchange', this);
+    }
+
     constructThreeObject(): THREE.Group {
         const root = new THREE.Group();
         this.plotState = create_plot_state(root, this.getPlotMethod());
@@ -389,6 +428,8 @@ abstract class PlotModel extends BlackboxModel {
     }
 
     plotState: IPlotState;
+
+    child_data_models: string[];
 
     static serializers: ISerializers = Object.assign({},
         BlackboxModel.serializers,
@@ -426,6 +467,11 @@ class SurfacePlotModel extends PlotModel {
             createEmissionEncoding(this.get("color")),
             createWireframeParamsEncoding(this.get("wireframe"))
         );
+    }
+
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models.push('color', 'wireframe');
     }
 
     static serializers: ISerializers = Object.assign({},
@@ -470,6 +516,11 @@ class IsosurfacePlotModel extends PlotModel {
         );
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models.push('color', 'field', 'values');
+    }
+
     static serializers: ISerializers = Object.assign({},
         PlotModel.serializers,
         {
@@ -512,6 +563,11 @@ class XrayPlotModel extends PlotModel {
         );
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models.push('density', 'extinction');
+    }
+
     static serializers: ISerializers = Object.assign({},
         PlotModel.serializers,
         {
@@ -545,6 +601,11 @@ class MinPlotModel extends PlotModel {
             createRestrictEncoding(this.get("restrict")),
             createEmissionEncoding(this.get("color"))
         );
+    }
+
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models.push('color');
     }
 
     static serializers: ISerializers = Object.assign({},
@@ -582,6 +643,11 @@ class MaxPlotModel extends PlotModel {
         );
     }
 
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models.push('color');
+    }
+
     static serializers: ISerializers = Object.assign({},
         PlotModel.serializers,
         {
@@ -617,6 +683,11 @@ class SumPlotModel extends PlotModel {
             createEmissionEncoding(this.get("color")),
             createExposureEncoding(this.get("exposure"))
         );
+    }
+
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models.push('color');
     }
 
     static serializers: ISerializers = Object.assign({},
@@ -658,6 +729,11 @@ class VolumePlotModel extends PlotModel {
             createExtinctionEncoding(this.get("extinction")),
             createExposureEncoding(this.get("exposure"))
         );
+    }
+
+    createPropertiesArrays() {
+        super.createPropertiesArrays();
+        this.child_data_models.push('color', 'density', 'extinction', 'exposure');
     }
 
     static serializers: ISerializers = Object.assign({},
