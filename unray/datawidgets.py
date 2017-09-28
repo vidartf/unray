@@ -293,7 +293,7 @@ class WireframeParams(BaseWidget):
     """Collection of wireframe parameters."""
     _model_name = Unicode('WireframeParamsModel').tag(sync=True)
     enable = CBool(True).tag(sync=True)
-    size = CFloat(0.001).tag(sync=True)  # TODO: Rename to width?
+    size = CFloat(0.01).tag(sync=True)  # TODO: Rename to width?
     color = CSSColor("#000000").tag(sync=True)
     opacity = CFloat(1.0).tag(sync=True)
 
