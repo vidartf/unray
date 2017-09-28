@@ -82,9 +82,9 @@ function default_uniforms() {
             u_wireframe_color: { value: new THREE.Color(0.1, 0.1, 0.1), gltype: "vec3" },
             u_wireframe_alpha: { value: 0.7, gltype: "float" },
             u_wireframe_size: { value: 0.01, gltype: "float" },
-            u_wireframe_decay: { value: 1.0, gltype: "float" },
+            u_wireframe_decay: { value: 1.0, gltype: "float" },  // TODO: Unused, delete or implement
         },
-        interval: {
+        interval: {  // TODO: Unused, delete or implement
             u_volume_interval: { value: new THREE.Vector2(0.0, 1.0), gltype: "vec2" },
         },
         isovalues: {
