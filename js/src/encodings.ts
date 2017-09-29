@@ -22,9 +22,9 @@ function create_default_encodings(): IEncodingMap {
         field: null,
         space: "P1",
         // [D0, D1] -> [0,1]
-        range: "auto",      // Or [x0, x1]
+        domain: "auto",      // Or [x0, x1]
         scale: "linear",    // "identity", "linear", "log", "pow"
-        scale_base: "e",    // If scale type is log
+        scale_base: 0,      // If scale type is log, 0 means natural base
         scale_exponent: 2,  // If scale type is pow
         // [0,1] -> density
         lut_field: null,    // Identity if null
@@ -35,9 +35,9 @@ function create_default_encodings(): IEncodingMap {
         field: null,
         space: "P1",
         // [D0, D1] -> [0,1]
-        range: "auto",      // Or [x0, x1]
+        domain: "auto",      // Or [x0, x1]
         scale: "linear",    // "identity", "linear", "log", "pow"
-        scale_base: "e",    // If scale type is log
+        scale_base: 0,      // If scale type is log, 0 means natural base
         scale_exponent: 2,  // If scale type is pow
         // [0,1] -> color
         lut_field: null,    // [0,1] * color if null
@@ -133,10 +133,10 @@ interface IDensityEncodingEntry {
     constant: number;
     field: string | null;
     space: FieldType;
-    range: 'auto' | number[];
+    domain: 'auto' | number[];
     scale: ScaleType;
-    scale_base: "e" | null;
-    scale_exponent: number | null;
+    scale_base: number;
+    scale_exponent: number;
     lut_field: string | null;
 }
 
@@ -148,10 +148,10 @@ interface IEmissionEncodingEntry {
     constant: number;
     field: string | null;
     space: FieldType;
-    range: 'auto' | number[];
+    domain: 'auto' | number[];
     scale: ScaleType;
-    scale_base: "e" | null;
-    scale_exponent: number | null;
+    scale_base: number;
+    scale_exponent: number;
     lut_field: string | null;
     color: string;
 }

@@ -68,9 +68,7 @@ class BaseModel extends widgets.WidgetModel {
         // Let backbone tell us which attributes have changed
         const changed = this.changedAttributes();
 
-        console.log("Mesh::onChange", model, options, changed);
-
-        // TODO: Reorient cells on change event
+        console.log("BaseWidget::onChange", model, options, changed);
     }
 
     datawidget_properties: string[];
@@ -170,6 +168,24 @@ class IndicatorFieldModel extends BaseModel {
 
 
 export
+class ScaleModel extends BaseModel {
+    get isScale() { return true; }
+
+    defaults() {
+        return Object.assign(super.defaults(),
+            module_defaults, {
+            _model_name : "ScaleModel",
+
+            mode: "linear",
+            domain: "auto",
+            base: 0.0,
+            exponent: 2.0,
+        });
+    }
+}
+
+
+export
 class WireframeParamsModel extends BaseModel {
     get isWireframeParams() { return true; }
 
@@ -197,10 +213,11 @@ class IsovalueParamsModel extends BaseModel {
             _model_name : "IsovalueParamsModel",
 
             mode: "single", // "single", "linear", "log", "pow"
-            value: 0.0,
-            num_intervals: 1.0,
             base: 0.0,
             exponent: 2.0,
+
+            value: 0.0,
+            num_intervals: 1.0,
         });
     }
 }
@@ -305,6 +322,7 @@ class ScalarFieldModel extends BaseModel {
             module_defaults, {
             _model_name : "ScalarFieldModel",
             field: null,  // FieldModel (maps x -> scalar)
+            scale: null, // ScaleModel
             lut: null,  // ArrayScalarMapModel (maps scalar -> scalar)
         });
     }
@@ -318,6 +336,7 @@ class ScalarFieldModel extends BaseModel {
         BaseModel.serializers,
         {
             field: { deserialize: widgets.unpack_models },
+            scale: { deserialize: widgets.unpack_models },
             lut: { deserialize: widgets.unpack_models },
         }
     );
@@ -401,6 +420,7 @@ class ColorFieldModel extends BaseModel {
             module_defaults, {
             _model_name : "ColorFieldModel",
             field: null,  // FieldModel
+            scale: null, // ScaleModel
             lut: null,  // ArrayColorMapModel | NamedColorMapModel
         });
     }
@@ -414,6 +434,7 @@ class ColorFieldModel extends BaseModel {
         BaseModel.serializers,
         {
             field: { deserialize: widgets.unpack_models },
+            scale: { deserialize: widgets.unpack_models },
             lut: { deserialize: widgets.unpack_models },
         }
     );

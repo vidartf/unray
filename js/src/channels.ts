@@ -77,12 +77,14 @@ function update_scale_properties(channel: string, desc: any, uniforms: any, defi
     if (desc.scale === "identity" || !desc.field) {
         defines['USE_' + cap_channel + '_SCALE_IDENTITY'] = 1;
     } else {
-        let range = desc.range;
-        if (range === "auto") {
+        let domain = desc.domain;
+        console.log(desc);
+        console.log(domain);
+        if (domain === "auto") {
             const array = data[desc.field];
-            range = compute_range(array);
+            domain = compute_range(array);
         }
-        const [xa, xb] = range;
+        const [xa, xb] = domain;
 
         let m = undefined;
         let b = undefined;
@@ -95,11 +97,8 @@ function update_scale_properties(channel: string, desc: any, uniforms: any, defi
             break;
         case "log":
             defines['USE_' + cap_channel + '_SCALE_LOG'] = 1;
-            var s = 1.0;
-            if (desc.scale_base > 0) {
-                // y = m * log_base x + b = (m / log base) log x + b = (m * s) log x + b
-                s = 1.0 / Math.log(desc.scale_base);
-            }
+            // y = m * log_base x + b = (m / log base) log x + b = (m * s) log x + b
+            var s = desc.scale_base > 0 ? 1.0 / Math.log(desc.scale_base) : 1.0;
             m = 1 / (s*Math.log(xa) - s*Math.log(xa));
             b = -s*Math.log(xa) * m;
             break;
@@ -386,6 +385,7 @@ function create_three_data(method: Method,
         // FIXME: Make this deep copy? Or perhaps we'll only read from this anyway?
         encoding[channel] = Object.assign({}, default_encoding[channel], user_encoding[channel]);
     }
+    console.log("Built encoding:", encoding);
 
     // Define initial default defines based on method
     const defines: IDefines = Object.assign({}, default_defines[method]);
