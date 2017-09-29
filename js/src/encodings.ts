@@ -17,23 +17,31 @@ function create_default_encodings(): IEncodingMap {
         space: "I3",
     };
     const density = {
+        // x -> [D0, D1] \subset Real
         constant: 1.0,
         field: null,
         space: "P1",
-        range: "auto",
-        lut_field: null,
-        // TODO: Handle linear/log scaled LUTs somehow:
-        // lut_space: "linear",
+        // [D0, D1] -> [0,1]
+        range: "auto",      // Or [x0, x1]
+        scale: "linear",    // "identity", "linear", "log", "pow"
+        scale_base: "e",    // If scale type is log
+        scale_exponent: 2,  // If scale type is pow
+        // [0,1] -> density
+        lut_field: null,    // Identity if null
     };
     const emission = {
+        // x -> [D0, D1] \subset Real
         constant: 1.0,
-        color: "#ffffff",
         field: null,
         space: "P1",
-        range: "auto",
-        lut_field: null,
-        // TODO: Handle linear/log scaled LUTs somehow:
-        // lut_space: "linear",
+        // [D0, D1] -> [0,1]
+        range: "auto",      // Or [x0, x1]
+        scale: "linear",    // "identity", "linear", "log", "pow"
+        scale_base: "e",    // If scale type is log
+        scale_exponent: 2,  // If scale type is pow
+        // [0,1] -> color
+        lut_field: null,    // [0,1] * color if null
+        color: "#ffffff",
     };
     const wireframe = {
         enable: false,
@@ -42,11 +50,11 @@ function create_default_encodings(): IEncodingMap {
         opacity: 1.0,
     };
     const isovalues = {
-        mode: "single", // "single", "linear", "log", "power", "sweep"
+        mode: "single", // "single", "linear", "log", "pow"
         value: 0.0,
-        num_intervals: 0,
-        spacing: 1.0,
-        period: 3.0,
+        num_intervals: 1.0,
+        base: 1.0,
+        exponent: 1.0,
     };
     const light = {
         emission_intensity_range: [0.5, 1.0],
@@ -59,7 +67,7 @@ function create_default_encodings(): IEncodingMap {
     // Compose method defaults from channels
     const default_encodings = {
         surface: { cells, coordinates, indicators, wireframe, emission, light } as ISurfaceEncoding,
-        isosurface: { cells, coordinates, indicators, wireframe, isovalues, emission, density } as IIsoSurfaceEncoding,
+        isosurface: { cells, coordinates, indicators, wireframe, isovalues, emission, density, light } as IIsoSurfaceEncoding,
         xray: { cells, coordinates, indicators, density, extinction } as IXrayEncoding,
         sum: { cells, coordinates, indicators, emission, exposure } as ISumEncoding,
         min: { cells, coordinates, indicators, emission } as IMinEncoding,
@@ -85,6 +93,10 @@ type FieldType = "P0" | "P1" | "D1";
 // List of valid indicator field types
 export
 type IndicatorFieldType = "I0" | "I1" | "I2" | "I3";
+
+// List of valid scale types
+export
+type ScaleType = "identity" | "linear" | "log" | "pow";
 
 /**
  * Encoding entry for cells
@@ -122,6 +134,9 @@ interface IDensityEncodingEntry {
     field: string | null;
     space: FieldType;
     range: 'auto' | number[];
+    scale: ScaleType;
+    scale_base: "e" | null;
+    scale_exponent: number | null;
     lut_field: string | null;
 }
 
@@ -131,13 +146,14 @@ interface IDensityEncodingEntry {
 export
 interface IEmissionEncodingEntry {
     constant: number;
-    color: string;
     field: string | null;
     space: FieldType;
     range: 'auto' | number[];
+    scale: ScaleType;
+    scale_base: "e" | null;
+    scale_exponent: number | null;
     lut_field: string | null;
-    // TODO: Handle linear/log scaled LUTs somehow:
-    // lut_space: "linear",
+    color: string;
 }
 
 /**
@@ -156,11 +172,11 @@ interface IWireframeEncodingEntry {
  */
 export
 interface IIsoValuesEncodingEntry {
-    mode: "single" | "linear" | "log" | "power" | "sweep";
+    mode: "single" | "linear" | "log" | "pow";
     value: number;
     num_intervals: number;
-    spacing: number;
-    period: number;
+    base: number;
+    exponent: number;
 }
 
 /**
@@ -231,6 +247,7 @@ export interface IIsoSurfaceEntries {
     isovalues: IIsoValuesEncodingEntry;
     emission: IEmissionEncodingEntry;
     density: IDensityEncodingEntry;
+    light: ILightEncodingEntry;
 }
 
 export interface IXrayEntries {

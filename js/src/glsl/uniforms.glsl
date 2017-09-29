@@ -42,31 +42,46 @@ uniform sampler2D t_coordinates;
     uniform int u_cell_indicator_value;
 #endif
 
+
 #ifdef ENABLE_DENSITY
     #ifdef ENABLE_DENSITY_FIELD
         uniform sampler2D t_density;
-        uniform vec4 u_density_range;
     #else
         uniform float u_density_constant;
     #endif
+
+    #ifndef USE_EMISSION_SCALE_IDENTITY
+    uniform float u_density_scale_m;
+    uniform float u_density_scale_b;
+    uniform float u_density_scale_k;
+    #endif
+
     #ifdef ENABLE_DENSITY_LUT
         uniform sampler2D t_density_lut;
     #endif
 #endif
 
+
 #ifdef ENABLE_EMISSION
     #ifdef ENABLE_EMISSION_FIELD
         uniform sampler2D t_emission;
-        uniform vec4 u_emission_range;
     #else
         uniform float u_emission_constant;
     #endif
+
+    #ifndef USE_EMISSION_SCALE_IDENTITY
+    uniform float u_emission_scale_m;
+    uniform float u_emission_scale_b;
+    uniform float u_emission_scale_k;
+    #endif
+
     #ifdef ENABLE_EMISSION_LUT
         uniform sampler2D t_emission_lut;
     #endif
 #endif
 
-// 
+
+// This is used in many places, but can probably be restricted by some defines
 uniform vec3 u_emission_color;
 
 
@@ -93,8 +108,10 @@ uniform float u_wireframe_size;
 uniform vec2 u_volume_interval;
 // Isovalue for surface n = 0
 uniform float u_isovalue;
+uniform float u_isovalue_scaled;
 // Isovalue spacing for multiple surface
 uniform float u_isovalue_spacing;
+uniform float u_isovalue_spacing_inv;
 // Time period for sweep modes
 uniform float u_isovalue_sweep_period;
 #endif

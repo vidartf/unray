@@ -33,13 +33,6 @@ function compute_range(array: number[]): number[] {
 }
 
 export
-function extended_range(min: number, max: number) {
-    let range = max - min;
-    let scale = range > 0.0 ? 1.0 / range : 1.0;
-    return [min, max, range, scale];
-}
-
-export
 function compute_texture_shape(size: number) {
     if (size <= 0) {
         throw new Error(`Expecting a positive size ${size}`);
@@ -76,104 +69,54 @@ const default_defines: { [key: string]: IDefines} = {
     },
 };
 
-function update_range_uniform(uniforms: IUniformMap, name: string, range: 'auto' | number[], array: number[]) {
-    if (range) {
-        const newrange = range === "auto" ? compute_range(array) : range;
-        uniforms[name] = { value: extended_range(newrange[0], newrange[1]) };
-    }
-}
+// TODO: Update any types here
+function update_scale_properties(channel: string, desc: any, uniforms: any, defines: any, data: any) {
+    channel = channel.toLowerCase();
+    const cap_channel = channel.toUpperCase();
 
-// TODO: Use or delete
-function __allocate_value(item_size: number) {
-    switch (item_size)
-    {
-    case 1:
-        return 0;
-    case 2:
-        return new THREE.Vector2();
-    case 3:
-        return new THREE.Vector3();
-    case 4:
-        return new THREE.Vector4();
-    case 9:
-        return new THREE.Matrix3();
-    case 16:
-        return new THREE.Matrix4();
-    default:
-        throw { message: "Invalid item size", item_size: item_size };
-    }
-}
-
-// TODO: Use or delete
-function __update_uniform_value(uniform: THREE.IUniform, new_value: any) {
-    if (typeof uniform.value === "number") {
-        uniform.value = new_value;
-    } else if (uniform.value.isVector2) {  // TODO: Clean up this verbosity, did this to get rid of some errors quickly
-        uniform.value.set(new_value[0], new_value[1]);
-    } else if (uniform.value.isVector3) {
-        uniform.value.set(new_value[0], new_value[1], new_value[2]);
-    } else if (uniform.value.isVector4) {
-        uniform.value.set(new_value[0], new_value[1], new_value[2], new_value[3]);
-    } else if (uniform.value.isVector2 || uniform.value.isVector3 || uniform.value.isVector4) {
-        uniform.value.set(...new_value);
-    } else if (uniform.value.isMatrix3 || uniform.value.isMatrix4) {
-        uniform.value.set(...new_value);
-    } else if (uniform.value.isColor) {
-        // TODO: Consider better color handling
-        if (new_value.isColor || typeof new_value === "string") {
-            uniform.value.set(new_value);
-        } else {
-            // Assuming rgb triplet
-            uniform.value.setRGB(new_value[0], new_value[1], new_value[2]);
-        }
-        // uniform.value.setHSL(...new_value);  // hsl triplet
+    if (desc.scale === "identity" || !desc.field) {
+        defines['USE_' + cap_channel + '_SCALE_IDENTITY'] = 1;
     } else {
-        console.warn("Unexpected uniform type " + (typeof uniform.value));
-        uniform.value = new_value;
+        let range = desc.range;
+        if (range === "auto") {
+            const array = data[desc.field];
+            range = compute_range(array);
+        }
+        const [xa, xb] = range;
+
+        let m = undefined;
+        let b = undefined;
+        let k = undefined;
+        switch (desc.scale) {
+        case "linear":
+            defines['USE_' + cap_channel + '_SCALE_LINEAR'] = 1;
+            m = 1 / (xb - xa);
+            b = -xa * m;
+            break;
+        case "log":
+            defines['USE_' + cap_channel + '_SCALE_LOG'] = 1;
+            var s = 1.0;
+            if (desc.scale_base > 0) {
+                // y = m * log_base x + b = (m / log base) log x + b = (m * s) log x + b
+                s = 1.0 / Math.log(desc.scale_base);
+            }
+            m = 1 / (s*Math.log(xa) - s*Math.log(xa));
+            b = -s*Math.log(xa) * m;
+            break;
+        case "pow":
+            defines['USE_' + cap_channel + '_SCALE_POW'] = 1;
+            k = desc.scale_exponent;
+            m = 1 / (Math.pow(xa, k) - Math.pow(xa, k));
+            b = -Math.pow(xa, k) * m;
+            break;
+        default:
+            throw new Error("Invalid scale type.");
+        }
+        if (m !== undefined) uniforms["u_" + channel + "_scale_m"] = { value: m };
+        if (b !== undefined) uniforms["u_" + channel + "_scale_b"] = { value: b };
+        if (k !== undefined) uniforms["u_" + channel + "_scale_k"] = { value: k };
     }
 }
-
-/*  Old range update code TODO Review new code and delete this
-
-        // Update associated data range
-        if (enc.range !== undefined) {
-            let newrange = null;
-            if (enc.range === "auto") {
-                newrange = compute_range(new_value);
-            } else  {
-                newrange = enc.range;
-            }
-            if (newrange !== null) {
-                newrange = extended_range(...newrange);
-                const range_name = "u_" + channel_name + "_range";
-                if (uniforms.hasOwnProperty(range_name)) {
-                    uniforms[range_name].value.set(...newrange);
-                }
-            }
-
-            // FIXME: Autoupdate values in a cleaner way
-            // if (method === "isosurface") {
-            //     const isovalue_enc = FIXME;
-            //     if (isovalue_enc.value === "auto") {
-            //         const value_range = newrange;
-            //         u.u_isovalue = 0.5 * (value_range[0] + value_range[1]);
-            //     }
-            //     if (isovalue_enc.spacing === "auto") {
-            //         const num_intervals = isovalue_enc.num_intervals;
-            //         let spacing = 0.0;
-            //         switch (isovalue_enc.mode) {
-            //         case "linear":
-            //             spacing = (1.0 / num_intervals) * (value_range[1] - value_range[0]);
-            //             break;
-            //         case "log":
-            //             spacing = Math.pow(value_range[1] / value_range[0], 1.0 / (num_intervals + 1.0));
-            //             break;
-            //         }
-            //         u.u_isovalue_spacing = spacing;
-            //     }
-            // }
-        }
-*/
 
 export
 interface IShaderOptions {
@@ -313,11 +256,11 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
                 // TODO: Rename ENABLE_DENSITY_BACK -> ENABLE_DENSITY_LINEAR
                 defines['ENABLE_DENSITY_BACK'] = 1;
             }
-
-            update_range_uniform(uniforms, "u_density_range", desc.range, array);
         } else {
             uniforms['u_density_constant'] = { value: desc.constant };
         }
+
+        update_scale_properties('density', desc, uniforms, defines, data);
 
         if (desc.lut_field) {
             const key = desc.lut_field;
@@ -360,11 +303,11 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
             if (desc.space !== "P0") {
                 defines['ENABLE_EMISSION_BACK'] = 1;
             }
-
-            update_range_uniform(uniforms, "u_emission_range", desc.range, array);
         } else {
             uniforms['u_emission_constant'] = { value: desc.constant };
         }
+
+        update_scale_properties('emission', desc, uniforms, defines, data);
 
         if (desc.lut_field) {
             const key = desc.lut_field;
@@ -390,13 +333,12 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
         const {uniforms, defines} = shaderOptions;
         uniforms['u_isovalue'] = { value: desc.value };
 
-        const scale_modes = ["linear", "log", "power"];
-        if (scale_modes.indexOf(desc.mode) !== -1) {
-            uniforms['u_isovalue_spacing'] = { value: desc.spacing };
-        }
+        const spacing = 1.0 / desc.num_intervals;
 
-        if (desc.mode === "sweep") {
-            uniforms['u_isovalue_sweep_period'] = { value: desc.period };
+        const scale_modes = ["linear", "log", "pow"];
+        if (scale_modes.indexOf(desc.mode) !== -1) {
+            uniforms['u_isovalue_spacing'] = { value: spacing };
+            uniforms['u_isovalue_spacing_inv'] = { value: 1.0 / spacing };
         }
 
         // TODO: Use a single define instead?
@@ -404,13 +346,11 @@ const channel_handlers: {[key: string]: ChannelHandler} = {
             switch (mode) {
             case "single":
                 return { USING_ISOSURFACE_MODE_SINGLE: 1 };
-            case "sweep":
-                return { USING_ISOSURFACE_MODE_SWEEP: 1 };
             case "linear":
                 return { USING_ISOSURFACE_MODE_LINEAR: 1 };
             case "log":
                 return { USING_ISOSURFACE_MODE_LOG: 1 };
-            case "power":
+            case "pow":
                 return { USING_ISOSURFACE_MODE_POWER: 1 };
             default:
                 throw new Error(`Invalid isovalue mode ${mode}.`);

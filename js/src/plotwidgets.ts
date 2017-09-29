@@ -153,7 +153,7 @@ function createWireframeParamsEncoding(params: datamodels.WireframeParamsModel):
 
 function createIsovalueParamsEncoding(params: datamodels.IsovalueParamsModel): IPartialEncodingEntriesAndData {
     const channel = "isovalues";
-    const keys = ["mode", "value", "num_intervals", "spacing", "period"];
+    const keys = ["mode", "value", "num_intervals", "base", "exponent"];
     return createParamsEncoding(params, channel, keys);
 }
 

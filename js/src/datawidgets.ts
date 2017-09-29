@@ -182,7 +182,6 @@ class WireframeParamsModel extends BaseModel {
             size: 0.01,
             color: "#000000",
             opacity: 1.0,
-            decay: 0.5,
         });
     }
 }
@@ -197,11 +196,11 @@ class IsovalueParamsModel extends BaseModel {
             module_defaults, {
             _model_name : "IsovalueParamsModel",
 
-            mode: "single", // "single", "linear", "log", "power", "sweep"
+            mode: "single", // "single", "linear", "log", "pow"
             value: 0.0,
-            num_intervals: 0,
-            spacing: 1.0,
-            period: 3.0,
+            num_intervals: 1.0,
+            base: 0.0,
+            exponent: 2.0,
         });
     }
 }
