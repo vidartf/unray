@@ -13,7 +13,7 @@ echo
 pip install pytest
 
 #pip install -r requirements.txt
-pip install numpy traittypes ipywidgets ipydatawidgets
+pip install numpy ipywidgets ipydatawidgets
 
 ./install-pythreejs-branch.sh
 

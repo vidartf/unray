@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import * as widgets from "@jupyter-widgets/base";
 import { BlackboxModel } from "jupyter-threejs";
-import { getArrayFromUnion, data_union_serialization } from "jupyter-datawidgets";
+import { getArray } from "jupyter-dataserializers";
 
 //import _ from "underscore";
 
@@ -36,7 +36,7 @@ function getNotNull<T>(model: widgets.WidgetModel, key: string): T {
 
 function getIdentifiedValue(parent: widgets.WidgetModel, name: string) {
     const dataunion = getNotNull<widgets.WidgetModel>(parent, name);
-    const array = getArrayFromUnion(dataunion);
+    const array = getArray(dataunion);
     if (array === null) {
         throw new Error(`Array "${name}" is null!`);
     }

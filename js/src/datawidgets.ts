@@ -5,8 +5,8 @@
 import { module_defaults } from "./version";
 import * as widgets from "@jupyter-widgets/base";
 import {
-    getArrayFromUnion, data_union_serialization, listenToUnion
-} from "jupyter-datawidgets";
+    data_union_serialization, listenToUnion
+} from "jupyter-dataserializers";
 
 import {
     ISerializers
