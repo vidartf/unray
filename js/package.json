@@ -49,6 +49,7 @@
     "eslint-plugin-promise": "^3.5.0",
     "eslint-plugin-standard": "^3.0.1",
     "expect.js": "^0.3.1",
+    "jupyter-threejs": "^1.0.0",
     "karma": "^2.0.0",
     "karma-chrome-launcher": "^2.2.0",
     "karma-coverage": "^1.1.1",

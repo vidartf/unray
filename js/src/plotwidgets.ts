@@ -2,7 +2,6 @@
 
 import * as THREE from "three";
 import * as widgets from "@jupyter-widgets/base";
-import { BlackboxModel } from "jupyter-threejs";
 import { getArray } from "jupyter-dataserializers";
 
 //import _ from "underscore";
@@ -18,6 +17,29 @@ import {
 } from './utils';
 
 import * as encodings from './encodings';
+
+
+export
+declare class ThreeModel extends widgets.WidgetModel {
+    createPropertiesArrays(): void;
+    setupListeners(): void;
+    processNewObj(obj: any): any;
+    createThreeObjectAsync(): Promise<any>;
+    constructThreeObject(): any | Promise<any>;
+    onCustomMessage(content: any, buffers: any): void;
+    syncToThreeObj(): void;
+    syncToModel(): void;
+
+    obj: any;
+    three_properties: string[];
+    three_nested_properties: string[];
+    datawidget_properties: string[];
+    initPromise: Promise<any>;
+}
+
+
+export
+const BlackboxModel = require("jupyter-threejs/src").BlackboxModel as (typeof ThreeModel);
 
 
 function getNamedColorLutArray(name: string) {
