@@ -67,6 +67,7 @@ const embed = {
         filename: 'index.js',
         path: dist_path,
         libraryTarget: 'amd',
+        library: 'unray',
         publicPath: 'https://unpkg.com/unray@' + version + '/dist/'
     },
     devtool: 'source-map',
