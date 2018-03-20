@@ -3,7 +3,7 @@ import ipywidgets as widgets
 from ipywidgets import widget_serialization, register, Color
 from ipydatawidgets import DataUnion, data_union_serialization, shape_constraints
 import traitlets
-from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum, Union
+from traitlets import Unicode, CFloat, CInt, CBool, Enum, Union
 from traitlets import Instance, TraitError, TraitType, Undefined
 from ._version import widget_module_name, widget_module_version
 
