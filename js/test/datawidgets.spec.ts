@@ -43,24 +43,24 @@ describe('datawidgets', function() {
         });
     });
 
-    describe('ArrayScalarLUT', function() {
+    describe('ArrayScalarMap', function() {
         it('should be constructable', function() {
-            const model = factory.createArrayScalarLUT();
-            expect(model.get('_model_name')).to.be("ArrayScalarLUTModel");
+            const model = factory.createArrayScalarMap();
+            expect(model.get('_model_name')).to.be("ArrayScalarMapModel");
         });
     });
 
-    describe('ArrayColorLUT', function() {
+    describe('ArrayColorMap', function() {
         it('should be constructable', function() {
-            const model = factory.createArrayColorLUT();
-            expect(model.get('_model_name')).to.be("ArrayColorLUTModel");
+            const model = factory.createArrayColorMap();
+            expect(model.get('_model_name')).to.be("ArrayColorMapModel");
         });
     });
 
-    describe('NamedColorLUT', function() {
+    describe('NamedColorMap', function() {
         it('should be constructable', function() {
-            const model = factory.createNamedColorLUT();
-            expect(model.get('_model_name')).to.be("NamedColorLUTModel");
+            const model = factory.createNamedColorMap();
+            expect(model.get('_model_name')).to.be("NamedColorMapModel");
         });
     });
 

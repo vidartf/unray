@@ -107,27 +107,27 @@ function createCellIndicatorField() {
 }
 
 export
-function createArrayScalarLUT() {
+function createArrayScalarMap() {
     const values = ndarray(linspace(0, 1, 16));
 
     const attribs = { values };
-    return createTestModel(dw.ArrayScalarLUTModel, attribs);
+    return createTestModel(dw.ArrayScalarMapModel, attribs);
 }
 
 export
-function createArrayColorLUT() {
+function createArrayColorMap() {
     const values = ndarray(repeatedLinspace(0, 1, 16, 3));
 
     const attribs = { values };
-    return createTestModel(dw.ArrayColorLUTModel, attribs);
+    return createTestModel(dw.ArrayColorMapModel, attribs);
 }
 
 export
-function createNamedColorLUT() {
+function createNamedColorMap() {
     const name = "viridis";
 
     const attribs = { name };
-    return createTestModel(dw.NamedColorLUTModel, attribs);
+    return createTestModel(dw.NamedColorMapModel, attribs);
 }
 
 export
@@ -141,7 +141,7 @@ function createScalarConstant() {
 export
 function createScalarField() {
     const field = createP1Field();
-    const lut = createArrayScalarLUT();
+    const lut = createArrayScalarMap();
 
     const attribs = { field, lut };
     return createTestModel(dw.ScalarFieldModel, attribs);
@@ -150,7 +150,7 @@ function createScalarField() {
 export
 function createScalarIndicators() {
     const field = createCellIndicatorField();
-    const lut = createArrayScalarLUT();
+    const lut = createArrayScalarMap();
 
     const attribs = { field, lut };
     return createTestModel(dw.ScalarIndicatorsModel, attribs);
@@ -168,7 +168,7 @@ function createColorConstant() {
 export
 function createColorField() {
     const field = createP1Field();
-    const lut = createArrayColorLUT();
+    const lut = createArrayColorMap();
 
     const attribs = { field, lut };
     return createTestModel(dw.ColorFieldModel, attribs);
@@ -177,7 +177,7 @@ function createColorField() {
 export
 function createCellColorIndicators() {
     const field = createCellIndicatorField();
-    const lut = createArrayColorLUT();
+    const lut = createArrayColorMap();
 
     const attribs = { field, lut };
     return createTestModel(dw.ColorIndicatorsModel, attribs);
@@ -186,7 +186,7 @@ function createCellColorIndicators() {
 export
 function createFaceColorIndicators() {
     const field = createFaceIndicatorField();
-    const lut = createArrayColorLUT();
+    const lut = createArrayColorMap();
 
     const attribs = { field, lut };
     return createTestModel(dw.ColorIndicatorsModel, attribs);

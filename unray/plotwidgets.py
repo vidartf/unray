@@ -19,9 +19,9 @@ from traitlets import Instance, TraitError, TraitType, Undefined
 from ._version import widget_module_name, widget_module_version
 
 from .datawidgets import Mesh, Field, IndicatorField
-from .datawidgets import ScalarLUT, ArrayScalarLUT #, NamedScalarLUT
+from .datawidgets import ScalarMap, ArrayScalarMap #, NamedScalarMap
 from .datawidgets import ScalarValued, ScalarConstant, ScalarField, ScalarIndicators
-from .datawidgets import ColorLUT, ArrayColorLUT, NamedColorLUT
+from .datawidgets import ColorMap, ArrayColorMap, NamedColorMap
 from .datawidgets import ColorValued, ColorConstant, ColorField, ColorIndicators
 from .datawidgets import WireframeParams, IsovalueParams
 

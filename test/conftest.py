@@ -57,7 +57,7 @@ def cell_indicators(mesh):
 @pytest.fixture
 def array_scalar_lut():
     values = np.linspace(0.0, 1.0, 16, dtype="float32")
-    return ur.ArrayScalarLUT(values=values)
+    return ur.ArrayScalarMap(values=values)
 
 @pytest.fixture
 def array_color_lut():
@@ -65,12 +65,12 @@ def array_color_lut():
     values[:, 0] = np.linspace(0.0, 1.0, 16, dtype="float32")
     values[:, 1] = np.linspace(0.0, 1.0, 16, dtype="float32")
     values[:, 2] = np.linspace(0.0, 1.0, 16, dtype="float32")
-    return ur.ArrayColorLUT(values=values)
+    return ur.ArrayColorMap(values=values)
 
 @pytest.fixture
 def named_color_lut():
     name = "viridis"
-    return ur.NamedColorLUT(name=name)
+    return ur.NamedColorMap(name=name)
 
 @pytest.fixture
 def scalar_constant():

@@ -53,7 +53,7 @@ class Mesh(BaseWidget):
     """Representation of an unstructured mesh."""
     _model_name = Unicode('MeshModel').tag(sync=True)
     auto_orient = CBool(True).tag(sync=True)
-    cells = DataUnion(dtype=np.int32, shape_constraint=shape_constraints(None, 4)).tag(sync=True)    
+    cells = DataUnion(dtype=np.int32, shape_constraint=shape_constraints(None, 4)).tag(sync=True)
     points = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None, 3)).tag(sync=True)
 
 
@@ -79,51 +79,49 @@ class IndicatorField(BaseWidget):
 # TODO: Lookup tables for scalars and colors should be
 # developed further in ipyscales or shared with some other project
 
-# TODO: Rename LUT -> Map, ScalarMap, ColorMap, etc.
-
-class LUT(BaseWidget):
+class Map(BaseWidget):
     """Representation of a lookup table."""
     # Abstract class, don't register, and don't set name
 
 
-class ScalarLUT(LUT):
+class ScalarMap(Map):
     """Representation of a scalar lookup table."""
     # Abstract class, don't register, and don't set name
 
 
 @register
-class ArrayScalarLUT(ScalarLUT):
+class ArrayScalarMap(ScalarMap):
     """Representation of a scalar lookup table by an array of values."""
-    _model_name = Unicode('ArrayScalarLUTModel').tag(sync=True)
+    _model_name = Unicode('ArrayScalarMapModel').tag(sync=True)
     values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None)).tag(sync=True, **data_union_serialization)
 
-    # TODO: Handle linear/log scaled LUTs somehow:
+    # TODO: Handle linear/log scaled Maps somehow:
     #space = Enum(["linear", "log", "power"], "linear").tag(sync=True)
 
-    # TODO: Pair colors with domain values (LUT is a mapping real -> real)
+    # TODO: Pair colors with domain values (Map is a mapping real -> real)
 
     # TODO: Dashboard can make a list widget for values or
     #       a transfer function editor (would be a nice generic widget!)
 
 
-class ColorLUT(LUT):
+class ColorMap(Map):
     """Representation of a color lookup table."""
     # Abstract class, don't register, and don't set name
 
 
 @register
-class ArrayColorLUT(ColorLUT):
+class ArrayColorMap(ColorMap):
     """Representation of a color lookup table by an array of values."""
-    _model_name = Unicode('ArrayColorLUTModel').tag(sync=True)
+    _model_name = Unicode('ArrayColorMapModel').tag(sync=True)
     values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None, 3)).tag(sync=True, **data_union_serialization)
     space = Enum(["rgb", "hsv"], "rgb").tag(sync=True)
 
-    # TODO: Pair colors with domain values (LUT is a mapping real -> color)
+    # TODO: Pair colors with domain values (Map is a mapping real -> color)
 
     # TODO: Do this instead?
     # values = List(CSSColor).tag(sync=True)
     # Then we can do:
-    #   ArrayColorLUT(values=["hsl(30,50%,50%)", "hsl(90,50%,50%)"], space="hsl")
+    #   ArrayColorMap(values=["hsl(30,50%,50%)", "hsl(90,50%,50%)"], space="hsl")
     # Check out options for color interpolation spaces in d3.
 
     # TODO: Dashboard can make a list widget for values or
@@ -131,9 +129,9 @@ class ArrayColorLUT(ColorLUT):
 
 
 @register
-class NamedColorLUT(ColorLUT):
+class NamedColorMap(ColorMap):
     """Representation of a color lookup table by name."""
-    _model_name = Unicode('NamedColorLUTModel').tag(sync=True)
+    _model_name = Unicode('NamedColorMapModel').tag(sync=True)
 
     name = Enum(colormap_names, "viridis").tag(sync=True)
 
@@ -184,7 +182,7 @@ class ScalarField(ScalarValued):
     _model_name = Unicode('ScalarFieldModel').tag(sync=True)
 
     field = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
-    lut = Instance(ScalarLUT, allow_none=True).tag(sync=True, **widget_serialization)
+    lut = Instance(ScalarMap, allow_none=True).tag(sync=True, **widget_serialization)
 
     def dashboard(self):
         "Create linked widgets for this data."
@@ -199,7 +197,7 @@ class ScalarIndicators(ScalarValued):
 
     # TODO: Validate field spaces: ["I2", "I3"]
     field = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)
-    lut = Instance(ScalarLUT, allow_none=True).tag(sync=True, **widget_serialization)
+    lut = Instance(ScalarMap, allow_none=True).tag(sync=True, **widget_serialization)
     value = CInt(1).tag(sync=True)
 
     def dashboard(self):
@@ -260,7 +258,7 @@ class ColorField(ColorValued):
     _model_name = Unicode('ColorFieldModel').tag(sync=True)
 
     field = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
-    lut = Instance(ColorLUT, allow_none=True).tag(sync=True, **widget_serialization)
+    lut = Instance(ColorMap, allow_none=True).tag(sync=True, **widget_serialization)
 
     def dashboard(self):
         "Create linked widgets for this data."
@@ -276,7 +274,7 @@ class ColorIndicators(ColorValued):
 
     # TODO: Validate field spaces: ["I2", "I3"]
     field = Instance(IndicatorField, allow_none=False).tag(sync=True, **widget_serialization)
-    lut = Instance(ColorLUT, allow_none=True).tag(sync=True, **widget_serialization)
+    lut = Instance(ColorMap, allow_none=True).tag(sync=True, **widget_serialization)
 
     def dashboard(self):
         "Create linked widgets for this data."

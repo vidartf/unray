@@ -54,11 +54,11 @@ def test_scalar_constant(scalar_constant):
 
 def test_scalar_field(scalar_field):
     assert scalar_field.field._model_name == "FieldModel"
-    assert scalar_field.lut._model_name == "ArrayScalarLUTModel"
+    assert scalar_field.lut._model_name == "ArrayScalarMapModel"
 
 def test_scalar_indicators(scalar_indicators):
     assert scalar_indicators.field._model_name == "IndicatorFieldModel"
-    assert scalar_indicators.lut._model_name == "ArrayScalarLUTModel"
+    assert scalar_indicators.lut._model_name == "ArrayScalarMapModel"
 
 def test_color_constant(color_constant):
     assert 0.0 <= color_constant.intensity <= 1.0
@@ -66,15 +66,15 @@ def test_color_constant(color_constant):
 
 def test_color_field(color_field):
     assert color_field.field._model_name == "FieldModel"
-    assert color_field.lut._model_name == "ArrayColorLUTModel"
+    assert color_field.lut._model_name == "ArrayColorMapModel"
 
 def test_cell_color_indicators(cell_color_indicators):
     assert cell_color_indicators.field._model_name == "IndicatorFieldModel"
-    assert cell_color_indicators.lut._model_name == "ArrayColorLUTModel"
+    assert cell_color_indicators.lut._model_name == "ArrayColorMapModel"
 
 def test_face_color_indicators(face_color_indicators):
     assert face_color_indicators.field._model_name == "IndicatorFieldModel"
-    assert face_color_indicators.lut._model_name == "ArrayColorLUTModel"
+    assert face_color_indicators.lut._model_name == "ArrayColorMapModel"
 
 def test_wireframe_params(wireframe_params):
     expected = [

@@ -208,13 +208,13 @@ class IsovalueParamsModel extends BaseModel {
 
 
 export
-class ArrayScalarLUTModel extends BaseModel {
-    get isArrayScalarLUT() { return true; }
+class ArrayScalarMapModel extends BaseModel {
+    get isArrayScalarMap() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
             module_defaults, {
-            _model_name : "ArrayScalarLUTModel",
+            _model_name : "ArrayScalarMapModel",
             values: null,  // ndarray
             //space: "linear",
         });
@@ -235,13 +235,13 @@ class ArrayScalarLUTModel extends BaseModel {
 
 
 export
-class ArrayColorLUTModel extends BaseModel {
-    get isArrayColorLUT() { return true; }
+class ArrayColorMapModel extends BaseModel {
+    get isArrayColorMap() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
             module_defaults, {
-            _model_name : "ArrayColorLUTModel",
+            _model_name : "ArrayColorMapModel",
             values: null,  // ndarray
             space: "rgb",
         });
@@ -262,13 +262,13 @@ class ArrayColorLUTModel extends BaseModel {
 
 
 export
-class NamedColorLUTModel extends BaseModel {
-    get isNamedColorLUT() { return true; }
+class NamedColorMapModel extends BaseModel {
+    get isNamedColorMap() { return true; }
 
     defaults() {
         return Object.assign(super.defaults(),
             module_defaults, {
-            _model_name : "NamedColorLUTModel",
+            _model_name : "NamedColorMapModel",
             name: "viridis",
         });
     }
@@ -306,7 +306,7 @@ class ScalarFieldModel extends BaseModel {
             module_defaults, {
             _model_name : "ScalarFieldModel",
             field: null,  // FieldModel (maps x -> scalar)
-            lut: null,  // ArrayScalarLUTModel (maps scalar -> scalar)
+            lut: null,  // ArrayScalarMapModel (maps scalar -> scalar)
         });
     }
 
@@ -339,7 +339,7 @@ class ScalarIndicatorsModel extends BaseModel {
             module_defaults, {
             _model_name : "ScalarIndicatorsModel",
             field: null,  // IndicatorFieldModel (maps cell/face -> int)
-            lut: null,  // ArrayScalarLUTModel  // FIXME: OrdinalScalarLUTModel (maps int -> bool/int)
+            lut: null,  // ArrayScalarMapModel  // FIXME: OrdinalScalarMapModel (maps int -> bool/int)
             value: 1,   // integer
         });
     }
@@ -402,7 +402,7 @@ class ColorFieldModel extends BaseModel {
             module_defaults, {
             _model_name : "ColorFieldModel",
             field: null,  // FieldModel
-            lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
+            lut: null,  // ArrayColorMapModel | NamedColorMapModel
         });
     }
 
@@ -435,7 +435,7 @@ class ColorIndicatorsModel extends BaseModel {
             module_defaults, {
             _model_name : "ColorIndicatorsModel",
             field: null,  // IndicatorFieldModel
-            lut: null,  // ArrayColorLUTModel | NamedColorLUTModel
+            lut: null,  // ArrayColorMapModel | NamedColorMapModel
         });
     }
 

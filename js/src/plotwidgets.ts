@@ -235,13 +235,13 @@ function createDensityFieldEncoding(density: datamodels.ScalarFieldModel): IPart
 
     // Optional LUT
     if (lut) {
-        if (lut.isArrayScalarLUT) {
+        if (lut.isArrayScalarMap) {
             const values = getIdentifiedValue(lut, "values");
             if (values.value) {
                 const { id, value } = values;
                 data[id] = value;
                 desc.lut_field = id;
-                // TODO: Handle linear/log scaled LUTs somehow:
+                // TODO: Handle linear/log scaled Maps somehow:
                 //desc.lut_space = getNotNull(lut, "space");
             } else {
                 throw new Error(`Missing values in array LUT.`);
@@ -305,7 +305,7 @@ function createEmissionFieldEncoding(color: datamodels.ColorFieldModel): IPartia
 
     // Optional LUT
     if (lut) {
-        if (lut.isArrayColorLUT) {
+        if (lut.isArrayColorMap) {
             const values = getIdentifiedValue(lut, "values");
             if (values.value) {
                 const { id, value } = values;
@@ -314,17 +314,17 @@ function createEmissionFieldEncoding(color: datamodels.ColorFieldModel): IPartia
                 // TODO: Handle linear/log scaled LUTs somehow:
                 // desc.lut_space = getNotNull(lut, "space");
             } else {
-                throw new Error(`Missing required values in ArrayColorLUT`);
+                throw new Error(`Missing required values in ArrayColorMap`);
             }
-        } else if (lut.isNamedColorLUT) {
+        } else if (lut.isNamedColorMap) {
             const name = getNotNull<string>(lut, "name");
             const value = getNamedColorLutArray(name);
             const id = name;
             data[id] = value;
             desc.lut_field = id;
-            console.error("Named color LUT not implemented.");
+            console.error("Named colormap not implemented.");
         } else {
-            console.error("Invalid color LUT", lut);
+            console.error("Invalid colormap", lut);
         }
     }
 
