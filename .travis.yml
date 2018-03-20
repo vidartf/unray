@@ -11,4 +11,4 @@ install:
     - jupyter nbextension enable --py --sys-prefix unray
 script:
     - (cd test && python -m pytest)
-    - (cd js && npm run test -- --no-sandbox)
+    - (cd js && npm run test:ci)
