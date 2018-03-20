@@ -2,8 +2,7 @@
 
 import * as THREE from "three";
 import * as widgets from "@jupyter-widgets/base";
-import { BlackboxModel } from "jupyter-threejs";
-import { getArrayFromUnion, data_union_serialization } from "jupyter-datawidgets";
+import { getArray } from "jupyter-dataserializers";
 
 //import _ from "underscore";
 
@@ -18,6 +17,29 @@ import {
 } from './utils';
 
 import * as encodings from './encodings';
+
+
+export
+declare class ThreeModel extends widgets.WidgetModel {
+    createPropertiesArrays(): void;
+    setupListeners(): void;
+    processNewObj(obj: any): any;
+    createThreeObjectAsync(): Promise<any>;
+    constructThreeObject(): any | Promise<any>;
+    onCustomMessage(content: any, buffers: any): void;
+    syncToThreeObj(): void;
+    syncToModel(): void;
+
+    obj: any;
+    three_properties: string[];
+    three_nested_properties: string[];
+    datawidget_properties: string[];
+    initPromise: Promise<any>;
+}
+
+
+export
+const BlackboxModel = require("jupyter-threejs/src").BlackboxModel as (typeof ThreeModel);
 
 
 function getNamedColorLutArray(name: string) {
@@ -36,7 +58,7 @@ function getNotNull<T>(model: widgets.WidgetModel, key: string): T {
 
 function getIdentifiedValue(parent: widgets.WidgetModel, name: string) {
     const dataunion = getNotNull<widgets.WidgetModel>(parent, name);
-    const array = getArrayFromUnion(dataunion);
+    const array = getArray(dataunion);
     if (array === null) {
         throw new Error(`Array "${name}" is null!`);
     }

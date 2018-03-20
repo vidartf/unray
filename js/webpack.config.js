@@ -10,16 +10,14 @@ const version = require('./package.json').version;
 
 
 // Packages that shouldn't be bundled but loaded at runtime
-const externals = ['@jupyter-widgets/base', 'jupyter-datawidgets', 'three', 'jupyter-threejs'];
+const externals = ['@jupyter-widgets/base', 'three', 'jupyter-threejs'];
 
 
 // Custom webpack rules are generally the same for all webpack bundles, hence
 // stored in a separate local variable.
 const rules = [
-//    { test: /\.js$/, enforce: "pre", loader: 'eslint-loader' },
     { test: /\.ts$/, loader: 'ts-loader' },
     //{ test: /\.js$/, loader: "source-map-loader" },
-    { test: /\.json$/, loader: 'json-loader' },
     { test: /\.glsl$/, loader: 'webpack-glsl-loader' },
 ];
 
@@ -69,6 +67,7 @@ const embed = {
         filename: 'index.js',
         path: dist_path,
         libraryTarget: 'amd',
+        library: 'unray',
         publicPath: 'https://unpkg.com/unray@' + version + '/dist/'
     },
     devtool: 'source-map',

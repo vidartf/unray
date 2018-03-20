@@ -1,3 +1,4 @@
+
 module.exports = function (config) {
   config.set({
     basePath: '.',
@@ -30,6 +31,13 @@ module.exports = function (config) {
           "filename": "coverage.lcov"
         }
       }
-    }
+    },
+
+    customLaunchers: {
+      Travis: {
+          base: 'ChromeHeadless',
+          flags: ['--no-sandbox']
+      }
+    },
   });
 };
