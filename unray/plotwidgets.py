@@ -16,7 +16,7 @@ except:
 from traitlets import Unicode, CFloat
 from traitlets import Instance
 
-from ._version import widget_module_name, widget_module_version
+from ._version import widget_module_name, EXTENSION_SPEC_VERSION
 
 from .datawidgets import (
     Mesh, Field, ScalarValued, ScalarIndicators,
@@ -30,7 +30,7 @@ from .datawidgets import _gather_dashboards, _make_accordion
 class Plot(Blackbox):
     """Base class for all plot widgets."""
     _model_module = Unicode(widget_module_name).tag(sync=True)
-    _model_module_version = Unicode(widget_module_version).tag(sync=True)
+    _model_module_version = Unicode(EXTENSION_SPEC_VERSION).tag(sync=True)
 
     # Mesh must currently always be set
     mesh = Instance(Mesh, allow_none=False).tag(sync=True, **widget_serialization)

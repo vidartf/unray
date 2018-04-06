@@ -6,7 +6,7 @@ import traitlets
 from traitlets import (
     Unicode, CFloat, CInt, CBool, Enum, Union, Instance,
 )
-from ._version import widget_module_name, widget_module_version
+from ._version import widget_module_name, EXTENSION_SPEC_VERSION
 
 
 def _gather_dashboards(self, names):
@@ -43,7 +43,7 @@ isosurface_types = ("single", "linear", "log", "power", "sweep")
 class BaseWidget(widgets.Widget):
     # Abstract class, don't register, and don't set name
     _model_module = Unicode(widget_module_name).tag(sync=True)
-    _model_module_version = Unicode(widget_module_version).tag(sync=True)
+    _model_module_version = Unicode(EXTENSION_SPEC_VERSION).tag(sync=True)
 
 
 # ------------------------------------------------------
