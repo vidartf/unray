@@ -13,17 +13,15 @@ try:
 except:
     Blackbox = widgets.Widget
 
-from traitlets import Unicode, List, Dict, Any, CFloat, CInt, CBool, Enum
-from traitlets import Instance, TraitError, TraitType, Undefined
+from traitlets import Unicode, CFloat
+from traitlets import Instance
 
 from ._version import widget_module_name, widget_module_version
 
-from .datawidgets import Mesh, Field, IndicatorField
-from .datawidgets import ScalarMap, ArrayScalarMap #, NamedScalarMap
-from .datawidgets import ScalarValued, ScalarConstant, ScalarField, ScalarIndicators
-from .datawidgets import ColorMap, ArrayColorMap, NamedColorMap
-from .datawidgets import ColorValued, ColorConstant, ColorField, ColorIndicators
-from .datawidgets import WireframeParams, IsovalueParams
+from .datawidgets import (
+    Mesh, Field, ScalarValued, ScalarIndicators,
+    ColorValued, ColorField, WireframeParams, IsovalueParams,
+)
 
 from .datawidgets import _gather_dashboards, _make_accordion
 

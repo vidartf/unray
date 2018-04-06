@@ -42,7 +42,7 @@ export
 const BlackboxModel = require("jupyter-threejs/src").BlackboxModel as (typeof ThreeModel);
 
 
-function getNamedColorLutArray(name: string) {
+function getNamedColorMapArray(name: string) {
     // FIXME Implement something like this using d3
 }
 
@@ -318,7 +318,7 @@ function createEmissionFieldEncoding(color: datamodels.ColorFieldModel): IPartia
             }
         } else if (lut.isNamedColorMap) {
             const name = getNotNull<string>(lut, "name");
-            const value = getNamedColorLutArray(name);
+            const value = getNamedColorMapArray(name);
             const id = name;
             data[id] = value;
             desc.lut_field = id;
