@@ -25,19 +25,16 @@ LONG_DESCRIPTION = 'Volume Rendering for Unstructured Tetrahedral Meshes'
 version = get_version(pjoin(name, '_version.py'))
 
 nb_path = pjoin(HERE, name, 'static')
-#lab_path = pjoin(HERE, name, 'labextension')
 
 # Representative files that should exist after a successful build
 targets = [
     pjoin(nb_path, 'index.js'),
     pjoin(nb_path, 'extension.js'),
-    pjoin(HERE, 'lib', 'plugin.js'),
 ]
 
 package_data_spec = {
     name: [
         'static/*.*js*',
-        #'labextension/*.tgz'
     ]
 }
 
@@ -45,7 +42,6 @@ data_files_spec = [
     ('share/jupyter/nbextensions/' + name,
       nb_path,
       '*.js*'),
-    #('share/jupyter/lab/extensions', lab_path, '*.tgz'),
     ('etc/jupyter', pjoin(HERE, 'jupyter-config'), '**/*.json')
 ]
 
