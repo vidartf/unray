@@ -2,14 +2,8 @@
 module.exports = function (config) {
   config.set({
     basePath: '.',
-    frameworks: [
-      'mocha',
-      'karma-typescript',
-    ],
-    reporters: [
-      'mocha',
-      'karma-typescript',
-    ],
+    frameworks: ['mocha', 'karma-typescript'],
+    reporters: ['mocha', 'karma-typescript'],
     files: [
       { pattern: "test/**/*.ts" },
       { pattern: "src/**/*.ts" }
