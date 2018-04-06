@@ -34,8 +34,8 @@ module.exports = function (config) {
 
     customLaunchers: {
       Travis: {
-          base: 'ChromeHeadless',
-          flags: ['--no-sandbox']
+        base: 'ChromeHeadless',
+        flags: ['--no-sandbox']
       }
     },
   });
