@@ -9,8 +9,3 @@ which python
 which npm
 which node
 echo
-
-pip install pytest
-
-#pip install -r requirements.txt
-pip install numpy ipywidgets ipydatawidgets
