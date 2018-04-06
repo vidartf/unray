@@ -4,6 +4,7 @@ dist/
 build/
 *.py[cod]
 node_modules/
+.pytest_cache/
 
 # Compiled javascript
 unray/static/index.*
