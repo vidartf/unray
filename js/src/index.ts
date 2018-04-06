@@ -2,7 +2,7 @@
 //
 
 // Export the npm package version number
-export const version = require("../package.json").version;
+export { version } from './version';
 
 // Export widget models and views
 export * from "./datawidgets";
