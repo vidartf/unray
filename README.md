@@ -46,7 +46,6 @@ a cell sorting algorithm must be implementated in javascript or webassembly.
 To install use pip:
 
     pip install unray
-    jupyter nbextension enable --py --sys-prefix unray
 
 
 For a development installation (requires npm),

@@ -1,3 +1,0 @@
-numpy
-ipywidgets >= 7.0.0
-ipydatawidgets >= 1.2.0

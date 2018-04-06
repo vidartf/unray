@@ -1,10 +1,12 @@
-recursive-include unray/static *.*
-
+include LICENSE.txt
 include RELEASE.md
+include README.md
 
 include setupbase.py
-include requirements.txt
+include pytest.ini
+include .coverage.rc
 
+# Tests
 graft test
 graft testnotebooks
 
@@ -14,6 +16,7 @@ exclude docs/\#*
 
 # docs subdirs we want to skip
 prune docs/build
+prune docs/gh-pages
 prune docs/dist
 
 # Examples
@@ -28,6 +31,8 @@ global-exclude .ipynb_checkpoints
 
 
 # JS files
+graft unray/static
 graft js
-prune js/node_modules
+prune **/node_modules
+prune **/coverage
 prune js/dist
