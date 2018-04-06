@@ -9,6 +9,9 @@
     "type": "git",
     "url": "https://github.com/martinal/unray.git"
   },
+  "jupyterlab": {
+    "extension": "lib/plugin"
+  },
   "keywords": [
     "jupyter",
     "widgets",
@@ -19,11 +22,16 @@
     "scientific",
     "FEM",
     "webgl",
-    "threejs"
+    "threejs",
+    "jupyterlab",
+    "jupyterlab-extension"
   ],
   "scripts": {
-    "build": "webpack -p",
-    "build:all": "npm run build",
+    "build": "npm run build:lib && npm run build:nbextension",
+    "build:labextension": "cd ../unray && rimraf labextension && mkdirp labextension && cd labextension && npm pack ../../js",
+    "build:lib": "tsc --project src",
+    "build:nbextension": "webpack -p",
+    "build:all": "npm run build:lib && npm run build:labextension && npm run build:nbextension",
     "lint": "eslint src/*.js",
     "node": "node",
     "watch": "onchange 'package.json' 'src/*.ts' 'src/glsl/*.glsl' 'src/glsl/utils/*.glsl' -v -- npm run build",
@@ -36,6 +44,7 @@
     "test:ci": "karma start --single-run --browsers Travis karma.conf.js"
   },
   "devDependencies": {
+    "@phosphor/application": "^1.5.0",
     "@types/backbone": "^1.3.36",
     "@types/chai": "^4.0.4",
     "@types/expect.js": "^0.3.29",
@@ -60,6 +69,7 @@
     "karma-sourcemap-loader": "^0.3.7",
     "karma-typescript": "^3.0.12",
     "karma-webpack": "^2.0.13",
+    "mkdirp": "^0.5.1",
     "mocha": "^5.0.4",
     "onchange": "^3.3.0",
     "ts-loader": "^4.1.0",

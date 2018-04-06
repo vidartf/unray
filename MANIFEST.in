@@ -6,6 +6,8 @@ include setupbase.py
 include pytest.ini
 include .coverage.rc
 
+include unray/labextension/*.tgz
+
 # Tests
 graft test
 graft testnotebooks
