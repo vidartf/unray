@@ -46,8 +46,4 @@ before_test:
 
 # to run your custom scripts instead of automatic tests
 test_script:
-  - 'py.test -l --cov-report xml:"%APPVEYOR_BUILD_FOLDER%\coverage.xml" --cov=unray'
-
-on_success:
-  - cd "%APPVEYOR_BUILD_FOLDER%"
-  - codecov -X gcov --file "%APPVEYOR_BUILD_FOLDER%\coverage.xml"
+  - 'py.test -l '
