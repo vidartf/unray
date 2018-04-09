@@ -3,7 +3,7 @@ python:
   - 3.6
   - 3.5
   - 3.4
-sudo: false
+sudo: true
 env:
   matrix:
     - GROUP=python
@@ -14,7 +14,6 @@ matrix:
   include:
     - python: 3.6
       env: GROUP=docs
-      sudo: true
 cache:
   pip: true
   directories:
