@@ -50,11 +50,7 @@ before_script:
 script:
   - |
     if [[ $GROUP == python ]]; then
-      EXIT_STATUS=0
-      pushd $(mktemp -d)
-      py.test -l || EXIT_STATUS=$?
-      popd
-      (exit $EXIT_STATUS)
+      (py.test -l)
     elif [[ $GROUP == js ]]; then
       (cd js && npm run test:ci)
     elif [[ $GROUP == docs ]]; then

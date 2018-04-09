@@ -39,9 +39,6 @@ build: off
 before_test:
   - git config --global user.email appveyor@fake.com
   - git config --global user.name "AppVeyor CI"
-  - set "tmptestdir=%tmp%\unray-%RANDOM%"
-  - mkdir "%tmptestdir%"
-  - cd "%tmptestdir%"
 
 
 # to run your custom scripts instead of automatic tests
