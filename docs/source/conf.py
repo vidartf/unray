@@ -198,6 +198,17 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 nbsphinx_allow_errors = True # exception ipstruct.py ipython_genutils
 
 
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        import errno
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
 def setup(app):
     doc_ext_path = os.path.join(here, '_static', 'unray.js')
     if not os.path.exists(doc_ext_path):
@@ -213,6 +224,7 @@ def setup(app):
             finally:
                 os.chdir(popd)
         from shutil import copyfile
+        mkdir_p(os.path.dirname(doc_ext_path))
         copyfile(src_file, doc_ext_path)
 
     app.setup_extension('jupyter_sphinx.embed_widgets')
