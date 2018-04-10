@@ -156,3 +156,4 @@ unray/labextension/*.tgz
 
 # Packed lab extensions
 unray/labextension
+docs/source/_static/unray.js
