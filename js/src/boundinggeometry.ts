@@ -36,7 +36,7 @@ function create_bounding_sphere_geometry(bsphere: THREE.Sphere, scale=1.0, color
 
 export
 function create_bounding_box_geometry(bbox: THREE.Box3, scale=1.0, color=0xcccccc): THREE.Mesh {
-    const dims = bbox.getSize().toArray().map(x => scale*x);
+    const dims = bbox.getSize(new THREE.Vector3()).toArray().map(x => scale*x);
 
     // Showing only backside faces avoids hiding the model
     const side = THREE.BackSide;
@@ -44,14 +44,14 @@ function create_bounding_box_geometry(bbox: THREE.Box3, scale=1.0, color=0xccccc
 
     const geometry = new THREE.BoxGeometry(dims[0], dims[1], dims[2]);
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(bbox.getCenter());
+    bbox.getCenter(mesh.position);
 
     return mesh;
 }
 
 export
 function create_bounding_box_midplanes_geometry(bbox: THREE.Box3, scale=1.0, color=0xcccccc): THREE.Object3D {
-    const dims = bbox.getSize().toArray().map(x => scale*x);
+    const dims = bbox.getSize(new THREE.Vector3()).toArray().map(x => scale*x);
 
     const range = [0, 1, 2];
     const side = THREE.DoubleSide;
@@ -72,12 +72,12 @@ function create_bounding_box_midplanes_geometry(bbox: THREE.Box3, scale=1.0, col
     meshes[1].rotateZ(angle);
     const group = new THREE.Group();
     meshes.forEach(mesh => group.add(mesh));
-    group.position.copy(bbox.getCenter());
+    bbox.getCenter(group.position);
     return group;
 }
 
 function bounding_box_corners(bbox: THREE.Box3, scale: number) {
-    const offset = bbox.getSize().toArray().map(x => 0.5*(scale-1.0)*x);
+    const offset = bbox.getSize(new THREE.Vector3()).toArray().map(x => 0.5*(scale-1.0)*x);
     const u = bbox.min.toArray();
     const v = bbox.max.toArray();
     for (let i = 0; i < 3; ++i) {
