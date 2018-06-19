@@ -10,7 +10,7 @@
     "url": "https://github.com/martinal/unray.git"
   },
   "jupyterlab": {
-    "extension": "lib/plugin"
+    "extension": "dist/labext"
   },
   "keywords": [
     "jupyter",
@@ -28,8 +28,8 @@
   ],
   "scripts": {
     "build": "npm run build:lib && npm run build:nbextension",
-    "build:labextension": "cd ../unray && rimraf labextension && mkdirp labextension && cd labextension && npm pack ../../js",
-    "build:lib": "tsc --project src",
+    "build:labextension": "cd ../unray && rimraf labextension && mkdirp labextension && cd labextension && npm pack .",
+    "build:lib": "tsc --project src && node scripts/copy-shaders.js",
     "build:nbextension": "webpack -p",
     "build:all": "npm run build:lib && npm run build:labextension && npm run build:nbextension",
     "lint": "eslint src/*.js",
@@ -59,6 +59,7 @@
     "eslint-plugin-promise": "^3.8.0",
     "eslint-plugin-standard": "^3.1.0",
     "expect.js": "^0.3.1",
+    "fs-extra": "^6.0.1",
     "jupyter-threejs": "^1.1.0",
     "karma": "^2.0.3",
     "karma-chrome-launcher": "^2.2.0",
@@ -76,7 +77,8 @@
     "typescript": "~2.9.2",
     "webpack": "^4.12.0",
     "webpack-cli": "^3.0.8",
-    "webpack-glsl-loader": "^1.0.1"
+    "webpack-glsl-loader": "^1.0.1",
+    "webpack-node-externals": "^1.7.2"
   },
   "dependencies": {
     "@jupyter-widgets/base": "^1.1.8",

@@ -1,4 +1,5 @@
 const path = require('path');
+const nodeExternals = require('webpack-node-externals');
 
 // Target paths
 const static_path = path.resolve(__dirname, '../unray/static');
@@ -48,6 +49,26 @@ const index = {
 };
 
 
+// Setup externals such that we only bundle unray stuff
+
+
+// Bundle for the lab extension, for including shaders. Externalize all other deps
+const lab = {
+    entry: './src/plugin.ts',
+    output: {
+        filename: 'labext.js',
+        path: dist_path,
+        libraryTarget: 'amd'
+    },
+    devtool: 'source-map',
+    module: {
+        rules
+    },
+    externals: [nodeExternals()],
+    resolve,
+};
+
+
 // Embeddable unray bundle
 //
 // This bundle is generally almost identical to the notebook bundle
@@ -81,5 +102,6 @@ const embed = {
 
 module.exports = [
     index,
-    embed
+    embed,
+    lab
 ];
