@@ -30,6 +30,7 @@ nb_path = pjoin(HERE, name, 'static')
 targets = [
     pjoin(nb_path, 'index.js'),
     pjoin(nb_path, 'extension.js'),
+    pjoin(HERE, 'js', 'dist', 'labext.js'),
 ]
 
 package_data_spec = {
