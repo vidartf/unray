@@ -25,23 +25,26 @@ const EXTENSION_ID = 'jupyter.extensions.unray';
 
 
 /**
- * The example plugin.
+ * The unray lab plugin.
  */
-const examplePlugin: IPlugin<Application<Widget>, void> = {
+const unrayPlugin: IPlugin<Application<Widget>, void> = {
   id: EXTENSION_ID,
   requires: [IJupyterWidgetRegistry],
   activate: activateWidgetExtension,
   autoStart: true
 };
 
-export default examplePlugin;
+export default unrayPlugin;
 
 
 const widget_exports: {[key: string]: typeof WidgetModel} = {};
+console.log(WidgetModel, datawidgets, plotwidgets);
 for (let source of [datawidgets, plotwidgets]) {
   for (let key of Object.keys(source)) {
-    if ((source as any)[key] instanceof WidgetModel) {
-      widget_exports[key] = (source as any)[key] as typeof WidgetModel;
+    let v = (source as any)[key];
+    console.log(key, v.prototype instanceof WidgetModel);
+    if (v.prototype instanceof WidgetModel) {
+      widget_exports[key] = v;
     }
   }
 }
