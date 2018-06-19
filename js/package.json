@@ -31,7 +31,7 @@
     "build:labextension": "cd ../unray && rimraf labextension && mkdirp labextension && cd labextension && npm pack ../../js",
     "build:lib": "tsc --project src && node scripts/copy-shaders.js",
     "build:extensions": "webpack -p",
-    "build:all": "npm run build:lib && npm run build:labextension",
+    "build:all": "npm run build:lib && npm run build:extensions && npm run build:labextension",
     "lint": "eslint src/*.js",
     "node": "node",
     "watch": "onchange 'package.json' 'src/*.ts' 'src/glsl/*.glsl' 'src/glsl/utils/*.glsl' -v -- npm run build",
