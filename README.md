@@ -56,3 +56,10 @@ For a development installation (requires npm),
     jupyter nbextension install --py --symlink --sys-prefix unray
     jupyter nbextension enable --py --sys-prefix unray
 
+
+## Acknowledgements
+
+unray is developed with financial support from:
+
+- OpenDreamKit Horizon 2020 European Research Infrastructures project (#676541), https://opendreamkit.org
+
