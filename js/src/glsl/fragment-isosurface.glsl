@@ -1,96 +1,93 @@
 // Config check
-#if !(defined(ENABLE_EMISSION_BACK) || defined(ENABLE_DENSITY_BACK))
-compile_error();  // Isosurface needs front and back values
+#if !defined(ENABLE_EMISSION_BACK)
+#error Isosurface needs front and back values of emission field.
 #endif
 
 
-// Select values from emission or density field
-// TODO: If both are present, use density for isovalue selection
-//       and corresponding emission for coloring
-#if defined(ENABLE_DENSITY_BACK)
-float front = v_density;
-float back = density_back;
-vec4 value_range = u_density_range;
-#elif defined(ENABLE_EMISSION_BACK)
-float front = v_emission;
-float back = emission_back;
-vec4 value_range = u_emission_range;
+// TODO: If both emission and density are present,
+//       could use density for isovalue selection
+//       and map to emission at same point for coloring
+
+
+// Attempts at avoiding edge artifacts
+//float tolerance = mix(0.001, 0.05, clamp(maxv(bc_width), 0.0, 1.0));
+//float tolerance = mix(0.0001, 0.03, clamp(minv(bc_width), 0.0, 1.0));
+// float tolerance = 0.03;  // TODO: Make this a uniform
+float tolerance = 0.0;
+
+
+#ifdef USING_ISOSURFACE_MODE_SINGLE
+    // Single surface variant, check if value is outside range in unscaled domain
+    if (is_outside_interval(u_isovalue, emission_back, emission, tolerance)) {
+        discard;
+    }
 #endif
 
-// Magically chosen tolerance for avoiding edge artifacts on isosurfaces
-// FIXME: This used clamp incorrectly, check again how this behaves...
-float tolerance = mix(0.001, 0.05, clamp(maxv(bc_width), 0.0, 1.0));
-//float tolerance = mix(0.0001, 0.03, clamp(midv(bc_width), 0.0, 1.0));
-//float tolerance = 0.03;  // TODO: Make this a uniform
 
-#if defined(USING_ISOSURFACE_MODE_SINGLE)
-// Single surface variant, check if value is outside range of ray
-float value = u_isovalue;
-if (is_outside_interval(value, back, front, tolerance)) {
-    discard;
-}
-#elif defined(USING_ISOSURFACE_MODE_SWEEP)
-// Single surface variant, check if value is outside range of ray
-float value = mix(value_range.x, value_range.y, fract(u_time / u_isovalue_sweep_period));
-if (is_outside_interval(value, back, front, tolerance)) {
-    discard;
-}
-#elif defined(USING_ISOSURFACE_MODE_LINEAR)
-// Multiple surfaces spaced with fixed distance
-float value;
-if (!find_isovalue_linear_spacing(value, back, front, u_isovalue, u_isovalue_spacing, tolerance)) {
-    discard;
-}
-#elif defined(USING_ISOSURFACE_MODE_LOG)
-// Multiple surfaces spaced with fixed ratio
-float value;
-if (!find_isovalue_log_spacing(value, back, front, u_isovalue, u_isovalue_spacing, tolerance)) {
-    discard;
-}
-#elif defined(USING_ISOSURFACE_MODE_POWER)
-// FIXME: Implement find_isovalue_power_spacing
-// Multiple surfaces spaced with fixed ratio
-float value;
-if (!find_isovalue_power_spacing(value, back, front, u_isovalue, u_isovalue_spacing, tolerance)) {
-    discard;
-}
+// Scale root value (value for n=0)
+#if defined(USE_EMISSION_SCALE_IDENTITY)
+    float scaled_rootvalue = u_isovalue;
+#endif
+#if defined(USE_EMISSION_SCALE_LINEAR)
+    float scaled_rootvalue = u_emission_scale_m * u_isovalue + u_emission_scale_b;
+#endif
+#if defined(USE_EMISSION_SCALE_LOG)
+    float scaled_rootvalue = u_emission_scale_m * log(u_isovalue) + u_emission_scale_b;
+#endif
+#if defined(USE_EMISSION_SCALE_POW)
+    float scaled_rootvalue = u_emission_scale_m * pow(u_isovalue, u_emission_scale_k) + u_emission_scale_b;
+#endif
+
+
+#ifdef USING_ISOSURFACE_MODE_SINGLE
+    // Single surface variant, range check is earlier
+    float scaled_isovalue = scaled_rootvalue;
 #else
-compile_error(); // Missing valid USING_ISOSURFACE_* define
+    // Multiple surfaces spaced with fixed distance in scaled space
+
+    // Find fractional isosurface level for back and front values
+    float na = u_isovalue_spacing_inv * (scaled_emission_back - scaled_rootvalue);
+    float nb = u_isovalue_spacing_inv * (scaled_emission - scaled_rootvalue);
+
+    // Find integer level n within [na,nb] or [nb,na]
+    float n;
+    if (!find_closest_level(n, na, nb, tolerance)) {
+        discard;
+    }
+
+    // Reconstruct scaled isovalue at level n
+    // FIXME: Is it ok that the unit/scale of u_isovalue_spacing is in unit interval deltas?
+    float scaled_isovalue = n * u_isovalue_spacing + scaled_rootvalue;
 #endif
 
 
-// Map value through color lut
-float scaled_value = (value - value_range.x) * value_range.w;
-#if defined(ENABLE_EMISSION_BACK)
+// Discard isosurfaces out of range
+if (scaled_isovalue < 0.0 || scaled_isovalue > 1.0) {
+    discard;
+}
+
+
+// Map value
 #ifdef ENABLE_EMISSION_LUT
-vec3 C = texture2D(t_emission_lut, vec2(scaled_value, 0.5)).xyz; // CHECKME
+    vec3 C = texture2D(t_emission_lut, vec2(scaled_isovalue, 0.5)).xyz;
 #else
-vec3 C = u_emission_color * scaled_value; // CHECKME
-#endif
-#elif defined(ENABLE_DENSITY_BACK)
-#ifdef ENABLE_DENSITY_LUT
-float C = u_emission_color * texture2D(t_density_lut, vec2(scaled_value, 0.5)).a;
-#else
-float C = u_emission_color * scaled_value;
-#endif
+    vec3 C = u_emission_color * scaled_isovalue;
 #endif
 
 
 // Apply some shading
-#if defined(ENABLE_SURFACE_LIGHT) && (defined(ENABLE_EMISSION) || defined(ENABLE_DENSITY))
-// Gradient of source function is parallel to the normal of the isosurface
-#if defined(ENABLE_EMISSION)
-vec3 surface_normal = normalize(v_emission_gradient);
-#elif defined(ENABLE_DENSITY)
-vec3 surface_normal = normalize(v_density_gradient);
-#endif
-// Using abs to ignore which side we see isosurface from
-float cos_V_N = abs(dot(surface_normal, view_direction));
+#ifdef ENABLE_SURFACE_LIGHT
+    // Gradient of source function is parallel to the normal of the isosurface
+    vec3 surface_normal = normalize(v_emission_gradient);
 
-// Apply shading to emission color
-float k_emit = mix(u_emission_intensity_range.x, u_emission_intensity_range.y, cos_V_N);
-C *= k_emit;
+    // Using abs to ignore which side we see isosurface from
+    float cos_V_N = abs(dot(surface_normal, view_direction));
+
+    // Apply shading to emission color
+    float k_emit = mix(u_emission_intensity_range.x, u_emission_intensity_range.y, cos_V_N);
+    C *= k_emit;
 #endif
+
 
 // Opaque since isosurface is contained in [back, front] unless discarded
 float a = 1.0;

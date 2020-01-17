@@ -3,11 +3,11 @@
 
 // Config checks
 #if defined(ENABLE_EMISSION) && defined(ENABLE_DENSITY)
-compile_error();  // Only emission OR density allowed.
+#error Only emission OR density allowed.
 #endif
 
 #if !(defined(ENABLE_EMISSION) || defined(ENABLE_DENSITY))
-compile_error();  // Need emission or density.
+#error Need emission or density.
 #endif
 
 // Define color

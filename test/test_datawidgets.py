@@ -90,9 +90,9 @@ def test_isovalue_params(isovalue_params):
     expected = [
         ("mode", "single"),
         ("value", 0.0),
-        ("num_intervals", 0),
-        ("spacing", 1.0),
-        ("period", 3.0),
+        ("num_intervals", 1.0),
+        ("base", 0.0),
+        ("exponent", 2.0),
     ]
     for k, v in expected:
         assert getattr(isovalue_params, k) == v

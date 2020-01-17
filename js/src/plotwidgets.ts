@@ -153,7 +153,7 @@ function createWireframeParamsEncoding(params: datamodels.WireframeParamsModel):
 
 function createIsovalueParamsEncoding(params: datamodels.IsovalueParamsModel): IPartialEncodingEntriesAndData {
     const channel = "isovalues";
-    const keys = ["mode", "value", "num_intervals", "spacing", "period"];
+    const keys = ["mode", "value", "num_intervals", "base", "exponent"];
     return createParamsEncoding(params, channel, keys);
 }
 
@@ -220,6 +220,7 @@ function createDensityFieldEncoding(density: datamodels.ScalarFieldModel): IPart
     // Top level traits
     const field = getNotNull<datamodels.FieldModel>(density, "field");
     const lut = density.get("lut");
+    const scale = density.get("scale");
 
     // Non-optional field values
     const values = getIdentifiedValue(field, "values");
@@ -228,9 +229,15 @@ function createDensityFieldEncoding(density: datamodels.ScalarFieldModel): IPart
         data[id] = value;
         desc.field = id;
         desc.space = field.get("space");
-        // desc.range = field.get("range"); // FIXME
     } else {
         throw new Error(`Missing values in field.`);
+    }
+
+    if (scale) {
+        desc.scale = scale.get("mode");
+        desc.domain = scale.get("domain");
+        desc.scale_base = scale.get("base");
+        desc.scale_exponent = scale.get("exponent");
     }
 
     // Optional LUT
@@ -287,6 +294,7 @@ function createEmissionFieldEncoding(color: datamodels.ColorFieldModel): IPartia
     // Top level traits
     const field = getNotNull<datamodels.FieldModel>(color, "field");
     const lut = color.get("lut");
+    const scale = color.get("scale");
 
     // Non-optional field
     // color: ColorFieldModel
@@ -298,9 +306,15 @@ function createEmissionFieldEncoding(color: datamodels.ColorFieldModel): IPartia
         data[id] = value;
         desc.field = id;
         desc.space = field.get("space");
-        // desc.range = field.get("range"); // FIXME
     } else {
         throw new Error(`Missing required field values.`);
+    }
+
+    if (scale) {
+        desc.scale = scale.get("mode");
+        desc.domain = scale.get("domain");
+        desc.scale_base = scale.get("base");
+        desc.scale_exponent = scale.get("exponent");
     }
 
     // Optional LUT

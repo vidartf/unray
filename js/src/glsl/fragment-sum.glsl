@@ -1,6 +1,6 @@
 // Check config
 #if !defined(ENABLE_EMISSION)
-compile_error();  // Volume model requires emission
+#error Volume model requires emission
 #endif
 
 // Compute emission color

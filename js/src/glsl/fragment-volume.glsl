@@ -1,9 +1,9 @@
 // Check config
 #ifndef ENABLE_DENSITY
-compile_error();  // Volume model requires density
+#error Volume model requires density
 #endif
 #ifndef ENABLE_EMISSION
-compile_error();  // Volume model requires emission
+#error Volume model requires emission
 #endif
 
 

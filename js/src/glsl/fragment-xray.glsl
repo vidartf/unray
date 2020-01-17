@@ -1,10 +1,10 @@
 // Configuration checks
 #if defined(ENABLE_EMISSION)
-compile_error();  // Xray model does not accept emission
+#error Xray model does not accept emission.
 #endif
 
 #if !defined(ENABLE_DENSITY)
-compile_error();  // Xray model requires density
+#error Xray model requires density.
 #endif
 
 

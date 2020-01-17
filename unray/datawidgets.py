@@ -37,7 +37,10 @@ indicator_field_types = ("I0", "I1", "I2", "I3")
 colormap_names = ("viridis", "fixme")
 
 # List of valid isosurface types
-isosurface_types = ("single", "linear", "log", "power", "sweep")
+isosurface_types = ("single", "linear", "log", "pow")
+
+# List of valid scale types
+scale_types = ("identity", "linear", "log", "pow");
 
 
 class BaseWidget(widgets.Widget):
@@ -77,6 +80,55 @@ class IndicatorField(BaseWidget):
 
 
 # ------------------------------------------------------
+
+def Auto():
+    return Enum(["auto"], "auto")
+
+def Interval():
+    return List(CFloat, (0.0, 1.0), 2, 2)
+
+def Domain():
+    return Union([Auto(), Interval()])
+
+@register
+class Scale(BaseWidget):
+    """Representation of a scale. Probably to be replaced by ipyscales."""
+    _model_name = Unicode('ScaleModel').tag(sync=True)
+
+    mode = Enum(scale_types, "linear").tag(sync=True)
+    domain = Domain().tag(sync=True)
+    # Note: In d3-scale terminology, the range is always [0,1] here.
+    base = CFloat(0.0).tag(sync=True)     # log base
+    exponent = CFloat(2.0).tag(sync=True) # pow exponent (k in d3-scale definition)
+
+    def dashboard(self):
+        "Create linked widgets for this scale."
+        children = []
+
+        w = widgets.Dropdown(
+            value=self.mode,
+            options=[(v.capitalize(), v) for v in scale_types],
+            description="Mode")
+        traitlets.link((w, "value"), (self, "mode"))
+        children.append(w)
+
+        domain = tuple(self.domain) if self.domain != "auto" else (0.0, 1.0)
+        w = widgets.FloatRangeSlider(value=domain, description="Domain ([min, max])")
+        widgets.jslink((w, "value"), (self, "domain"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.base, min=0.0, readout_format=".4e", description="Log base")
+        widgets.jslink((w, "value"), (self, "base"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.exponent, min=0.1, max=10.0, step=0.1, readout_format=".1f", description="Pow exponent")
+        widgets.jslink((w, "value"), (self, "exponent"))
+        children.append(w)
+
+        return widgets.VBox(children=children)
+
+
+# ------------------------------------------------------
 # TODO: Lookup tables for scalars and colors should be
 # developed further in ipyscales or shared with some other project
 
@@ -96,10 +148,10 @@ class ArrayScalarMap(ScalarMap):
     _model_name = Unicode('ArrayScalarMapModel').tag(sync=True)
     values = DataUnion(dtype=np.float32, shape_constraint=shape_constraints(None)).tag(sync=True, **data_union_serialization)
 
-    # TODO: Handle linear/log scaled Maps somehow:
-    #space = Enum(["linear", "log", "power"], "linear").tag(sync=True)
+    # TODO: Handle linear/log scaled LUTs somehow:
+    #space = Enum(scale_types, "linear").tag(sync=True)
 
-    # TODO: Pair colors with domain values (Map is a mapping real -> real)
+    # TODO: Pair colors with domain values (LUT is a mapping real -> real)
 
     # TODO: Dashboard can make a list widget for values or
     #       a transfer function editor (would be a nice generic widget!)
@@ -152,7 +204,6 @@ class NamedColorMap(ColorMap):
 
 # ------------------------------------------------------
 
-
 class ScalarValued(BaseWidget):
     """Representation of a scalar quantity."""
     # Abstract class, don't register, and don't set name
@@ -183,11 +234,12 @@ class ScalarField(ScalarValued):
     _model_name = Unicode('ScalarFieldModel').tag(sync=True)
 
     field = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
+    scale = Instance(Scale, allow_none=True).tag(sync=True, **widget_serialization)
     lut = Instance(ScalarMap, allow_none=True).tag(sync=True, **widget_serialization)
 
     def dashboard(self):
         "Create linked widgets for this data."
-        children, titles = _gather_dashboards(self, ["lut"])
+        children, titles = _gather_dashboards(self, ["field", "scale", "lut"])
         return widgets.VBox(children=children)
 
 
@@ -259,11 +311,12 @@ class ColorField(ColorValued):
     _model_name = Unicode('ColorFieldModel').tag(sync=True)
 
     field = Instance(Field, allow_none=False).tag(sync=True, **widget_serialization)
+    scale = Instance(Scale, allow_none=True).tag(sync=True, **widget_serialization)
     lut = Instance(ColorMap, allow_none=True).tag(sync=True, **widget_serialization)
 
     def dashboard(self):
         "Create linked widgets for this data."
-        children, titles = _gather_dashboards(self, ["lut"])
+        children, titles = _gather_dashboards(self, ["field", "scale", "lut"])
 
         return widgets.VBox(children=children)
 
@@ -304,7 +357,7 @@ class WireframeParams(BaseWidget):
         widgets.jslink((w, "value"), (self, "enable"))
         children.append(w)
 
-        w = widgets.FloatSlider(value=self.size, min=0.005, max=0.1, step=0.005, readout_format=".3f", description="Width")
+        w = widgets.FloatSlider(value=self.size, min=0.005, max=0.1, step=0.005, readout_format=".3f", description="Size")
         widgets.jslink((w, "value"), (self, "size"))
         children.append(w)
 
@@ -323,11 +376,14 @@ class WireframeParams(BaseWidget):
 class IsovalueParams(BaseWidget):
     """Collection of isosurface value parameters."""
     _model_name = Unicode('IsovalueParamsModel').tag(sync=True)
+
+    # TODO: Use Scale
     mode = Enum(isosurface_types, "single").tag(sync=True)
+    base = CFloat(0.0).tag(sync=True)
+    exponent = CFloat(2.0).tag(sync=True)
+
     value = CFloat(0.0).tag(sync=True)
-    num_intervals = CFloat(0).tag(sync=True)
-    spacing = CFloat(1.0).tag(sync=True)
-    period = CFloat(3.0).tag(sync=True)
+    num_intervals = CFloat(1.0).tag(sync=True)
 
     def dashboard(self):
         "Create linked widgets for isosurface parameters."
@@ -340,16 +396,20 @@ class IsovalueParams(BaseWidget):
         traitlets.link((w, "value"), (self, "mode"))
         children.append(w)
 
-        w = widgets.FloatSlider(value=self.num_intervals, min=0.0, step=0.1, readout_format=".1f", description="Number of intervals")
+        w = widgets.FloatText(value=self.value, description="Value of (first) isosurface")
+        widgets.jslink((w, "value"), (self, "value"))
+        children.append(w)
+
+        w = widgets.FloatSlider(value=self.num_intervals, min=0.0, step=0.1, readout_format=".1f", description="No. intervals")
         widgets.jslink((w, "value"), (self, "num_intervals"))
         children.append(w)
 
-        w = widgets.FloatSlider(value=self.spacing, min=0.0, readout_format=".4e", description="Spacing")
-        widgets.jslink((w, "value"), (self, "spacing"))
+        w = widgets.FloatSlider(value=self.base, min=0.0, readout_format=".4e", description="Log base")
+        widgets.jslink((w, "value"), (self, "base"))
         children.append(w)
 
-        w = widgets.FloatSlider(value=self.period, min=0.1, max=10.0, step=0.1, readout_format=".1f", description="Period")
-        widgets.jslink((w, "value"), (self, "period"))
+        w = widgets.FloatSlider(value=self.exponent, min=0.1, max=10.0, step=0.1, readout_format=".1f", description="Pow exponent")
+        widgets.jslink((w, "value"), (self, "exponent"))
         children.append(w)
 
         return widgets.VBox(children=children)
