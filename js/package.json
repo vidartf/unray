@@ -92,6 +92,6 @@
     "ndarray-determinant": "^1.0.0",
     "ndarray-ops": "^1.2.2",
     "ndarray-pack": "^1.2.1",
-    "underscore": "^1.8.3"
+    "underscore": "^1.12.1"
   }
 }
